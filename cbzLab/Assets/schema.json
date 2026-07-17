@@ -1,0 +1,111 @@
+{
+  "_comment": "ComicInfo v2.0 schema definition for CBZ Editor. Add custom fields here.",
+
+  "sections": [
+    {
+      "header": "📖  Basic Information",
+      "first_tag": "Title",
+      "fields": [
+        {"tag": "Title",           "label": "Title",           "widget": "entry", "tooltip": "The title of this individual issue."},
+        {"tag": "Series",          "label": "Series",          "widget": "entry", "tooltip": "The name of the series this issue belongs to."},
+        {"tag": "Number",          "label": "Issue #",          "widget": "entry", "tooltip": "The issue number within the series (e.g. 1, 2, 10.5)."},
+        {"tag": "Count",           "label": "Count",           "widget": "entry", "tooltip": "Total number of issues in the series. Use -1 if unknown."},
+        {"tag": "Volume",          "label": "Volume",          "widget": "entry", "tooltip": "The volume number. Whole integer only (e.g. 1, 2, 3)."},
+        {"tag": "AlternateSeries", "label": "Alternate Series","widget": "entry", "tooltip": "An alternate series name this issue also belongs to."},
+        {"tag": "AlternateNumber", "label": "Alternate Number","widget": "entry", "tooltip": "The issue number within the alternate series."},
+        {"tag": "AlternateCount",  "label": "Alternate Count", "widget": "entry", "tooltip": "Total issues in the alternate series."},
+        {"tag": "Summary",         "label": "Summary",         "widget": "text",  "tooltip": "A description or plot summary of this issue."},
+        {"tag": "Notes",           "label": "Notes",           "widget": "text",  "tooltip": "Free-form notes, typically used for scan or release info."}
+      ]
+    },
+    {
+      "header": "📅  Publication Date",
+      "first_tag": "Year",
+      "fields": [
+        {"tag": "Year",  "label": "Publication Date",  "widget": "entry", "tooltip": "Publication date. Type a full date, a year alone, or 'MM/yyyy' for year and month — a full date can also be picked from the calendar button. Combines the underlying Year/Month/Day fields into one."},
+        {"tag": "Month", "label": "Month", "widget": "entry", "tooltip": "Publication month as a number, 1–12."},
+        {"tag": "Day",   "label": "Day",   "widget": "entry", "tooltip": "Publication day of the month, 1–31."}
+      ]
+    },
+    {
+      "header": "✏️  Creators",
+      "first_tag": "Writer",
+      "fields": [
+        {"tag": "Writer",      "label": "Writer",       "widget": "entry", "tooltip": "Writer(s). Separate multiple names with a comma."},
+        {"tag": "Penciller",   "label": "Penciller",    "widget": "entry", "tooltip": "Penciller(s). Separate multiple names with a comma."},
+        {"tag": "Inker",       "label": "Inker",        "widget": "entry", "tooltip": "Inker(s). Separate multiple names with a comma."},
+        {"tag": "Colorist",    "label": "Colorist",     "widget": "entry", "tooltip": "Colorist(s). Separate multiple names with a comma."},
+        {"tag": "Letterer",    "label": "Letterer",     "widget": "entry", "tooltip": "Letterer(s). Separate multiple names with a comma."},
+        {"tag": "CoverArtist", "label": "Cover Artist", "widget": "entry", "tooltip": "Cover artist(s). Separate multiple names with a comma."},
+        {"tag": "Editor",      "label": "Editor",       "widget": "entry", "tooltip": "Editor(s). Separate multiple names with a comma."}
+      ]
+    },
+    {
+      "header": "🏢  Publication Details",
+      "first_tag": "Publisher",
+      "fields": [
+        {"tag": "Publisher",   "label": "Publisher",       "widget": "entry", "tooltip": "The publisher of this comic (e.g. Marvel, DC, Image)."},
+        {"tag": "Imprint",     "label": "Imprint",         "widget": "entry", "tooltip": "Publisher imprint or sub-label (e.g. Vertigo, MAX)."},
+        {"tag": "Genre",       "label": "Genre",           "widget": "entry", "tooltip": "Genre(s) for this issue (e.g. Superhero, Horror, Sci-Fi)."},
+        {"tag": "Web",         "label": "Web",             "widget": "entry", "tooltip": "A URL relating to this issue (e.g. publisher page)."},
+        {"tag": "PageCount",   "label": "Page Count",      "widget": "entry", "tooltip": "Total number of pages in this issue. Auto-detect reads from the zip."},
+        {"tag": "LanguageISO", "label": "Language (ISO)",  "widget": "entry", "tooltip": "ISO 639-1 language code for the issue language (e.g. en, fr, de)."},
+        {"tag": "Format",      "label": "Format",          "widget": "entry", "tooltip": "Publication format (e.g. TPB, HC, Annual, Digital)."}
+      ]
+    },
+    {
+      "header": "🔧  Attributes",
+      "first_tag": "BlackAndWhite",
+      "fields": [
+        {"tag": "BlackAndWhite", "label": "Black & White", "widget": "combo",
+         "options": ["Unknown", "No", "Yes"],
+         "tooltip": "Whether this issue is in black and white."},
+        {"tag": "Manga", "label": "Manga", "widget": "combo",
+         "options": ["Unknown", "No", "Yes", "YesAndRightToLeft"],
+         "tooltip": "Whether this is a manga title, and its reading direction."},
+        {"tag": "AgeRating", "label": "Age Rating", "widget": "combo",
+         "options": ["Unknown", "Adults Only 18+", "Early Childhood", "Everyone",
+                     "Everyone 10+", "G", "Kids to Adults", "M", "MA15+",
+                     "Mature 17+", "PG", "R18+", "Rating Pending", "Teen", "X18+"],
+         "tooltip": "The age/content rating for this issue."}
+      ]
+    },
+    {
+      "header": "🦸  Story Details",
+      "first_tag": "Characters",
+      "fields": [
+        {"tag": "Characters",          "label": "Characters",          "widget": "entry", "tooltip": "Featured characters. Separate multiple names with a comma."},
+        {"tag": "Teams",               "label": "Teams",               "widget": "entry", "tooltip": "Featured teams or groups. Separate with a comma."},
+        {"tag": "Locations",           "label": "Locations",           "widget": "entry", "tooltip": "Key locations in this issue. Separate with a comma."},
+        {"tag": "StoryArc",            "label": "Story Arc",           "widget": "entry", "tooltip": "The story arc or event this issue is part of."},
+        {"tag": "SeriesGroup",         "label": "Series Group",        "widget": "entry", "tooltip": "A grouping label for related series."},
+        {"tag": "ScanInformation",     "label": "Scan Information",    "widget": "entry", "tooltip": "Information about the scan source or scanning group."},
+        {"tag": "MainCharacterOrTeam", "label": "Main Character/Team", "widget": "entry", "tooltip": "The primary character or team this series follows."}
+      ]
+    },
+    {
+      "header": "⭐  Rating & Review",
+      "first_tag": "CommunityRating",
+      "fields": [
+        {"tag": "CommunityRating", "label": "Community Rating", "widget": "entry", "tooltip": "Community star rating, 0.0–5.0 (decimal allowed)."},
+        {"tag": "Review",          "label": "Review",           "widget": "text",  "tooltip": "A review or editorial comment about this issue."}
+      ]
+    }
+  ],
+
+  "constraints": {
+    "int_fields":   ["Count", "Volume", "AlternateCount", "Year", "Month", "Day", "PageCount"],
+    "float_fields": ["CommunityRating"],
+    "float_ranges": {"CommunityRating": [0.0, 5.0]},
+    "image_extensions": [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff", ".tif"],
+    "int_hints": {
+      "Count":          "total number of issues in the series (e.g. 6, 12)",
+      "Volume":         "volume number (e.g. 1, 2, 3)",
+      "AlternateCount": "total issues in the alternate series (e.g. 4)",
+      "Year":           "four-digit publication year (e.g. 2024)",
+      "Month":          "publication month, 1–12 (e.g. 3 for March)",
+      "Day":            "publication day of the month, 1–31 (e.g. 15)",
+      "PageCount":      "total number of pages (e.g. 24, 48)"
+    }
+  }
+}

@@ -1,0 +1,746 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="cbzLab.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:conv="using:cbzLab.Converters"
+    xmlns:tv="using:WinUI.TableView">
+
+    <!--window has no Resources property in winui 3, so everything lives on the root grid-->
+    <Grid x:Name="RootGrid" Background="{StaticResource ThBg}"
+          AllowDrop="True"
+          DragOver="RootGrid_DragOver"
+          DragEnter="RootGrid_DragEnter"
+          DragLeave="RootGrid_DragLeave"
+          Drop="RootGrid_Drop">
+        <Grid.KeyboardAccelerators>
+            <KeyboardAccelerator Modifiers="Control" Key="Number1" Invoked="TabNumberAccelerator_Invoked"/>
+            <KeyboardAccelerator Modifiers="Control" Key="Number2" Invoked="TabNumberAccelerator_Invoked"/>
+            <KeyboardAccelerator Modifiers="Control" Key="Number3" Invoked="TabNumberAccelerator_Invoked"/>
+            <KeyboardAccelerator Modifiers="Control" Key="Number4" Invoked="TabNumberAccelerator_Invoked"/>
+            <KeyboardAccelerator Modifiers="Control" Key="Number5" Invoked="TabNumberAccelerator_Invoked"/>
+            <KeyboardAccelerator Modifiers="Control" Key="Tab" Invoked="CtrlTab_Invoked"/>
+            <KeyboardAccelerator Modifiers="Control,Shift" Key="Tab" Invoked="CtrlShiftTab_Invoked"/>
+            <KeyboardAccelerator Key="F6" Invoked="F6_Invoked"/>
+            <KeyboardAccelerator Modifiers="Shift" Key="F6" Invoked="ShiftF6_Invoked"/>
+        </Grid.KeyboardAccelerators>
+        <Grid.Resources>
+            <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
+            <conv:BoolToErrorBrushConverter x:Key="ErrorBorder"/>
+
+            <!--single-line field-->
+            <DataTemplate x:Key="EntryFieldTemplate">
+                <StackPanel Margin="{Binding DataContext.FieldMargin, ElementName=RootGrid}"
+                            ToolTipService.ToolTip="{Binding Tooltip}">
+                    <StackPanel.ContextFlyout>
+                        <MenuFlyout>
+                            <MenuFlyoutItem Text="Revert to Saved" Click="RevertField_Click"/>
+                        </MenuFlyout>
+                    </StackPanel.ContextFlyout>
+                    <TextBlock Text="{Binding Label}" FontSize="12" Margin="0,0,0,4"
+                               Foreground="{StaticResource ThLblFg}"/>
+                    <!--a Grid rather than a horizontal StackPanel: the textbox column is
+                        star-sized so it actually stretches when the fields-fill-width
+                        setting is on, rather than just hugging its own MinWidth-->
+                    <Grid ColumnSpacing="6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <!--the border is a decorative outline only; transparent when valid,
+                            so the textbox's own themed border still shows normally beneath it-->
+                        <Border Grid.Column="0"
+                                BorderBrush="{Binding HasError, Converter={StaticResource ErrorBorder}}"
+                                BorderThickness="1.5" CornerRadius="4">
+                            <TextBox Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     PlaceholderText="{Binding PlaceholderText}"
+                                     PlaceholderForeground="{StaticResource ThMixedFg}"
+                                     LostFocus="EntryField_LostFocus"
+                                     MinWidth="280"/>
+                        </Border>
+                        <!--picker: detected values across the batch selection, or recently
+                            typed values for this field when editing a single file-->
+                        <DropDownButton Grid.Column="1" Content="&#xE70D;" FontFamily="Segoe MDL2 Assets"
+                                        ToolTipService.ToolTip="Choose a value"
+                                        Visibility="{Binding ShowPicker, Converter={StaticResource BoolToVis}}">
+                            <DropDownButton.Flyout>
+                                <Flyout Placement="Bottom">
+                                    <ListView MinWidth="300" MaxHeight="260"
+                                              SelectionMode="None" IsItemClickEnabled="True"
+                                              ItemsSource="{Binding DistinctValues}"
+                                              ItemClick="BatchPicker_ItemClick"
+                                              DataContext="{Binding}">
+                                        <ListView.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Display}"/>
+                                            </DataTemplate>
+                                        </ListView.ItemTemplate>
+                                    </ListView>
+                                </Flyout>
+                            </DropDownButton.Flyout>
+                        </DropDownButton>
+                    </Grid>
+                    <!--live validation message; save-time validation still runs separately on Save-->
+                    <TextBlock Text="{Binding ErrorMessage}" FontSize="11" TextWrapping="Wrap"
+                               Foreground="{StaticResource ThErrorLbl}" MaxWidth="360"
+                               Margin="0,3,0,0"
+                               Visibility="{Binding HasError, Converter={StaticResource BoolToVis}}"/>
+                </StackPanel>
+            </DataTemplate>
+
+            <!--multi-line field-->
+            <DataTemplate x:Key="TextFieldTemplate">
+                <StackPanel Margin="{Binding DataContext.FieldMargin, ElementName=RootGrid}"
+                            ToolTipService.ToolTip="{Binding Tooltip}">
+                    <StackPanel.ContextFlyout>
+                        <MenuFlyout>
+                            <MenuFlyoutItem Text="Revert to Saved" Click="RevertField_Click"/>
+                        </MenuFlyout>
+                    </StackPanel.ContextFlyout>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="{Binding Label}" FontSize="12"
+                                   Foreground="{StaticResource ThLblFg}"/>
+                        <!--batch picker sits next to the label since the textbox below is full width-->
+                        <DropDownButton Content="&#xE70D;" FontFamily="Segoe MDL2 Assets"
+                                        Height="24" Padding="6,0"
+                                        ToolTipService.ToolTip="Choose from detected values"
+                                        Visibility="{Binding IsBatch, Converter={StaticResource BoolToVis}}">
+                            <DropDownButton.Flyout>
+                                <Flyout Placement="Bottom">
+                                    <ListView MinWidth="300" MaxHeight="260"
+                                              SelectionMode="None" IsItemClickEnabled="True"
+                                              ItemsSource="{Binding DistinctValues}"
+                                              ItemClick="BatchPicker_ItemClick"
+                                              DataContext="{Binding}">
+                                        <ListView.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Display}"/>
+                                            </DataTemplate>
+                                        </ListView.ItemTemplate>
+                                    </ListView>
+                                </Flyout>
+                            </DropDownButton.Flyout>
+                        </DropDownButton>
+                    </StackPanel>
+                    <TextBox Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             PlaceholderText="{Binding PlaceholderText}"
+                             PlaceholderForeground="{StaticResource ThMixedFg}"
+                             AcceptsReturn="True" TextWrapping="Wrap" Height="110"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             Margin="0,4,0,0"/>
+                </StackPanel>
+            </DataTemplate>
+
+            <!--dropdown field: a plain combo in single mode, a value-count picker in batch mode-->
+            <DataTemplate x:Key="ComboFieldTemplate">
+                <StackPanel Margin="{Binding DataContext.FieldMargin, ElementName=RootGrid}"
+                            ToolTipService.ToolTip="{Binding Tooltip}">
+                    <StackPanel.ContextFlyout>
+                        <MenuFlyout>
+                            <MenuFlyoutItem Text="Revert to Saved" Click="RevertField_Click"/>
+                        </MenuFlyout>
+                    </StackPanel.ContextFlyout>
+                    <TextBlock Text="{Binding Label}" FontSize="12" Margin="0,0,0,4"
+                               Foreground="{StaticResource ThLblFg}"/>
+                    <ComboBox ItemsSource="{Binding Options}"
+                              SelectedItem="{Binding Value, Mode=TwoWay}"
+                              PlaceholderText="{Binding PlaceholderText}"
+                              MinWidth="280"
+                              Visibility="{Binding IsBatch, Converter={StaticResource BoolToVis}, ConverterParameter=invert}"/>
+                    <DropDownButton MinWidth="280" Content="{Binding BatchButtonText}"
+                                    Visibility="{Binding IsBatch, Converter={StaticResource BoolToVis}}">
+                        <DropDownButton.Flyout>
+                            <Flyout Placement="Bottom">
+                                <ListView MinWidth="300" MaxHeight="260"
+                                          SelectionMode="None" IsItemClickEnabled="True"
+                                          ItemsSource="{Binding DistinctValues}"
+                                          ItemClick="BatchPicker_ItemClick">
+                                    <ListView.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Display}"/>
+                                        </DataTemplate>
+                                    </ListView.ItemTemplate>
+                                </ListView>
+                            </Flyout>
+                        </DropDownButton.Flyout>
+                    </DropDownButton>
+                </StackPanel>
+            </DataTemplate>
+
+            <!--composite date field: Year/Month/Day combined into one localized text
+                entry (FieldViewModel.DateDisplayValue), with a calendar picker
+                alongside for convenience. Still freely typable — ComicInfo allows
+                partial dates (year-only, or year+month), which a calendar-only
+                control can't represent, so the picker is a convenience layered on
+                top of free text, not a replacement for it.-->
+            <DataTemplate x:Key="DateFieldTemplate">
+                <StackPanel Margin="{Binding DataContext.FieldMargin, ElementName=RootGrid}"
+                            ToolTipService.ToolTip="{Binding Tooltip}">
+                    <StackPanel.ContextFlyout>
+                        <MenuFlyout>
+                            <MenuFlyoutItem Text="Revert to Saved" Click="RevertField_Click"/>
+                        </MenuFlyout>
+                    </StackPanel.ContextFlyout>
+                    <TextBlock Text="{Binding Label}" FontSize="12" Margin="0,0,0,4"
+                               Foreground="{StaticResource ThLblFg}"/>
+                    <Grid ColumnSpacing="6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0"
+                                BorderBrush="{Binding HasError, Converter={StaticResource ErrorBorder}}"
+                                BorderThickness="1.5" CornerRadius="4">
+                            <TextBox Text="{Binding DateDisplayValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     PlaceholderText="{Binding PlaceholderText}"
+                                     PlaceholderForeground="{StaticResource ThMixedFg}"
+                                     LostFocus="EntryField_LostFocus"
+                                     Width="140"/>
+                        </Border>
+                        <DropDownButton Grid.Column="1" Content="&#xE787;" FontFamily="Segoe MDL2 Assets"
+                                        ToolTipService.ToolTip="Pick a date">
+                            <DropDownButton.Flyout>
+                                <Flyout Placement="Bottom" Opened="DateField_FlyoutOpened">
+                                    <CalendarView SelectionMode="Single"
+                                                  SelectedDatesChanged="DateField_CalendarSelected"
+                                                  DataContext="{Binding}"/>
+                                </Flyout>
+                            </DropDownButton.Flyout>
+                        </DropDownButton>
+                    </Grid>
+                    <TextBlock Text="{Binding ErrorMessage}" FontSize="11" TextWrapping="Wrap"
+                               Foreground="{StaticResource ThErrorLbl}" MaxWidth="360"
+                               Margin="0,3,0,0"
+                               Visibility="{Binding HasError, Converter={StaticResource BoolToVis}}"/>
+                </StackPanel>
+            </DataTemplate>
+
+            <!--narrow numeric fields that share a row instead of each getting one of
+                their own (Number+Count+Volume, AlternateNumber+AlternateCount) — see
+                FieldViewModel.RowCompanions. Each is still an independent value with
+                its own label, own textbox, and own Revert to Saved — they just happen
+                to sit side by side to save space, unlike the date field above where
+                the three genuinely compose into one meaning.-->
+            <DataTemplate x:Key="NumericGroupTemplate">
+                <StackPanel Margin="{Binding DataContext.FieldMargin, ElementName=RootGrid}">
+                    <StackPanel Orientation="Horizontal" Spacing="16">
+                        <StackPanel Spacing="4" ToolTipService.ToolTip="{Binding Tooltip}">
+                            <StackPanel.ContextFlyout>
+                                <MenuFlyout>
+                                    <MenuFlyoutItem Text="Revert to Saved" Click="RevertField_Click"/>
+                                </MenuFlyout>
+                            </StackPanel.ContextFlyout>
+                            <TextBlock Text="{Binding Label}" FontSize="12" Foreground="{StaticResource ThLblFg}"/>
+                            <Border BorderBrush="{Binding HasError, Converter={StaticResource ErrorBorder}}"
+                                    BorderThickness="1.5" CornerRadius="4">
+                                <TextBox Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         PlaceholderText="{Binding PlaceholderText}"
+                                         PlaceholderForeground="{StaticResource ThMixedFg}"
+                                         LostFocus="EntryField_LostFocus" Width="90"/>
+                            </Border>
+                            <TextBlock Text="{Binding ErrorMessage}" FontSize="11" TextWrapping="Wrap"
+                                       Foreground="{StaticResource ThErrorLbl}" MaxWidth="200"
+                                       Visibility="{Binding HasError, Converter={StaticResource BoolToVis}}"/>
+                        </StackPanel>
+                        <ItemsControl ItemsSource="{Binding RowCompanions}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="16"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Spacing="4" ToolTipService.ToolTip="{Binding Tooltip}">
+                                        <StackPanel.ContextFlyout>
+                                            <MenuFlyout>
+                                                <MenuFlyoutItem Text="Revert to Saved" Click="RevertField_Click"/>
+                                            </MenuFlyout>
+                                        </StackPanel.ContextFlyout>
+                                        <TextBlock Text="{Binding Label}" FontSize="12"
+                                                   Foreground="{StaticResource ThLblFg}"/>
+                                        <Border BorderBrush="{Binding HasError, Converter={StaticResource ErrorBorder}}"
+                                                BorderThickness="1.5" CornerRadius="4">
+                                            <TextBox Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                     PlaceholderText="{Binding PlaceholderText}"
+                                                     PlaceholderForeground="{StaticResource ThMixedFg}"
+                                                     LostFocus="EntryField_LostFocus" Width="90"/>
+                                        </Border>
+                                        <TextBlock Text="{Binding ErrorMessage}" FontSize="11" TextWrapping="Wrap"
+                                                   Foreground="{StaticResource ThErrorLbl}" MaxWidth="200"
+                                                   Visibility="{Binding HasError, Converter={StaticResource BoolToVis}}"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </StackPanel>
+            </DataTemplate>
+
+            <conv:FieldTemplateSelector x:Key="FieldSelector"
+                                        EntryTemplate="{StaticResource EntryFieldTemplate}"
+                                        TextTemplate="{StaticResource TextFieldTemplate}"
+                                        ComboTemplate="{StaticResource ComboFieldTemplate}"
+                                        DateTemplate="{StaticResource DateFieldTemplate}"
+                                        NumericGroupTemplate="{StaticResource NumericGroupTemplate}"/>
+
+            <!--flat toolbar buttons-->
+            <Style x:Key="ToolButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="BorderBrush" Value="Transparent"/>
+                <Setter Property="Padding" Value="10,6"/>
+            </Style>
+            <Style x:Key="ToolToggleStyle" TargetType="ToggleButton">
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="BorderBrush" Value="Transparent"/>
+                <Setter Property="Padding" Value="10,6"/>
+            </Style>
+        </Grid.Resources>
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!--================================================================ menu-->
+        <MenuBar Grid.Row="0" Background="{StaticResource ThBg2}">
+            <MenuBarItem Title="File">
+                <MenuFlyoutItem Text="Open…" Click="OnOpen">
+                    <MenuFlyoutItem.KeyboardAccelerators>
+                        <KeyboardAccelerator Modifiers="Control" Key="O"/>
+                    </MenuFlyoutItem.KeyboardAccelerators>
+                </MenuFlyoutItem>
+                <MenuFlyoutSubItem x:Name="RecentMenu" Text="Open Recent"/>
+                <MenuFlyoutSeparator/>
+                <MenuFlyoutItem Text="Save" Click="OnSave">
+                    <MenuFlyoutItem.KeyboardAccelerators>
+                        <KeyboardAccelerator Modifiers="Control" Key="S"/>
+                    </MenuFlyoutItem.KeyboardAccelerators>
+                </MenuFlyoutItem>
+                <MenuFlyoutItem Text="Save As…" Click="OnSaveAs">
+                    <MenuFlyoutItem.KeyboardAccelerators>
+                        <KeyboardAccelerator Modifiers="Control,Shift" Key="S"/>
+                    </MenuFlyoutItem.KeyboardAccelerators>
+                </MenuFlyoutItem>
+                <MenuFlyoutItem Text="Save All" Click="OnSaveAll">
+                    <MenuFlyoutItem.KeyboardAccelerators>
+                        <KeyboardAccelerator Modifiers="Control,Menu" Key="S"/>
+                    </MenuFlyoutItem.KeyboardAccelerators>
+                </MenuFlyoutItem>
+                <MenuFlyoutSeparator/>
+                <MenuFlyoutItem Text="Revert" Click="OnRevert"/>
+                <MenuFlyoutItem Text="Remove from List" Click="OnRemove"/>
+                <MenuFlyoutItem Text="Close" Click="OnCloseFile">
+                    <MenuFlyoutItem.KeyboardAccelerators>
+                        <KeyboardAccelerator Modifiers="Control" Key="W"/>
+                    </MenuFlyoutItem.KeyboardAccelerators>
+                </MenuFlyoutItem>
+                <MenuFlyoutItem Text="Close All" Click="OnCloseAll"/>
+                <MenuFlyoutSeparator/>
+                <MenuFlyoutItem Text="Quit" Click="OnQuit">
+                    <MenuFlyoutItem.KeyboardAccelerators>
+                        <KeyboardAccelerator Modifiers="Control" Key="Q"/>
+                    </MenuFlyoutItem.KeyboardAccelerators>
+                </MenuFlyoutItem>
+            </MenuBarItem>
+
+            <MenuBarItem Title="View">
+                <ToggleMenuFlyoutItem Text="Show All Fields"
+                                      IsChecked="{Binding ShowAllFields, Mode=TwoWay}"/>
+                <ToggleMenuFlyoutItem Text="Show Extra Fields"
+                                      IsChecked="{Binding ShowExtraFields, Mode=TwoWay}"/>
+                <MenuFlyoutSeparator/>
+                <MenuFlyoutItem Text="Choose Grid Columns…" Click="OnChooseGridColumns"/>
+                <MenuFlyoutSeparator/>
+                <MenuFlyoutSubItem x:Name="ThemeMenu" Text="Theme"/>
+            </MenuBarItem>
+
+            <MenuBarItem Title="Tools">
+                <MenuFlyoutItem Text="Guess from Filename" Click="OnGuessFromFilename"/>
+                <MenuFlyoutItem Text="Auto Page Count" Click="OnAutoPageCount"/>
+                <MenuFlyoutSeparator/>
+                <MenuFlyoutItem Text="Copy XML" Click="OnCopyXml"/>
+                <MenuFlyoutItem Text="Paste XML" Click="OnPasteXml"/>
+                <MenuFlyoutSeparator Visibility="{Binding OnlineLookupEnabled, Converter={StaticResource BoolToVis}}"/>
+                <MenuFlyoutItem Text="Search ComicVine…" Click="OnSearchComicVine"
+                                Visibility="{Binding OnlineLookupEnabled, Converter={StaticResource BoolToVis}}"/>
+                <MenuFlyoutSeparator/>
+                <MenuFlyoutItem Text="Settings…" Click="OnSettings"/>
+            </MenuBarItem>
+
+            <MenuBarItem Title="Help">
+                <MenuFlyoutItem Text="About cbzLab" Click="OnAbout"/>
+            </MenuBarItem>
+        </MenuBar>
+
+        <!--================================================================ toolbar-->
+        <Border Grid.Row="1" Background="{StaticResource ThBg2}"
+                BorderBrush="{StaticResource ThSep}" BorderThickness="0,0,0,1">
+            <Grid SizeChanged="OnToolbarGridSizeChanged">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!--always shown rather than hidden-when-not-needed, to keep this simple —
+                    clicking them when there's nothing to scroll is just a harmless no-op-->
+                <Button Grid.Column="0" Style="{StaticResource ToolButtonStyle}" Click="OnToolbarScrollLeft"
+                        ToolTipService.ToolTip="Scroll toolbar left">
+                    <FontIcon Glyph="&#xE76B;" FontSize="12"/>
+                </Button>
+
+                <ScrollViewer Grid.Column="1" x:Name="ToolbarScroll"
+                              HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
+                              HorizontalScrollMode="Auto" VerticalScrollMode="Disabled">
+                    <StackPanel Orientation="Horizontal" Spacing="2" Padding="8,4">
+                        <Button Style="{StaticResource ToolButtonStyle}" Click="OnOpen"
+                                ToolTipService.ToolTip="Open archives">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon Glyph="&#xE8E5;" FontSize="14"/>
+                                <TextBlock Text="Open"/>
+                            </StackPanel>
+                        </Button>
+                <Button Style="{StaticResource ToolButtonStyle}" Click="OnSave"
+                        ToolTipService.ToolTip="Save the selected file(s) in place">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE74E;" FontSize="14"/>
+                        <TextBlock Text="Save"/>
+                    </StackPanel>
+                </Button>
+                <Button Style="{StaticResource ToolButtonStyle}" Click="OnSaveAll"
+                        ToolTipService.ToolTip="Save every file with unsaved changes">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE105;" FontSize="14"/>
+                        <TextBlock Text="Save All"/>
+                        <Border Background="{StaticResource ThBg2}"
+                                BorderBrush="{StaticResource ThDirtyFg}" BorderThickness="1.5"
+                                CornerRadius="9" MinWidth="18" Height="18" Padding="4,0"
+                                Visibility="{Binding HasDirtyFiles, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="{Binding DirtyCount}" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{StaticResource ThDirtyFg}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </StackPanel>
+                </Button>
+                <Border Width="1" Margin="6,4" Background="{StaticResource ThSep}"/>
+                <Button Style="{StaticResource ToolButtonStyle}" Click="OnRemove"
+                        ToolTipService.ToolTip="Remove the selected file(s) from the list (not from disk)">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE74D;" FontSize="14"/>
+                        <TextBlock Text="Remove"/>
+                    </StackPanel>
+                </Button>
+                <Button Style="{StaticResource ToolButtonStyle}" Click="OnRevert"
+                        ToolTipService.ToolTip="Discard edits on the current file and reload from disk">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE7A7;" FontSize="14"/>
+                        <TextBlock Text="Revert"/>
+                    </StackPanel>
+                </Button>
+                <Border Width="1" Margin="6,4" Background="{StaticResource ThSep}"/>
+                <Button Style="{StaticResource ToolButtonStyle}" Click="OnCopyXml"
+                        ToolTipService.ToolTip="Copy the current file's ComicInfo.xml to the clipboard">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE8C8;" FontSize="14"/>
+                        <TextBlock Text="Copy XML"/>
+                    </StackPanel>
+                </Button>
+                <Button Style="{StaticResource ToolButtonStyle}" Click="OnPasteXml"
+                        ToolTipService.ToolTip="Replace the current file's metadata from clipboard XML">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE77F;" FontSize="14"/>
+                        <TextBlock Text="Paste XML"/>
+                    </StackPanel>
+                </Button>
+                <Border Width="1" Margin="6,4" Background="{StaticResource ThSep}"/>
+                <Button Style="{StaticResource ToolButtonStyle}" Click="OnGuessFromFilename"
+                        ToolTipService.ToolTip="Fill empty Series/Number/Volume/Year fields from the filename and folder">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE773;" FontSize="14"/>
+                        <TextBlock Text="Guess from Filename"/>
+                    </StackPanel>
+                </Button>
+                <Border Width="1" Margin="6,4" Background="{StaticResource ThSep}"
+                        Visibility="{Binding OnlineLookupEnabled, Converter={StaticResource BoolToVis}}"/>
+                <Button Style="{StaticResource ToolButtonStyle}" Click="OnSearchComicVine"
+                        ToolTipService.ToolTip="Search ComicVine for this file's series and issue"
+                        Visibility="{Binding OnlineLookupEnabled, Converter={StaticResource BoolToVis}}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE721;" FontSize="14"/>
+                        <TextBlock Text="Search ComicVine"/>
+                    </StackPanel>
+                </Button>
+                <Border Width="1" Margin="6,4" Background="{StaticResource ThSep}"/>
+                <ToggleButton Style="{StaticResource ToolToggleStyle}"
+                              IsChecked="{Binding ShowAllFields, Mode=TwoWay}"
+                              ToolTipService.ToolTip="Show all fields, including empty ones">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE8A9;" FontSize="14"/>
+                        <TextBlock Text="All Fields"/>
+                    </StackPanel>
+                </ToggleButton>
+                <ToggleButton Style="{StaticResource ToolToggleStyle}"
+                              IsChecked="{Binding ShowExtraFields, Mode=TwoWay}"
+                              ToolTipService.ToolTip="Show unofficial/extra fields">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE710;" FontSize="14"/>
+                        <TextBlock Text="Extras"/>
+                    </StackPanel>
+                </ToggleButton>
+                <Border Width="1" Margin="6,4" Background="{StaticResource ThSep}"/>
+                <ToggleButton Style="{StaticResource ToolToggleStyle}" Click="OnToggleGridView"
+                              IsChecked="{Binding IsGridViewActive, Mode=TwoWay}"
+                              ToolTipService.ToolTip="Switch between the editor and a table view of your library">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE80A;" FontSize="14"/>
+                        <TextBlock Text="Grid View"/>
+                    </StackPanel>
+                </ToggleButton>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <Button Grid.Column="2" Style="{StaticResource ToolButtonStyle}" Click="OnToolbarScrollRight"
+                        ToolTipService.ToolTip="Scroll toolbar right">
+                    <FontIcon Glyph="&#xE76C;" FontSize="12"/>
+                </Button>
+            </Grid>
+        </Border>
+
+        <!--================================================================ content-->
+        <Grid Grid.Row="2" Visibility="{Binding IsGridViewActive, Converter={StaticResource BoolToVis}, ConverterParameter=invert}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="300"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!--sidebar: open files-->
+            <Grid Grid.Column="0" Background="{StaticResource ThListBg}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Text="OPEN FILES" FontSize="11" FontWeight="SemiBold"
+                           Foreground="{StaticResource ThSectionFg}" Margin="14,10,14,6"/>
+
+                <!--filter is a separate, always-live text filter over the file list itself;
+                    distinct from the field-search box, which only searches within one open file-->
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Margin="14,0,14,8">
+                    <TextBox x:Name="FileFilterBox" Width="150"
+                             PlaceholderText="Filter files…"
+                             Text="{Binding FileFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    <ComboBox x:Name="SortCombo" Width="112" SelectedIndex="0"
+                              SelectionChanged="SortCombo_SelectionChanged"
+                              ToolTipService.ToolTip="Sort open files by">
+                        <ComboBoxItem Content="Name"/>
+                        <ComboBoxItem Content="Series / No."/>
+                        <ComboBoxItem Content="Modified"/>
+                    </ComboBox>
+                </StackPanel>
+
+                <ListView x:Name="FileList" Grid.Row="2"
+                          ItemsSource="{Binding DisplayedFiles}"
+                          SelectionMode="Extended"
+                          SelectionChanged="FileList_SelectionChanged"
+                          RightTapped="FileList_RightTapped"
+                          Background="{StaticResource ThListBg}">
+                    <ListView.KeyboardAccelerators>
+                        <KeyboardAccelerator Modifiers="Control" Key="A" Invoked="FileListSelectAll_Invoked"/>
+                        <KeyboardAccelerator Key="Delete" Invoked="FileListDelete_Invoked"/>
+                    </ListView.KeyboardAccelerators>
+                    <ListView.ContextFlyout>
+                        <MenuFlyout Opening="FileContextFlyout_Opening">
+                            <MenuFlyoutItem Text="Save" Click="OnSave"/>
+                            <MenuFlyoutItem Text="Revert" Click="OnRevert"/>
+                            <MenuFlyoutItem Text="Remove from List" Click="OnRemove"/>
+                            <MenuFlyoutSeparator/>
+                            <MenuFlyoutItem Text="Copy Fields to Rest of Selection" Click="OnCopyFieldsToSelection"/>
+                            <MenuFlyoutSeparator/>
+                            <MenuFlyoutItem Text="Open Containing Folder" Click="OnOpenContainingFolder"/>
+                        </MenuFlyout>
+                    </ListView.ContextFlyout>
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="{Binding DataContext.FileRowMargin, ElementName=RootGrid}"
+                                  ToolTipService.ToolTip="{Binding Path}" ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <!--placeholder slot always shows; the image simply sits on top once decoded-->
+                                <Border Grid.Column="0" Width="30" Height="40" CornerRadius="2"
+                                        Background="{StaticResource ThBg2}">
+                                    <Image Source="{Binding CoverImage}" Stretch="UniformToFill"
+                                           Visibility="{Binding HasCover, Converter={StaticResource BoolToVis}}"/>
+                                </Border>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="{Binding FileName}"
+                                                   TextTrimming="CharacterEllipsis" MaxWidth="180"/>
+                                        <TextBlock Text="&#x2022;" FontWeight="Bold"
+                                                   Foreground="{StaticResource ThListDirty}"
+                                                   Visibility="{Binding IsDirty, Converter={StaticResource BoolToVis}}"/>
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding Subtitle}" FontSize="12"
+                                               Foreground="{StaticResource ThStatusFg}"
+                                               Opacity="{Binding SubtitleOpacity}"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+
+                <!--batch scope panel, visible only in multi-select-->
+                <Border Grid.Row="3" Background="{StaticResource ThBatchBg}"
+                        BorderBrush="{StaticResource ThSep}" BorderThickness="0,1,0,0"
+                        Visibility="{Binding IsBatchMode, Converter={StaticResource BoolToVis}}">
+                    <StackPanel Padding="14,8" Spacing="4">
+                        <TextBlock Text="{Binding BatchHeader}" FontSize="12" FontWeight="SemiBold"
+                                   Foreground="{StaticResource ThAccent}"/>
+                        <ScrollViewer MaxHeight="130" VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding BatchFileNames}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}" FontSize="12"
+                                                   Foreground="{StaticResource ThFg}"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <Border Grid.Column="1" Width="1" Background="{StaticResource ThSep}"/>
+
+            <!--editor panel-->
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!--cover + filename banner; single-file only, collapses in batch mode or
+                    when nothing is selected (the sidebar thumbnail is the one that always shows)-->
+                <Border Grid.Row="0" Padding="16,12" BorderBrush="{StaticResource ThSep}"
+                        BorderThickness="0,0,0,1"
+                        Visibility="{Binding IsSingleFileMode, Converter={StaticResource BoolToVis}}">
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Border Width="84" Height="112" CornerRadius="3"
+                                Background="{StaticResource ThBg2}">
+                            <Image Source="{Binding CurrentFile.CoverImage}" Stretch="UniformToFill"
+                                   Visibility="{Binding CurrentFile.HasCover, Converter={StaticResource BoolToVis}}"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="{Binding CurrentFile.FileName}" FontSize="15"
+                                       Foreground="{StaticResource ThFgBright}"
+                                       TextTrimming="CharacterEllipsis" MaxWidth="600"/>
+                            <TextBlock Text="{Binding CurrentFile.Subtitle}" FontSize="12"
+                                       Foreground="{StaticResource ThStatusFg}"
+                                       Opacity="{Binding CurrentFile.SubtitleOpacity}"
+                                       TextTrimming="CharacterEllipsis" MaxWidth="600"
+                                       Margin="0,2,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <TextBox Grid.Row="1" x:Name="SearchBox" Margin="16,10,16,4"
+                         PlaceholderText="Search fields…"
+                         Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         IsEnabled="{Binding IsSearchEnabled}"/>
+
+                <!--tabs act as a filter over one shared form; content lives below-->
+                <TabView Grid.Row="2" x:Name="EditorTabs" Height="44" Margin="12,4,12,0"
+                         IsAddTabButtonVisible="False" CanReorderTabs="False" CanDragTabs="False"
+                         SelectionChanged="EditorTabs_SelectionChanged">
+                    <TabView.TabItems>
+                        <TabViewItem Header="Basic Info" IsClosable="False"/>
+                        <TabViewItem Header="Publication" IsClosable="False"/>
+                        <TabViewItem Header="Creators" IsClosable="False"/>
+                        <TabViewItem Header="Story" IsClosable="False"/>
+                        <TabViewItem Header="Extras" IsClosable="False"/>
+                    </TabView.TabItems>
+                </TabView>
+
+                <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" Padding="16,10">
+                    <ItemsControl ItemsSource="{Binding VisibleFields}"
+                                  ItemTemplateSelector="{StaticResource FieldSelector}"
+                                  FontSize="{Binding EditorFontSize}"
+                                  FontFamily="{Binding EditorFontFamily}"
+                                  MaxWidth="{Binding EditorFieldsMaxWidth}" HorizontalAlignment="Left"
+                                  Margin="0,0,0,24"/>
+                </ScrollViewer>
+
+                <!--empty state-->
+                <TextBlock Grid.Row="3" Text="Open a comic archive to begin"
+                           Foreground="{StaticResource ThDisabledFg}" FontSize="16"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Visibility="{Binding HasSelection, Converter={StaticResource BoolToVis}, ConverterParameter=invert}"/>
+            </Grid>
+        </Grid>
+
+        <!--================================================================ grid view-->
+        <Grid Grid.Row="2" Visibility="{Binding IsGridViewActive, Converter={StaticResource BoolToVis}}">
+            <!--read-only for now — see MainWindow.xaml.cs RebuildGridColumns for how
+                the dynamic (user-picked) columns are built. The dirty-indicator column
+                below is fixed, not part of that picker — declared here in xaml (rather
+                than built in code like the dynamic ones) since its DataTemplate never
+                changes, and RebuildGridColumns is careful to only clear/rebuild
+                everything AFTER this one, never touching it.-->
+            <tv:TableView x:Name="ComicsGrid"
+                          ItemsSource="{Binding DisplayedFiles}"
+                          IsReadOnly="True"
+                          AutoGenerateColumns="False"
+                          SelectionMode="Extended"
+                          Margin="16,10,16,16"
+                          Tapped="OnGridTapped"
+                          RightTapped="OnGridRightTapped">
+                <tv:TableView.Columns>
+                    <tv:TableViewTemplateColumn Header="" Width="32" CanSort="False">
+                        <tv:TableViewTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="&#x2022;" FontWeight="Bold" FontSize="16"
+                                           Foreground="{StaticResource ThListDirty}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Visibility="{Binding IsDirty, Converter={StaticResource BoolToVis}}"/>
+                            </DataTemplate>
+                        </tv:TableViewTemplateColumn.CellTemplate>
+                    </tv:TableViewTemplateColumn>
+                </tv:TableView.Columns>
+                <tv:TableView.ContextFlyout>
+                    <MenuFlyout Opening="GridContextFlyout_Opening">
+                        <MenuFlyoutItem x:Name="GridEditMenuItem" Text="Edit" Click="OnGridEditSelection"/>
+                        <MenuFlyoutSeparator/>
+                        <MenuFlyoutItem Text="Choose Columns…" Click="OnChooseGridColumns"/>
+                    </MenuFlyout>
+                </tv:TableView.ContextFlyout>
+            </tv:TableView>
+        </Grid>
+
+        <!--================================================================ status bar-->
+        <Border Grid.Row="3" Background="{StaticResource ThStatusBg}"
+                BorderBrush="{StaticResource ThSep}" BorderThickness="0,1,0,0">
+            <TextBlock Text="{Binding StatusText}" Foreground="{StaticResource ThStatusFg}"
+                       FontSize="12" Padding="12,4"/>
+        </Border>
+
+        <!--drag-and-drop overlay: shown only while a file is being dragged over the
+            window; IsHitTestVisible="False" so the drag events keep landing on
+            RootGrid itself rather than being swallowed by this overlay-->
+        <Border x:Name="DropOverlay" Grid.Row="0" Grid.RowSpan="4"
+                Background="#B0000000" BorderBrush="{StaticResource ThAccent}" BorderThickness="3"
+                Visibility="Collapsed" IsHitTestVisible="False">
+            <TextBlock Text="Drop comic archives to open" FontSize="22" FontWeight="SemiBold"
+                       Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+    </Grid>
+</Window>

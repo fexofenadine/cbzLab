@@ -1,0 +1,46 @@
+{
+  "_description": "Synthwave Dark — deep space navy and purple backgrounds with hot pink and electric cyan neon accents. Inspired by 80s Outrun aesthetics.",
+
+  "bg":          "#0d0221",
+  "bg2":         "#1a0a3d",
+  "bg3":         "#261255",
+  "sep":         "#4a1f7a",
+  "fg":          "#d4b3ff",
+  "fg_bright":   "#f0d6ff",
+  "accent":      "#ff2d9b",
+
+  "entry_bg":    "#1a0a3d",
+  "entry_fg":    "#d4b3ff",
+  "entry_sel":   "#6b1fa8",
+  "lbl_fg":      "#c49dff",
+  "section_fg":  "#00f0ff",
+
+  "status_bg":   "#1a0a3d",
+  "status_fg":   "#7b52c9",
+  "insert_cur":  "#ff2d9b",
+
+  "disabled_bg": "#0d0221",
+  "disabled_fg": "#4a1f7a",
+  "scrollbar":   "#1a0a3d",
+  "thumb":       "#4a1f7a",
+
+  "error_bg":    "#3d0020",
+  "error_fg":    "#ff2d9b",
+  "error_lbl":   "#ff2d9b",
+
+  "search_bg":   "#1a0a3d",
+  "search_fg":   "#d4b3ff",
+  "tooltip_bg":  "#261255",
+  "tooltip_fg":  "#f0d6ff",
+
+  "dirty_fg":    "#f7e53b",
+  "mixed_fg":    "#00f0ff",
+
+  "list_sel":    "#1a0a3d",
+  "list_sel_fg": "#ff2d9b",
+  "list_bg":     "#0d0221",
+  "list_fg":     "#d4b3ff",
+  "list_dirty":  "#f7e53b",
+
+  "batch_bg":    "#08011a"
+}

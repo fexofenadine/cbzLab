@@ -1,0 +1,55 @@
+#build output
+bin/
+obj/
+*.user
+[Dd]ebug/
+[Rr]elease/
+[Oo]ut/
+
+#visual studio / rider cruft
+.vs/
+.idea/
+*.suo
+*.userosscache
+*.sln.docstates
+*.tlog
+*.lastbuildstate
+*.recipe
+*.idb
+*.ilk
+
+#publish / packaging output
+publish/
+AppPackages/
+BundleArtifacts/
+*.appx
+*.appxbundle
+*.appxupload
+*.appxsym
+*.msix
+*.msixbundle
+
+#test/benchmark output
+TestResults/
+BenchmarkDotNet.Artifacts/
+
+#nuget
+*.nupkg
+*.snupkg
+packages/
+
+#os cruft
+Thumbs.db
+.DS_Store
+
+#misc
+*.tmp
+*.bak
+*.dmp
+msbuild.log
+msbuild.err
+msbuild.wrn
+
+#claude code
+CLAUDE.md
+.claude/

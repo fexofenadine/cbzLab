@@ -1,0 +1,34 @@
+name: build
+
+#runs on every push and every pull request, regardless of branch name, so it
+#works out of the box whatever the repo's default branch is called
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    strategy:
+      #x64 and arm64 are the two platforms cbzLab.csproj targets
+      matrix:
+        platform: [x64, ARM64]
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore cbzLab.sln
+
+      - name: Build (Release, ${{ matrix.platform }})
+        run: >
+          dotnet build cbzLab.sln
+          -c Release
+          -p:Platform=${{ matrix.platform }}
+          --no-restore

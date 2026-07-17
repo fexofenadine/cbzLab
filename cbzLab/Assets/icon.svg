@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <title>cbzLab</title>
+  <desc>Retrowave sunset-grid icon for cbzLab</desc>
+
+  <defs>
+    <!--background: deep space purple, darker at the base-->
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a1060"/>
+      <stop offset="0.55" stop-color="#160838"/>
+      <stop offset="1" stop-color="#0a0220"/>
+    </linearGradient>
+
+    <!--retro sun: hot yellow into neon pink-->
+    <linearGradient id="sunGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe94a"/>
+      <stop offset="0.45" stop-color="#ff9e2c"/>
+      <stop offset="0.75" stop-color="#ff4d8d"/>
+      <stop offset="1" stop-color="#ff2d9b"/>
+    </linearGradient>
+
+    <!--chrome-style text gradient-->
+    <linearGradient id="txtGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#c8f9ff"/>
+      <stop offset="0.5" stop-color="#00f0ff"/>
+      <stop offset="1" stop-color="#0080a0"/>
+    </linearGradient>
+
+    <filter id="glowPink" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="glowCyan" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!--horizontal scanline slits cut into the lower half of the sun-->
+    <mask id="sunMask">
+      <rect x="0" y="0" width="512" height="512" fill="white"/>
+      <rect x="96" y="238" width="320" height="10" fill="black"/>
+      <rect x="96" y="260" width="320" height="13" fill="black"/>
+      <rect x="96" y="286" width="320" height="17" fill="black"/>
+      <rect x="96" y="316" width="320" height="22" fill="black"/>
+    </mask>
+
+    <clipPath id="rounded">
+      <rect x="0" y="0" width="512" height="512" rx="96" ry="96"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#rounded)">
+    <!--sky-->
+    <rect x="0" y="0" width="512" height="512" fill="url(#bgGrad)"/>
+
+    <!--distant stars-->
+    <g fill="#f0d6ff" opacity="0.8">
+      <circle cx="70" cy="60" r="3"/>
+      <circle cx="440" cy="90" r="2.5"/>
+      <circle cx="380" cy="45" r="2"/>
+      <circle cx="120" cy="110" r="2"/>
+      <circle cx="460" cy="160" r="2"/>
+      <circle cx="45" cy="170" r="2.5"/>
+    </g>
+
+    <!--the sun, slit-masked, glowing-->
+    <circle cx="256" cy="212" r="132" fill="url(#sunGrad)" mask="url(#sunMask)" filter="url(#glowPink)"/>
+
+    <!--horizon line-->
+    <rect x="0" y="330" width="512" height="4" fill="#ff2d9b" filter="url(#glowPink)"/>
+
+    <!--perspective grid floor-->
+    <g stroke="#00f0ff" stroke-width="3" opacity="0.9" filter="url(#glowCyan)">
+      <!--converging verticals-->
+      <line x1="256" y1="334" x2="256" y2="512"/>
+      <line x1="216" y1="334" x2="140" y2="512"/>
+      <line x1="176" y1="334" x2="20"  y2="512"/>
+      <line x1="136" y1="334" x2="-100" y2="512"/>
+      <line x1="296" y1="334" x2="372" y2="512"/>
+      <line x1="336" y1="334" x2="492" y2="512"/>
+      <line x1="376" y1="334" x2="612" y2="512"/>
+      <!--receding horizontals-->
+      <line x1="0" y1="348" x2="512" y2="348" stroke-width="2"/>
+      <line x1="0" y1="368" x2="512" y2="368" stroke-width="2.5"/>
+      <line x1="0" y1="396" x2="512" y2="396" stroke-width="3"/>
+      <line x1="0" y1="434" x2="512" y2="434" stroke-width="3.5"/>
+      <line x1="0" y1="482" x2="512" y2="482" stroke-width="4"/>
+    </g>
+
+    <!--wordmark-->
+    <text x="256" y="448" text-anchor="middle"
+          font-family="DejaVu Sans" font-weight="bold" font-style="italic"
+          font-size="104" letter-spacing="1"
+          fill="url(#txtGrad)" stroke="#0a0220" stroke-width="6"
+          paint-order="stroke" filter="url(#glowCyan)">CBZL</text>
+  </g>
+</svg>
