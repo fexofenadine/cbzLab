@@ -696,11 +696,19 @@
                 than built in code like the dynamic ones) since its DataTemplate never
                 changes, and RebuildGridColumns is careful to only clear/rebuild
                 everything AFTER this one, never touching it.-->
+            <!--SelectionUnit="Row" pins ctrl+click/shift+click to whole-row selection
+                everywhere in the row. Without it (default is CellOrRow), clicking a
+                data cell toggles just that cell into a separate cell-selection set,
+                so ctrl+click only extended row selection from the one templated
+                column (the dirty-indicator column, which has no cell content of its
+                own to be cell-selected). Grid is IsReadOnly, so there's no per-cell
+                editing/copy use case that would want cell-level selection anyway.-->
             <tv:TableView x:Name="ComicsGrid"
                           ItemsSource="{Binding DisplayedFiles}"
                           IsReadOnly="True"
                           AutoGenerateColumns="False"
                           SelectionMode="Extended"
+                          SelectionUnit="Row"
                           Margin="16,10,16,16"
                           Tapped="OnGridTapped"
                           RightTapped="OnGridRightTapped">

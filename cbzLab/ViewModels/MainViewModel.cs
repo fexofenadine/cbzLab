@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Text.RegularExpressions;
 using cbzLab.Services;
 using Microsoft.UI.Xaml;
 
@@ -469,15 +470,37 @@ public class MainViewModel : ViewModelBase
         return _recentValues.GetRecent(field.Tag).Select(v => new DistinctValue(v, 0)).ToList();
     }
 
+    /// <summary>
+    /// Builds a combo/text/entry field's batch picker list: the values actually
+    /// detected across the selection, most-common first, each with its file
+    /// count. For combo fields the schema's own Options are then appended if
+    /// they aren't already present (Count 0, so no "— N files" suffix) —
+    /// without this, a combo whose value is unset on every selected file
+    /// offers nothing but "(blank)" and there's no way to set one, since batch
+    /// mode replaces the ComboBox with this picker rather than sitting
+    /// alongside it the way the entry/text widgets' editable TextBox does.
+    /// </summary>
     private void RefreshDistinctValues(FieldViewModel field)
     {
-        field.DistinctValues = SelectedFiles
+        var detected = SelectedFiles
             .Select(f => f.GetValue(field.Tag))
             .GroupBy(v => v, StringComparer.Ordinal)
             .OrderByDescending(g => g.Count())
             .ThenBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
             .Select(g => new DistinctValue(g.Key, g.Count()))
             .ToList();
+
+        if (field.Widget == "combo")
+        {
+            var present = detected.Select(d => d.Value).ToHashSet(StringComparer.Ordinal);
+            //schema order, not alphabetical — Options are curated (Unknown/No/Yes,
+            //the age-rating ladder) and reordering them would read as arbitrary
+            detected.AddRange(field.Options
+                .Where(o => !present.Contains(o))
+                .Select(o => new DistinctValue(o, 0)));
+        }
+
+        field.DistinctValues = detected;
     }
 
     private void RefreshBatchPanel()
@@ -618,7 +641,12 @@ public class MainViewModel : ViewModelBase
 
         query = _sortMode switch
         {
-            FileSortMode.SeriesNumber => query.OrderBy(f => f.Subtitle, StringComparer.OrdinalIgnoreCase),
+            FileSortMode.SeriesNumber => query
+                .OrderBy(f => f.GetValue("Series").Trim(), StringComparer.OrdinalIgnoreCase)
+                .ThenBy(f => NumberSortKey(f.GetValue("Number")))
+                //tie-break for non-numeric issue numbers (eg "Annual 1" vs
+                //"Annual 2"), which both fall back to the same sort key below
+                .ThenBy(f => f.GetValue("Number").Trim(), StringComparer.OrdinalIgnoreCase),
             FileSortMode.ModifiedFirst => query.OrderByDescending(f => f.IsDirty)
                                                 .ThenBy(f => f.FileName, StringComparer.OrdinalIgnoreCase),
             _ => query.OrderBy(f => f.FileName, StringComparer.OrdinalIgnoreCase),
@@ -644,6 +672,21 @@ public class MainViewModel : ViewModelBase
             else if (current != i)
                 DisplayedFiles.Move(current, i);
         }
+    }
+
+    /// <summary>
+    /// Sort key for a ComicInfo Number field that treats it as a number rather
+    /// than a string, so 2 sorts before 10 instead of after it. Handles the
+    /// common non-integer real-world cases: half-issues ("1.5"), leading
+    /// zeros, and a numeric prefix followed by other text ("10a", "5 (of 6)").
+    /// Anything with no leading number at all (annuals, specials, empty) sorts
+    /// to the end, ordered against each other by the tie-break string compare
+    /// in RefreshDisplayedFiles rather than by this key.
+    /// </summary>
+    private static double NumberSortKey(string number)
+    {
+        var match = Regex.Match(number.Trim(), @"^-?\d+(\.\d+)?");
+        return match.Success && double.TryParse(match.Value, out var n) ? n : double.MaxValue;
     }
 
     /// <summary>

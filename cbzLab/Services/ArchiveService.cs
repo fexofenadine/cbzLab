@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO.Compression;
+using System.Text.RegularExpressions;
 using SharpCompress.Readers;
 
 namespace cbzLab.Services;
@@ -40,21 +41,27 @@ public class ArchiveService
     /// <summary>
     /// Opens an archive, extracts ComicInfo.xml if present, counts image pages,
     /// and captures a cover thumbnail source image per the CoverSource setting.
-    /// "First" (default) grabs inline during this single pass — archives are
-    /// near-universally authored with the cover page listed first, so this is
-    /// free real-world accuracy for no extra cost. "Last" needs a second pass:
-    /// a sequential reader can't seek backward once the last entry has gone
-    /// by, and decompressing every image just to keep the last one would waste
-    /// work on every other page for every file opened. Uses a sequential
-    /// reader so solid rar archives are handled correctly.
+    /// "First" (default) means the lowest-numbered page, "last" the highest —
+    /// by filename, natural-sorted (numeric runs compared as numbers, so
+    /// "2.jpg" sorts before "10.jpg" and "000.jpg"/"001.jpg" both sort
+    /// correctly regardless of zero-padding or 0- vs 1-indexed page numbering).
+    /// Deliberately NOT the order entries happen to appear in the archive:
+    /// that's the archive's internal storage/directory order, which doesn't
+    /// reliably match page order — a repacked or re-saved archive can easily
+    /// list page 2 before page 1 — and picking the storage-order "first" image
+    /// was exactly what caused covers to sometimes show the page after the
+    /// real one. This means both directions now need a full listing pass
+    /// before the actual cover bytes are known, so "first" pays the same
+    /// second-pass extraction cost "last" already did — correctness over the
+    /// old single-pass shortcut. Uses a sequential reader so solid rar
+    /// archives are handled correctly.
     /// </summary>
     public ArchiveReadResult Read(string path)
     {
         var wantLast = _settings.Settings.CoverSource == "last";
         var format = SniffFormat(path);
         byte[]? xml = null;
-        byte[]? cover = null;
-        string? lastImageKey = null;
+        var imageKeys = new List<string>();
         var pages = 0;
 
         using (var stream = File.OpenRead(path))
@@ -77,27 +84,47 @@ public class ArchiveService
                 else if (IsImage(name))
                 {
                     pages++;
-                    if (wantLast)
-                    {
-                        //remember which entry was last; decompressed in a second
-                        //pass below, once we know for certain nothing comes after it
-                        lastImageKey = entry.Key;
-                    }
-                    else if (cover is null)
-                    {
-                        using var es = reader.OpenEntryStream();
-                        using var ms = new MemoryStream();
-                        es.CopyTo(ms);
-                        cover = ms.ToArray();
-                    }
+                    imageKeys.Add(entry.Key);
                 }
             }
         }
 
-        if (wantLast && lastImageKey is not null)
-            cover = ExtractSingleEntry(path, lastImageKey);
+        byte[]? cover = null;
+        if (imageKeys.Count > 0)
+        {
+            imageKeys.Sort(NaturalCompare);
+            var coverKey = wantLast ? imageKeys[^1] : imageKeys[0];
+            cover = ExtractSingleEntry(path, coverKey);
+        }
 
         return new ArchiveReadResult(xml, pages, format, cover);
+    }
+
+    /// <summary>
+    /// Standard "natural sort" comparison: splits both strings into
+    /// alternating runs of digits and non-digits, then compares digit runs
+    /// as numbers rather than character-by-character. This is what makes
+    /// "2.jpg" sort before "10.jpg" (a plain string compare would put "10"
+    /// first) while still comparing non-numeric parts (folder names,
+    /// filename prefixes like "page_") as ordinary text.
+    /// </summary>
+    private static int NaturalCompare(string a, string b)
+    {
+        var partsA = Regex.Split(a, @"(\d+)");
+        var partsB = Regex.Split(b, @"(\d+)");
+        var len = Math.Min(partsA.Length, partsB.Length);
+        for (var i = 0; i < len; i++)
+        {
+            var pa = partsA[i];
+            var pb = partsB[i];
+            var bothNumeric = pa.Length > 0 && pb.Length > 0 && char.IsDigit(pa[0]) && char.IsDigit(pb[0]);
+            var cmp = bothNumeric && long.TryParse(pa, out var na) && long.TryParse(pb, out var nb)
+                ? na.CompareTo(nb)
+                : string.CompareOrdinal(pa, pb);
+            if (cmp != 0)
+                return cmp;
+        }
+        return partsA.Length.CompareTo(partsB.Length);
     }
 
     /// <summary>

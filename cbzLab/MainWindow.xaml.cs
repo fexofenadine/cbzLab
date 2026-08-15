@@ -828,7 +828,12 @@ public sealed partial class MainWindow : Window
             var detail = await App.ComicVine.GetIssueDetailAsync(issueId.Value);
 
             var proposed = ComicVineService.MapToComicInfoFields(detail, volume);
-            var tagsToApply = await AppDialogs.ReviewComicVineMatchAsync(RootGrid.XamlRoot, file, proposed, App.Schema);
+            //ComicVineAlwaysReview off skips the before/after dialog entirely and
+            //applies every field the match proposed, same as if the user had left
+            //every row checked in the review dialog and clicked apply
+            var tagsToApply = App.Settings.Settings.ComicVineAlwaysReview
+                ? await AppDialogs.ReviewComicVineMatchAsync(RootGrid.XamlRoot, file, proposed, App.Schema)
+                : proposed.Keys.ToList();
             if (tagsToApply is null || tagsToApply.Count == 0)
             {
                 ViewModel.StatusText = "ComicVine match not applied";
@@ -916,7 +921,11 @@ public sealed partial class MainWindow : Window
                 perFileProposed[file] = ComicVineService.MapToComicInfoFields(detail, volume);
             }
 
-            var tagsToApply = await AppDialogs.ReviewComicVineBatchAsync(RootGrid.XamlRoot, perFileProposed, App.Schema);
+            //same ComicVineAlwaysReview bypass as the single-file flow above —
+            //union of every proposed tag across every matched file
+            var tagsToApply = App.Settings.Settings.ComicVineAlwaysReview
+                ? await AppDialogs.ReviewComicVineBatchAsync(RootGrid.XamlRoot, perFileProposed, App.Schema)
+                : perFileProposed.Values.SelectMany(d => d.Keys).Distinct().ToList();
             if (tagsToApply is null || tagsToApply.Count == 0)
             {
                 ViewModel.StatusText = "ComicVine batch match not applied";
@@ -1146,15 +1155,36 @@ public sealed partial class MainWindow : Window
 
     /// <summary>
     /// Same "right-click outside the current selection replaces it" behaviour
-    /// already used for the sidebar's own file list.
+    /// already used for the sidebar's own file list. Right-clicks landing on
+    /// the column header are handed back to TableViewColumnHeader's own
+    /// sort/filter options rather than opening our row-scoped Edit/Choose
+    /// Columns menu — walking up from the tap target and marking the event
+    /// handled stops ComicsGrid.ContextFlyout from firing over the header.
     /// </summary>
     private void OnGridRightTapped(object sender, RightTappedRoutedEventArgs e)
     {
+        if (IsWithinColumnHeader(e.OriginalSource as DependencyObject))
+        {
+            e.Handled = true;
+            return;
+        }
+
         if ((e.OriginalSource as FrameworkElement)?.DataContext is ComicFileViewModel file
             && !ComicsGrid.SelectedItems.Contains(file))
         {
             ComicsGrid.SelectedItem = file;
         }
+    }
+
+    private static bool IsWithinColumnHeader(DependencyObject? element)
+    {
+        while (element is not null)
+        {
+            if (element is TableViewColumnHeader)
+                return true;
+            element = VisualTreeHelper.GetParent(element);
+        }
+        return false;
     }
 
     private void GridContextFlyout_Opening(object sender, object e)
@@ -1290,11 +1320,11 @@ public sealed partial class MainWindow : Window
     //SelectedDates changes fire SelectedDatesChanged just like user picks do,
     //and without this guard merely opening the picker on a partial date
     //(Year set, Month/Day empty) would write the seeded Month=1/Day=1
-    //placeholders into the file as real edits.
-    //#uncertain: this assumes SelectedDatesChanged fires synchronously inside
-    //SelectedDates.Add - if it's actually dispatched later, the flag will
-    //already be cleared and the guard won't hold; verify by opening the
-    //picker on a file with only Year set and checking no dirty marker appears
+    //placeholders into the file as real edits. relies on SelectedDatesChanged
+    //firing synchronously inside SelectedDates.Add, which is the standard
+    //winui/uwp collection-changed pattern (same as ListView.SelectedItems,
+    //ComboBox.SelectionChanged) rather than dispatcher-deferred - reasoned
+    //confirmed, not click-tested against the live picker in this environment
     private bool _suppressCalendarSelection;
 
     /// <summary>

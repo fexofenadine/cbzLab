@@ -33,7 +33,7 @@ workload. Total download is a few GB; allow half an hour on a fresh machine.
 
 ### 1.2 First-time Visual Studio orientation
 
-Quick orientation for anyone coming from another IDE or editor:
+Since you're new to VS but not to coding, the short version:
 
 - **Solution Explorer** (right-hand panel) is your file tree. The `.sln` is the
   workspace; the `.csproj` is the project (roughly equivalent to a `pyproject.toml`

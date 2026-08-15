@@ -1,5 +1,53 @@
 # Changelog
 
+## 0.1.48 — 2026-08-15
+
+- Fixed grid view ctrl+click only extending row selection when clicked in the
+  leftmost (dirty-indicator) column. WinUI.TableView's default `SelectionUnit`
+  is `CellOrRow`, which treats every data cell as independently selectable, so
+  ctrl+click on a data cell toggled just that cell rather than the row. Set
+  `SelectionUnit="Row"` on the grid — it's read-only, so there's no per-cell
+  selection/copy use case that would want cell-level selection anyway.
+  User-confirmed fixed.
+- Wired up the "Always review matches before applying" ComicVine setting,
+  which previously did nothing — both the single-file and batch ComicVine
+  flows always showed the before/after review dialog regardless. Turning it
+  off now applies every proposed field straight through, same as if every row
+  had been left checked in the review dialog.
+- Fixed the grid view's right-click context menu (Edit / Choose Columns)
+  appearing over the column header row, where it doesn't apply. Right-clicks
+  on a header cell now defer to the header's own sort/filter options instead.
+
+## 0.1.47 — 2026-08-05
+
+- Fixed cover thumbnails sometimes showing the page after the real cover.
+  The cover was being picked as whichever image entry the archive happened
+  to list first internally — its storage order, not page order — which
+  doesn't always match the filenames. Now picks by filename, natural-sorted
+  (handles zero-padding and 0- vs 1-indexed page numbering correctly, so
+  "000"/"00"/"0" and "001"/"01"/"1" both resolve to the true lowest page).
+  Same fix applies to "last page as cover" mode. As a side effect, "first
+  page as cover" (the default) now costs a second archive pass like "last"
+  already did, since the correct cover can't be known until every page
+  filename has been seen — a deliberate correctness-over-speed trade.
+
+## 0.1.46 — 2026-08-05
+
+- Fixed dropdown fields (Black & White, Manga, Age Rating) offering no way to
+  set a value when editing multiple books at once. Batch mode replaces the
+  dropdown with a picker listing values found across the selection, so when
+  none of the selected books had the field set, the only entry was "(blank)"
+  and the value couldn't be changed at all. The picker now always offers the
+  field's full list of valid choices alongside whatever was detected.
+
+## 0.1.45 — 2026-07-15
+
+- Fixed the Series/Number file-list sort treating issue numbers as text
+  instead of numbers — 1, 10, 11, 12 ... 2, 20 is now 1, 1.5, 2 ... 10, 11,
+  12 ... 20. Non-numeric issue numbers (annuals, specials) still sort
+  consistently, just after every numbered issue rather than interleaved
+  alphabetically among them.
+
 ## 0.1.44 — 2026-07-13
 
 - Fixed a bug in the 0.1.41 date-picker fix: opening the picker on a file
