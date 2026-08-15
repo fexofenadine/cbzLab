@@ -1,0 +1,46 @@
+{
+  "_description": "Vaporwave Light — soft lavender and blush pink on near-white, with medium purple accents and pastel teal highlights. Inspired by late-80s Macintosh nostalgia and mall aesthetics.",
+
+  "bg":          "#fdf0ff",
+  "bg2":         "#f5e0ff",
+  "bg3":         "#ead0f5",
+  "sep":         "#c9a0d8",
+  "fg":          "#4a2060",
+  "fg_bright":   "#2e0e45",
+  "accent":      "#b24fe0",
+
+  "entry_bg":    "#f5e0ff",
+  "entry_fg":    "#2e0e45",
+  "entry_sel":   "#e0b3f5",
+  "lbl_fg":      "#5a2a78",
+  "section_fg":  "#0080a0",
+
+  "status_bg":   "#f5e0ff",
+  "status_fg":   "#8a5aaa",
+  "insert_cur":  "#b24fe0",
+
+  "disabled_bg": "#fdf0ff",
+  "disabled_fg": "#c9a0d8",
+  "scrollbar":   "#f5e0ff",
+  "thumb":       "#c9a0d8",
+
+  "error_bg":    "#ffe0f0",
+  "error_fg":    "#c0006a",
+  "error_lbl":   "#c0006a",
+
+  "search_bg":   "#f5e0ff",
+  "search_fg":   "#2e0e45",
+  "tooltip_bg":  "#ead0f5",
+  "tooltip_fg":  "#2e0e45",
+
+  "dirty_fg":    "#0080a0",
+  "mixed_fg":    "#ff71ce",
+
+  "list_sel":    "#e0b3f5",
+  "list_sel_fg": "#b24fe0",
+  "list_bg":     "#fdf0ff",
+  "list_fg":     "#4a2060",
+  "list_dirty":  "#0080a0",
+
+  "batch_bg":    "#f0e0fc"
+}

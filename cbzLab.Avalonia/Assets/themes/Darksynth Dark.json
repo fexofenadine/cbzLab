@@ -1,0 +1,46 @@
+{
+  "_description": "Darksynth Dark — near-black industrial backgrounds with electric purple primary, acid neon green secondary, and blood red errors. Darker and more aggressive than Synthwave.",
+
+  "bg":          "#0a0010",
+  "bg2":         "#120020",
+  "bg3":         "#1c0030",
+  "sep":         "#3d0080",
+  "fg":          "#c9a0ff",
+  "fg_bright":   "#e0c8ff",
+  "accent":      "#9b00ff",
+
+  "entry_bg":    "#120020",
+  "entry_fg":    "#c9a0ff",
+  "entry_sel":   "#4a0099",
+  "lbl_fg":      "#b080e0",
+  "section_fg":  "#39ff14",
+
+  "status_bg":   "#120020",
+  "status_fg":   "#5a0099",
+  "insert_cur":  "#9b00ff",
+
+  "disabled_bg": "#0a0010",
+  "disabled_fg": "#3d0080",
+  "scrollbar":   "#120020",
+  "thumb":       "#3d0080",
+
+  "error_bg":    "#2a0000",
+  "error_fg":    "#ff0044",
+  "error_lbl":   "#ff0044",
+
+  "search_bg":   "#120020",
+  "search_fg":   "#c9a0ff",
+  "tooltip_bg":  "#1c0030",
+  "tooltip_fg":  "#e0c8ff",
+
+  "dirty_fg":    "#39ff14",
+  "mixed_fg":    "#ff6bff",
+
+  "list_sel":    "#1c0030",
+  "list_sel_fg": "#9b00ff",
+  "list_bg":     "#0a0010",
+  "list_fg":     "#c9a0ff",
+  "list_dirty":  "#39ff14",
+
+  "batch_bg":    "#060008"
+}

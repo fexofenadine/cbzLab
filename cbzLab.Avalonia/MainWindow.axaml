@@ -1,0 +1,163 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:cbzLab.ViewModels"
+        x:Class="cbzLab.Avalonia.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="cbzLab (Avalonia preview)"
+        Width="900" Height="640">
+
+    <Grid x:Name="RootGrid" RowDefinitions="Auto,Auto,Auto,*"
+          Background="{DynamicResource ThBg}"
+          DragDrop.AllowDrop="True"
+          DragDrop.DragOver="OnDragOver" DragDrop.DragEnter="OnDragEnter"
+          DragDrop.DragLeave="OnDragLeave" DragDrop.Drop="OnDrop">
+
+        <!--menu bar (slice 4): scoped to items that wire to functionality
+            already built in earlier slices, plus About - see plan for the
+            full list of deferred items (Theme submenu, Save As/All,
+            Revert/Remove/Close, keyboard accelerators)-->
+        <Menu Grid.Row="0">
+            <MenuItem Header="_File">
+                <MenuItem Header="Open…" Click="OnOpen" />
+                <!--slice 12: items populated/cleared via RecentMenu.Items in
+                    code (BuildRecentMenu), same pattern as RebuildGridColumns-->
+                <MenuItem x:Name="RecentMenu" Header="Open Recent" />
+                <Separator />
+                <MenuItem Header="Save" Click="OnSave" />
+                <Separator />
+                <MenuItem Header="Quit" Click="OnQuit" />
+            </MenuItem>
+            <MenuItem Header="_View">
+                <!--same one-way + explicit-toggle pattern as GridViewToggle
+                    below, and for the same reason: ToggleType="CheckBox"'s
+                    IsChecked is bool? and didn't round-trip TwoWay in slice 2-->
+                <MenuItem Header="Show All Fields" ToggleType="CheckBox"
+                          IsChecked="{Binding ShowAllFields, Mode=OneWay}" Click="OnToggleShowAllFields" />
+                <MenuItem Header="Show Extra Fields" ToggleType="CheckBox"
+                          IsChecked="{Binding ShowExtraFields, Mode=OneWay}" Click="OnToggleShowExtraFields" />
+                <Separator />
+                <MenuItem Header="Choose Grid Columns…" Click="OnChooseColumns" />
+                <Separator />
+                <!--theme slice: populated/cleared via ThemeMenu.Items in code
+                    (BuildThemeMenu), same pattern as RecentMenu/RebuildGridColumns-->
+                <MenuItem x:Name="ThemeMenu" Header="Theme" />
+            </MenuItem>
+            <!--slice 5/7: Settings… and Search ComicVine… - every other Tools
+                item (Guess from Filename, Auto Page Count, Copy/Paste XML)
+                stays deferred, none are built yet-->
+            <MenuItem Header="_Tools">
+                <MenuItem Header="Search ComicVine…" Click="OnSearchComicVine"
+                          IsVisible="{Binding OnlineLookupEnabled}" />
+                <Separator IsVisible="{Binding OnlineLookupEnabled}" />
+                <MenuItem Header="Settings…" Click="OnSettings" />
+            </MenuItem>
+            <MenuItem Header="_Help">
+                <MenuItem Header="About cbzLab" Click="OnAbout" />
+            </MenuItem>
+        </Menu>
+
+        <!--toolbar: slice 1 has open/save, slice 2 adds the grid view toggle-->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="12,10">
+            <Button x:Name="OpenButton" Content="Open…" Click="OnOpen" />
+            <Button x:Name="SaveButton" Content="Save" Click="OnSave" />
+            <!--IsChecked bound one-way only: a TwoWay bool?/bool ToggleButton
+                binding didn't round-trip back to the viewmodel reliably (visual
+                toggle flipped, IsGridViewActive never changed) - flipping it
+                explicitly in the click handler instead, same pattern already
+                used for the tab buttons below-->
+            <ToggleButton x:Name="GridViewToggle" Content="Grid View" IsChecked="{Binding IsGridViewActive, Mode=OneWay}" Click="OnToggleGridView" />
+            <Button x:Name="ChooseColumnsButton" Content="Choose Columns…" Click="OnChooseColumns" />
+            <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" Margin="12,0,0,0" Opacity="0.7" />
+        </StackPanel>
+
+        <!--tab strip: filters the one shared field list below, same pattern as
+            the winui TabView - slice 1 wires the click handlers directly rather
+            than porting SchemaService.TabOrder-driven highlighting yet-->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="4" Margin="12,0,12,8">
+            <Button Content="Basic Info" Click="OnTabBasicInfo" />
+            <Button Content="Publication" Click="OnTabPublication" />
+            <Button Content="Creators" Click="OnTabCreators" />
+            <Button Content="Story" Click="OnTabStory" />
+            <Button Content="Extras" Click="OnTabExtras" />
+        </StackPanel>
+
+        <!--sidebar+editor: slice 1 view, hidden while the grid view is active-->
+        <Grid Grid.Row="3" ColumnDefinitions="260,Auto,*" IsVisible="{Binding !IsGridViewActive}">
+
+            <!--sidebar: open files-->
+            <ListBox x:Name="FileList" Grid.Column="0"
+                     ItemsSource="{Binding DisplayedFiles}"
+                     SelectionMode="Multiple"
+                     SelectionChanged="FileList_SelectionChanged">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ComicFileViewModel">
+                        <Grid ColumnDefinitions="30,*" Margin="0,3">
+                            <Border Grid.Column="0" Width="30" Height="40" CornerRadius="2" Background="{DynamicResource ThBg2}">
+                                <Image Source="{Binding CoverImage}" Stretch="UniformToFill" IsVisible="{Binding HasCover}" />
+                            </Border>
+                            <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="{Binding FileName}" TextTrimming="CharacterEllipsis" MaxWidth="170" />
+                                    <TextBlock Text="&#x2022;" FontWeight="Bold" Foreground="{DynamicResource ThDirtyFg}" IsVisible="{Binding IsDirty}" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding Subtitle}" FontSize="12" Opacity="{Binding SubtitleOpacity}"
+                                           TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <GridSplitter Grid.Column="1" Width="1" Background="{DynamicResource ThSep}" />
+
+            <!--editor: one shared field list, filtered by ActiveTab-->
+            <Grid Grid.Column="2" RowDefinitions="*,Auto">
+                <ScrollViewer Grid.Row="0" Padding="16,10">
+                    <!--FontSize/FontFamily bound here (not wired until slice 5, when
+                        the Settings dialog first made this setting visibly testable) -
+                        inherits down to every field row's TextBox/TextBlock built in
+                        BuildFieldTemplateSelector below, same as the winui original-->
+                    <ItemsControl x:Name="FieldList" ItemsSource="{Binding VisibleFields}"
+                                  FontSize="{Binding EditorFontSize}" FontFamily="{Binding EditorFontFamily}"
+                                  MaxWidth="640" HorizontalAlignment="Left" />
+                </ScrollViewer>
+                <TextBlock Grid.Row="0" Text="Open a comic archive to begin" Opacity="0.5" FontSize="16"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding !HasSelection}" />
+            </Grid>
+        </Grid>
+
+        <!--grid view (slice 2): dirty-indicator column is fixed/declared here like
+            the winui original; the rest come from AppSettings.GridColumns, built
+            in code (RebuildGridColumns) since there's no column picker dialog yet-->
+        <DataGrid Grid.Row="3" x:Name="ComicsGrid"
+                  ItemsSource="{Binding DisplayedFiles}"
+                  IsReadOnly="True"
+                  AutoGenerateColumns="False"
+                  IsVisible="{Binding IsGridViewActive}"
+                  DoubleTapped="OnGridDoubleTapped"
+                  Margin="16,10,16,16">
+            <DataGrid.Columns>
+                <DataGridTemplateColumn Header="" Width="32" CanUserSort="False">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate x:DataType="vm:ComicFileViewModel">
+                            <TextBlock Text="&#x2022;" FontWeight="Bold" FontSize="16" Foreground="{DynamicResource ThDirtyFg}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       IsVisible="{Binding IsDirty}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!--drag-and-drop overlay (slice 11): shown only while a file is being
+            dragged over the window; IsHitTestVisible="False" so drag events
+            keep landing on RootGrid itself rather than being swallowed here-->
+        <Border x:Name="DropOverlay" Grid.Row="0" Grid.RowSpan="4"
+                Background="#B0000000" BorderBrush="DodgerBlue" BorderThickness="3"
+                IsVisible="False" IsHitTestVisible="False">
+            <TextBlock Text="Drop comic archives to open" FontSize="22" FontWeight="SemiBold"
+                       Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+    </Grid>
+
+</Window>

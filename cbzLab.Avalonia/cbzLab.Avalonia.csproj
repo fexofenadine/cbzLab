@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--avalonia rewrite skeleton (step 1 of the port, see CLAUDE.md): plain
+        net8.0, no windows-specific tfm suffix, targeting windows + linux
+        desktop from one build-->
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>cbzLab.Avalonia</RootNamespace>
+    <AssemblyName>cbzLab.Avalonia</AssemblyName>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
+    <!--Avalonia.Diagnostics (dev-time f12 inspector) skipped for now: as of
+        this writing it has no 12.x release yet (latest is 11.3.20, against
+        core packages at 12.1.1) - add back once a compatible version ships-->
+    <!--matches the version pinned in cbzLab.csproj; needed by the ported
+        ArchiveService.cs for cbr (rar) reading-->
+    <PackageReference Include="SharpCompress" Version="0.48.0" />
+    <!--grid view (slice 2): one patch ahead of the 12.1.1 core packages above -
+        same avaloniaui-owned package family, no lower version published-->
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.1.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--ported schema.json/themes.json/theme files, same seeding pattern as
+        cbzLab.csproj - see Services/SettingsService.cs SeedBundledAssets()-->
+    <Content Include="Assets\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>

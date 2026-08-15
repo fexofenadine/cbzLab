@@ -1,0 +1,110 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="cbzLab.Avalonia.Dialogs.SettingsDialog"
+        Title="Settings"
+        Width="480" Height="640"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource ThBg}">
+
+    <Grid RowDefinitions="*,Auto" Margin="20">
+        <ScrollViewer Grid.Row="0">
+            <StackPanel Spacing="12">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Editor font size" />
+                    <NumericUpDown x:Name="FontSizeBox" Minimum="10" Maximum="28" Increment="1" FormatString="0" HorizontalAlignment="Left" Width="140" />
+                </StackPanel>
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Editor font" />
+                    <ComboBox x:Name="FontFamilyCombo" Width="200" HorizontalAlignment="Left" />
+                </StackPanel>
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Cover image source" />
+                    <ComboBox x:Name="CoverSourceCombo" Width="160" HorizontalAlignment="Left">
+                        <ComboBoxItem Content="First page" />
+                        <ComboBoxItem Content="Last page" />
+                    </ComboBox>
+                </StackPanel>
+
+                <CheckBox x:Name="FillWidthCheck" Content="Let fields fill the available editor width" />
+                <CheckBox x:Name="RememberTabCheck" Content="Remember the last active tab between sessions" />
+                <CheckBox x:Name="CompactCheck" Content="Compact spacing (fits more on screen)" />
+                <CheckBox x:Name="ShowAllCheck" Content="Show all fields by default" />
+                <CheckBox x:Name="ShowExtraCheck" Content="Show extra fields by default" />
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Default save format" />
+                    <ComboBox x:Name="FormatCombo" Width="140" HorizontalAlignment="Left">
+                        <ComboBoxItem Content="CBZ" />
+                        <ComboBoxItem Content="CBR" />
+                    </ComboBox>
+                </StackPanel>
+
+                <CheckBox x:Name="ConfirmBatchCheck" Content="Confirm before batch save operations" />
+                <CheckBox x:Name="AutoPageCheck" Content="Auto-detect page count on open" />
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Max recent files" />
+                    <NumericUpDown x:Name="RecentFilesBox" Minimum="0" Maximum="30" Increment="1" FormatString="0" HorizontalAlignment="Left" Width="140" />
+                </StackPanel>
+
+                <CheckBox x:Name="AutoSelectCheck" Content="Select the first file automatically after opening" />
+                <CheckBox x:Name="ClearFilterCheck" Content="Clear the file filter when new files are opened" />
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Live field validation" />
+                    <ComboBox x:Name="LiveValidationCombo" Width="200" HorizontalAlignment="Left">
+                        <ComboBoxItem Content="As you type" />
+                        <ComboBoxItem Content="When you leave the field" />
+                        <ComboBoxItem Content="Off" />
+                    </ComboBox>
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Recently typed values remembered per field" />
+                    <NumericUpDown x:Name="RecentValuesBox" Minimum="1" Maximum="50" Increment="1" FormatString="0" HorizontalAlignment="Left" Width="140" />
+                </StackPanel>
+
+                <!--rar tool path (slice 10): status line is computed once on
+                    open from ArchiveService.FindRarTool(), same as the winui
+                    original - it doesn't live-update after Browse/Reset/typing-->
+                <StackPanel Spacing="6">
+                    <TextBlock Text="RAR write tool path" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBox x:Name="RarToolBox" Width="300" PlaceholderText="(discover from PATH)" />
+                        <Button x:Name="BrowseButton" Content="Browse…" Click="OnBrowseRarTool" />
+                        <Button x:Name="ResetButton" Content="Reset" Click="OnResetRarTool" />
+                    </StackPanel>
+                    <TextBlock x:Name="RarToolStatus" FontSize="12" Opacity="0.7" TextWrapping="Wrap" />
+                </StackPanel>
+
+                <!--comicvine section (slice 6): reveal panel's IsVisible is
+                    bound one-way to a code-behind bool property flipped by
+                    ComicVineEnabledCheck's own Click handler - the same
+                    one-way + explicit-toggle pattern forced by slice 2's
+                    bool?/bool CheckBox binding finding, applied here too
+                    rather than trusting a fresh TwoWay binding to round-trip-->
+                <TextBlock Text="ONLINE LOOKUP" FontSize="11" FontWeight="SemiBold" Opacity="0.6" Margin="0,6,0,0" />
+                <CheckBox x:Name="ComicVineEnabledCheck" Content="Enable online metadata lookup (ComicVine)" Click="OnToggleComicVineEnabled" />
+                <TextBlock Text="Off by default. Turning this on sends series and issue names you search for to comicvine.gamespot.com over the network."
+                           FontSize="12" Opacity="0.7" TextWrapping="Wrap" Margin="24,0,0,0" />
+
+                <StackPanel x:Name="ComicVineRevealPanel" Spacing="8" Margin="24,4,0,0">
+                    <TextBlock Text="ComicVine API key" />
+                    <TextBox x:Name="ApiKeyBox" PasswordChar="•" Width="300" HorizontalAlignment="Left" />
+                    <Button x:Name="GetKeyLinkButton" Content="Get a free key at comicvine.gamespot.com/api" Click="OnOpenGetKeyLink" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button x:Name="TestConnectionButton" Content="Test Connection" Click="OnTestConnection" />
+                        <TextBlock x:Name="TestConnectionStatus" FontSize="12" Opacity="0.85" TextWrapping="Wrap" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <CheckBox x:Name="AlwaysReviewCheck" Content="Always review matches before applying" />
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="0,14,0,0">
+            <Button x:Name="CancelButton" Content="Cancel" Click="OnCancel" />
+            <Button x:Name="SaveButton" Content="Save" Click="OnSave" IsDefault="True" />
+        </StackPanel>
+    </Grid>
+
+</Window>
