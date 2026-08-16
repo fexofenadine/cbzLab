@@ -25,10 +25,12 @@
                 <MenuItem x:Name="RecentMenu" Header="Open Recent" />
                 <Separator />
                 <MenuItem Header="Save" Click="OnSave" HotKey="Ctrl+S" />
+                <MenuItem Header="Save As…" Click="OnSaveAs" HotKey="Ctrl+Shift+S" />
+                <!--slice 19: per-file format picker (MultiSaveAsync) and a
+                    cancellable progress dialog for large batches stay deferred -
+                    Save All uses each file's existing format, no progress UI-->
+                <MenuItem Header="Save All" Click="OnSaveAll" HotKey="Ctrl+Alt+S" />
                 <Separator />
-                <!--file lifecycle slice: Revert/Remove/Close/Close All - Save As/
-                    Save All stay deferred, they need a validation dialog, a
-                    multi-format picker, and a progress dialog not built yet-->
                 <MenuItem Header="Revert" Click="OnRevert" />
                 <MenuItem Header="Remove from List" Click="OnRemove" />
                 <MenuItem Header="Close" Click="OnCloseFile" HotKey="Ctrl+W" />

@@ -280,6 +280,134 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Saves every dirty open file to its own current path/format - ports
+    /// OnSaveAll from the winui original, scoped down: no per-file format
+    /// picker (MultiSaveAsync) and no cancellable progress dialog for large
+    /// batches, both left as a follow-up slice since neither is required for
+    /// the feature to actually work. Validates every target first, same as
+    /// OnSaveAs below.
+    /// </summary>
+    private async void OnSaveAll(object? sender, RoutedEventArgs e)
+    {
+        var targets = _viewModel.OpenFiles.Where(f => f.IsDirty).ToList();
+        if (targets.Count == 0)
+        {
+            _viewModel.StatusText = "Nothing to save";
+            return;
+        }
+
+        var errors = targets.SelectMany(f => _validation.Validate(f.FileName, f.CurrentValues)).ToList();
+        if (errors.Count > 0 && !await ValidationDialog.ShowAsync(this, errors))
+            return;
+
+        var failures = new List<string>();
+        var saved = 0;
+        foreach (var file in targets)
+        {
+            var format = file.Format == ArchiveFormat.Unknown ? ArchiveFormat.Cbz : file.Format;
+            if (format == ArchiveFormat.Cbr && _archive.FindRarTool() is null)
+            {
+                failures.Add($"{file.FileName}: CBR requires an external RAR tool (see Settings)");
+                continue;
+            }
+
+            var xml = ComicInfoXml.Build(file.RawXml, file.BuildWriteValues());
+            try
+            {
+                await Task.Run(() => _archive.Save(file.Path, file.Path, format, xml));
+                file.MarkSaved(xml);
+                saved++;
+            }
+            catch (System.Exception ex)
+            {
+                _log.Error($"Failed to save '{file.Path}'", ex);
+                failures.Add($"{file.FileName}: {ex.Message}");
+            }
+        }
+
+        _viewModel.RefreshEditor();
+
+        if (failures.Count > 0)
+            await MessageDialog.ShowAsync(this, "Some files could not be saved", string.Join("\n\n", failures));
+        else
+            _viewModel.StatusText = saved == 1 ? "Saved 1 file" : $"Saved {saved} files";
+    }
+
+    /// <summary>
+    /// Saves the current file to a new path/format via a native save picker -
+    /// ports OnSaveAs from the winui original. Single-file only, same as the
+    /// winui original (doesn't make sense to interpret for a batch selection).
+    /// </summary>
+    private async void OnSaveAs(object? sender, RoutedEventArgs e)
+    {
+        var file = _viewModel.CurrentFile;
+        if (file is null || _viewModel.IsBatchMode)
+        {
+            _viewModel.StatusText = "Save As works on a single selected file";
+            return;
+        }
+
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel is null)
+            return;
+
+        //order the choices so the configured default format comes first, same
+        //as the winui original
+        var cbzType = new FilePickerFileType("Comic ZIP archive") { Patterns = new[] { "*.cbz" } };
+        var cbrType = new FilePickerFileType("Comic RAR archive") { Patterns = new[] { "*.cbr" } };
+        var defaultIsCbr = _settings.Settings.DefaultSaveFormat.Equals("cbr", System.StringComparison.OrdinalIgnoreCase);
+
+        IStorageFile? target;
+        try
+        {
+            target = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Save comic archive as",
+                SuggestedFileName = System.IO.Path.GetFileNameWithoutExtension(file.Path),
+                FileTypeChoices = defaultIsCbr ? new[] { cbrType, cbzType } : new[] { cbzType, cbrType },
+            });
+        }
+        catch (System.Exception ex)
+        {
+            _log.Error("Save As picker failed", ex);
+            _viewModel.StatusText = $"Save As failed: {ex.Message}";
+            return;
+        }
+        if (target is null)
+            return;
+
+        var path = target.Path.LocalPath;
+        var format = path.EndsWith(".cbr", System.StringComparison.OrdinalIgnoreCase) ? ArchiveFormat.Cbr : ArchiveFormat.Cbz;
+
+        if (format == ArchiveFormat.Cbr && _archive.FindRarTool() is null)
+        {
+            await MessageDialog.ShowAsync(this, "No RAR tool available",
+                "Saving as CBR requires an external RAR tool. Set its path in Settings, or save as CBZ instead.");
+            return;
+        }
+
+        var errors = _validation.Validate(file.FileName, file.CurrentValues);
+        if (errors.Count > 0 && !await ValidationDialog.ShowAsync(this, errors))
+            return;
+
+        var xml = ComicInfoXml.Build(file.RawXml, file.BuildWriteValues());
+        try
+        {
+            await Task.Run(() => _archive.Save(file.Path, path, format, xml));
+            file.MarkSaved(xml, path, format);
+            _settings.AddRecentFile(path);
+            BuildRecentMenu();
+            _viewModel.RefreshEditor();
+            _viewModel.StatusText = $"Saved as {System.IO.Path.GetFileName(path)}";
+        }
+        catch (System.Exception ex)
+        {
+            _log.Error($"Save As failed for '{file.Path}' -> '{path}'", ex);
+            await MessageDialog.ShowAsync(this, "Save failed", ex.Message);
+        }
+    }
+
     //---------------------------------------------------------------- file lifecycle (revert/remove/close)
 
     /// <summary>
