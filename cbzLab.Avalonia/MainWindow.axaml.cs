@@ -6,6 +6,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -372,6 +373,131 @@ public partial class MainWindow : Window
     private async void OnAbout(object? sender, RoutedEventArgs e) =>
         await MessageDialog.ShowAsync(this, "About cbzLab",
             "cbzLab (Avalonia preview)\nComicInfo.xml metadata editor for CBZ/CBR archives.");
+
+    //---------------------------------------------------------------- tools (slice 15)
+
+    /// <summary>
+    /// Fills empty Series/Number/Volume/Year fields by parsing each selected
+    /// file's own filename and parent folder - ports OnGuessFromFilename/
+    /// ApplyGuess verbatim from the winui original. Never overwrites a field
+    /// that already has a value.
+    /// </summary>
+    private void OnGuessFromFilename(object? sender, RoutedEventArgs e)
+    {
+        if (!_viewModel.HasSelection)
+            return;
+
+        var filled = 0;
+        foreach (var file in _viewModel.SelectedFiles)
+            filled += ApplyGuess(file, FilenameGuessService.FromPath(file.Path));
+
+        _viewModel.RefreshEditor();
+        _viewModel.StatusText = filled == 0
+            ? "No new values guessed from filename"
+            : $"Filled {filled} field{(filled == 1 ? "" : "s")} from filename";
+    }
+
+    private static int ApplyGuess(ComicFileViewModel file, FilenameGuessService.Guess guess)
+    {
+        var filled = 0;
+        void TryApply(string tag, string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value) || file.GetValue(tag).Length > 0)
+                return;
+            file.SetValue(tag, value);
+            filled++;
+        }
+
+        TryApply("Series", guess.Series);
+        TryApply("Number", guess.Number);
+        TryApply("Volume", guess.Volume);
+        TryApply("Year", guess.Year);
+        return filled;
+    }
+
+    /// <summary>
+    /// Re-counts pages from the archive on disk and writes it to PageCount -
+    /// ports OnAutoPageCount verbatim from the winui original.
+    /// </summary>
+    private async void OnAutoPageCount(object? sender, RoutedEventArgs e)
+    {
+        var file = _viewModel.CurrentFile;
+        if (file is null)
+            return;
+
+        try
+        {
+            var count = file.DetectedPageCount;
+            if (count == 0)
+            {
+                var result = await Task.Run(() => _archive.Read(file.Path));
+                count = result.ImagePageCount;
+                file.DetectedPageCount = count;
+            }
+            file.SetValue("PageCount", count.ToString());
+            _viewModel.RefreshEditor();
+            _viewModel.StatusText = $"Page count set to {count}";
+        }
+        catch (System.Exception ex)
+        {
+            _log.Error($"Auto page count failed for '{file.Path}'", ex);
+            await MessageDialog.ShowAsync(this, "Page count failed", ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Copies the current file's full ComicInfo.xml to the clipboard - ports
+    /// OnCopyXml, swapping winui's Clipboard/DataPackage for Avalonia's
+    /// TopLevel.Clipboard - confirmed by reflecting on the built Avalonia.Base
+    /// assembly (same "don't trust stale API memory" lesson as slice 11's
+    /// drag-drop find) that IClipboard itself only exposes SetDataAsync/
+    /// TryGetDataAsync around IAsyncDataTransfer now; SetTextAsync/
+    /// TryGetTextAsync are ClipboardExtensions extension methods instead
+    /// (Avalonia.Input.Platform namespace).
+    /// </summary>
+    private async void OnCopyXml(object? sender, RoutedEventArgs e)
+    {
+        var file = _viewModel.CurrentFile;
+        if (file is null)
+            return;
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (clipboard is null)
+            return;
+        await clipboard.SetTextAsync(ComicInfoXml.ToDisplayString(file.RawXml, file.BuildWriteValues()));
+        _viewModel.StatusText = "ComicInfo.xml copied to clipboard";
+    }
+
+    /// <summary>
+    /// Replaces the current file's metadata from clipboard XML text - ports
+    /// OnPasteXml, swapping winui's Clipboard/DataPackage for Avalonia's
+    /// TopLevel.Clipboard (ClipboardExtensions.TryGetTextAsync - see OnCopyXml).
+    /// </summary>
+    private async void OnPasteXml(object? sender, RoutedEventArgs e)
+    {
+        var file = _viewModel.CurrentFile;
+        if (file is null)
+            return;
+
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        var text = clipboard is null ? null : await clipboard.TryGetTextAsync();
+        if (string.IsNullOrEmpty(text))
+        {
+            await MessageDialog.ShowAsync(this, "Paste XML", "The clipboard does not contain any text.");
+            return;
+        }
+
+        var values = ComicInfoXml.Parse(System.Text.Encoding.UTF8.GetBytes(text));
+        if (values.Count == 0)
+        {
+            await MessageDialog.ShowAsync(this, "Paste XML", "The clipboard text is not valid ComicInfo XML.");
+            return;
+        }
+
+        _viewModel.RegisterExtrasFrom(values.Keys);
+        file.ReplaceCurrentValues(values);
+        _viewModel.RefreshEditor();
+        _viewModel.StatusText = $"Metadata replaced from clipboard ({values.Count} fields)";
+    }
 
     //---------------------------------------------------------------- settings (slice 5/6)
 

@@ -50,13 +50,17 @@
                     (BuildThemeMenu), same pattern as RecentMenu/RebuildGridColumns-->
                 <MenuItem x:Name="ThemeMenu" Header="Theme" />
             </MenuItem>
-            <!--slice 5/7: Settings… and Search ComicVine… - every other Tools
-                item (Guess from Filename, Auto Page Count, Copy/Paste XML)
-                stays deferred, none are built yet-->
             <MenuItem Header="_Tools">
                 <MenuItem Header="Search ComicVine…" Click="OnSearchComicVine"
                           IsVisible="{Binding OnlineLookupEnabled}" />
                 <Separator IsVisible="{Binding OnlineLookupEnabled}" />
+                <!--slice 15: Guess from Filename/Auto Page Count/Copy/Paste XML-->
+                <MenuItem Header="Guess from Filename" Click="OnGuessFromFilename" />
+                <MenuItem Header="Auto Page Count" Click="OnAutoPageCount" />
+                <Separator />
+                <MenuItem Header="Copy ComicInfo.xml" Click="OnCopyXml" />
+                <MenuItem Header="Paste ComicInfo.xml" Click="OnPasteXml" />
+                <Separator />
                 <MenuItem Header="Settings…" Click="OnSettings" />
             </MenuItem>
             <MenuItem Header="_Help">
