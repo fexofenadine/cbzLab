@@ -278,6 +278,72 @@ public partial class MainWindow : Window
         }
     }
 
+    //---------------------------------------------------------------- file lifecycle (revert/remove/close)
+
+    /// <summary>
+    /// Reloads the current file from disk, discarding unsaved edits - ports
+    /// OnRevert from the winui original verbatim (ReloadFrom/LoadCoverAsync
+    /// already ported unchanged in the services/viewmodels pass).
+    /// </summary>
+    private async void OnRevert(object? sender, RoutedEventArgs e)
+    {
+        var file = _viewModel.CurrentFile;
+        if (file is null)
+            return;
+        if (file.IsDirty && !await ConfirmDialog.ShowAsync(this, "Revert file",
+                $"Discard all edits on {file.FileName} and reload it from disk?", "Revert"))
+            return;
+
+        try
+        {
+            var result = await Task.Run(() => _archive.Read(file.Path));
+            var values = ComicInfoXml.Parse(result.ComicInfoXml);
+            _viewModel.RegisterExtrasFrom(values.Keys);
+            file.ReloadFrom(result.ComicInfoXml, values, result.ImagePageCount);
+            await file.LoadCoverAsync(result.CoverBytes);
+            _viewModel.RefreshEditor();
+            _viewModel.StatusText = $"Reverted {file.FileName}";
+        }
+        catch (System.Exception ex)
+        {
+            _log.Error($"Revert failed for '{file.Path}'", ex);
+            await MessageDialog.ShowAsync(this, "Revert failed", ex.Message);
+        }
+    }
+
+    private async void OnRemove(object? sender, RoutedEventArgs e) =>
+        await RemoveWithConfirmAsync(_viewModel.SelectedFiles.ToList());
+
+    private async void OnCloseFile(object? sender, RoutedEventArgs e)
+    {
+        if (_viewModel.CurrentFile is { } file)
+            await RemoveWithConfirmAsync(new List<ComicFileViewModel> { file });
+    }
+
+    private async void OnCloseAll(object? sender, RoutedEventArgs e) =>
+        await RemoveWithConfirmAsync(_viewModel.OpenFiles.ToList());
+
+    /// <summary>
+    /// Removes files from the list (never from disk), confirming first when any
+    /// of them carry unsaved changes - ports RemoveWithConfirmAsync verbatim
+    /// from the winui original. Shared by Remove, Close, and Close All.
+    /// </summary>
+    private async Task RemoveWithConfirmAsync(List<ComicFileViewModel> files)
+    {
+        if (files.Count == 0)
+            return;
+        var dirty = files.Where(f => f.IsDirty).Select(f => f.FileName).ToList();
+        if (dirty.Count > 0)
+        {
+            var ok = await ConfirmDialog.ShowAsync(this, "Unsaved changes",
+                "These files have unsaved changes that will be lost:\n\n" + string.Join("\n", dirty),
+                "Remove Anyway");
+            if (!ok)
+                return;
+        }
+        _viewModel.RemoveFiles(files);
+    }
+
     //---------------------------------------------------------------- selection / tabs
 
     private void FileList_SelectionChanged(object? sender, SelectionChangedEventArgs e) =>

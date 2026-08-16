@@ -25,6 +25,14 @@
                 <Separator />
                 <MenuItem Header="Save" Click="OnSave" />
                 <Separator />
+                <!--file lifecycle slice: Revert/Remove/Close/Close All - Save As/
+                    Save All stay deferred, they need a validation dialog, a
+                    multi-format picker, and a progress dialog not built yet-->
+                <MenuItem Header="Revert" Click="OnRevert" />
+                <MenuItem Header="Remove from List" Click="OnRemove" />
+                <MenuItem Header="Close" Click="OnCloseFile" />
+                <MenuItem Header="Close All" Click="OnCloseAll" />
+                <Separator />
                 <MenuItem Header="Quit" Click="OnQuit" />
             </MenuItem>
             <MenuItem Header="_View">
@@ -60,6 +68,10 @@
         <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="12,10">
             <Button x:Name="OpenButton" Content="Open…" Click="OnOpen" />
             <Button x:Name="SaveButton" Content="Save" Click="OnSave" />
+            <Button x:Name="RevertButton" Content="Revert" Click="OnRevert"
+                    ToolTip.Tip="Discard edits and reload the current file from disk" />
+            <Button x:Name="RemoveButton" Content="Remove" Click="OnRemove"
+                    ToolTip.Tip="Remove the selected file(s) from the list (not from disk)" />
             <!--IsChecked bound one-way only: a TwoWay bool?/bool ToggleButton
                 binding didn't round-trip back to the viewmodel reliably (visual
                 toggle flipped, IsGridViewActive never changed) - flipping it
