@@ -1018,7 +1018,7 @@ public partial class MainWindow : Window
     //first slice than fragile resource-lookup wiring. see FieldTemplateSelector
     //for the widget-type dispatch this mirrors from the winui original.
 
-    private static IDataTemplate BuildFieldTemplateSelector() => new FieldTemplateSelector
+    private IDataTemplate BuildFieldTemplateSelector() => new FieldTemplateSelector
     {
         EntryTemplate = new FuncDataTemplate<FieldViewModel>((f, _) => BuildEntryRow(f), true),
         TextTemplate = new FuncDataTemplate<FieldViewModel>((f, _) => BuildTextRow(f), true),
@@ -1036,7 +1036,7 @@ public partial class MainWindow : Window
     /// notes) - a picker convenience UI can be layered on later without
     /// changing how the value itself is stored or parsed.
     /// </summary>
-    private static Control BuildDateRow(FieldViewModel field)
+    private Control BuildDateRow(FieldViewModel field)
     {
         var box = new TextBox();
         box.Bind(TextBox.TextProperty, new Binding(nameof(FieldViewModel.DateDisplayValue)) { Mode = BindingMode.TwoWay });
@@ -1050,7 +1050,7 @@ public partial class MainWindow : Window
     /// DataContext (they're independent FieldViewModel instances, not reachable
     /// through the primary field's own bindings).
     /// </summary>
-    private static Control BuildNumericGroupRow(FieldViewModel field)
+    private Control BuildNumericGroupRow(FieldViewModel field)
     {
         var row = new StackPanel
         {
@@ -1064,13 +1064,14 @@ public partial class MainWindow : Window
         return row;
     }
 
-    private static Control BuildNumericGroupItem(FieldViewModel field)
+    private Control BuildNumericGroupItem(FieldViewModel field)
     {
         var label = new TextBlock { FontSize = 12, Opacity = 0.7 };
         label.Bind(TextBlock.TextProperty, new Binding(nameof(FieldViewModel.Label)));
 
         var box = new TextBox { Width = 90 };
         box.Bind(TextBox.TextProperty, new Binding(nameof(FieldViewModel.Value)) { Mode = BindingMode.TwoWay });
+        AttachRevertContextMenu(box, field);
 
         var item = new StackPanel { Spacing = 2, DataContext = field };
         item.Children.Add(label);
@@ -1078,35 +1079,57 @@ public partial class MainWindow : Window
         return item;
     }
 
-    private static Control BuildEntryRow(FieldViewModel field)
+    private Control BuildEntryRow(FieldViewModel field)
     {
         var box = new TextBox();
         box.Bind(TextBox.TextProperty, new Binding(nameof(FieldViewModel.Value)) { Mode = BindingMode.TwoWay });
         return BuildRow(field, box);
     }
 
-    private static Control BuildTextRow(FieldViewModel field)
+    private Control BuildTextRow(FieldViewModel field)
     {
         var box = new TextBox { AcceptsReturn = true, Height = 80, TextWrapping = TextWrapping.Wrap };
         box.Bind(TextBox.TextProperty, new Binding(nameof(FieldViewModel.Value)) { Mode = BindingMode.TwoWay });
         return BuildRow(field, box);
     }
 
-    private static Control BuildComboRow(FieldViewModel field)
+    private Control BuildComboRow(FieldViewModel field)
     {
         var combo = new ComboBox { ItemsSource = field.Options };
         combo.Bind(ComboBox.SelectedItemProperty, new Binding(nameof(FieldViewModel.Value)) { Mode = BindingMode.TwoWay });
         return BuildRow(field, combo);
     }
 
-    private static Control BuildRow(FieldViewModel field, Control input)
+    private Control BuildRow(FieldViewModel field, Control input)
     {
         var label = new TextBlock { FontSize = 12, Opacity = 0.7 };
         label.Bind(TextBlock.TextProperty, new Binding(nameof(FieldViewModel.Label)));
+        AttachRevertContextMenu(input, field);
 
         var panel = new StackPanel { Spacing = 2, Margin = new Thickness(0, 0, 0, 14), DataContext = field };
         panel.Children.Add(label);
         panel.Children.Add(input);
         return panel;
+    }
+
+    /// <summary>
+    /// Per-field "Revert to Saved" (slice 21) - ports the RevertField_Click
+    /// context-menu item from every winui field template (entry/text/combo/
+    /// date/numeric-group-item all had their own copy) into one shared
+    /// attach point, since every widget type in this port funnels through
+    /// either BuildRow or BuildNumericGroupItem. Calls the already-ported,
+    /// already-correct MainViewModel.RevertFieldToSaved directly - no manual
+    /// UI refresh needed, since SetValueSilent still raises the normal Value
+    /// PropertyChanged that the TwoWay binding (and, for Year, the
+    /// DateDisplayValue refresh wiring already set up in EnsureFieldViewModels)
+    /// picks up on its own.
+    /// </summary>
+    private void AttachRevertContextMenu(Control input, FieldViewModel field)
+    {
+        var item = new MenuItem { Header = "Revert to Saved" };
+        item.Click += (_, _) => _viewModel.RevertFieldToSaved(field);
+        var menu = new ContextMenu();
+        menu.Items.Add(item);
+        input.ContextMenu = menu;
     }
 }
