@@ -260,10 +260,19 @@ public partial class MainWindow : Window
 
     //---------------------------------------------------------------- saving
 
-    private void OnSave(object? sender, RoutedEventArgs e)
+    /// <summary>
+    /// Now validates before saving, same as OnSaveAll/OnSaveAs (slice 19) - this
+    /// was a real pre-existing gap flagged there, not fixed at the time since it
+    /// wasn't part of that slice's approved scope.
+    /// </summary>
+    private async void OnSave(object? sender, RoutedEventArgs e)
     {
         var file = _viewModel.CurrentFile;
         if (file is null)
+            return;
+
+        var errors = _validation.Validate(file.FileName, file.CurrentValues);
+        if (errors.Count > 0 && !await ValidationDialog.ShowAsync(this, errors))
             return;
 
         try
