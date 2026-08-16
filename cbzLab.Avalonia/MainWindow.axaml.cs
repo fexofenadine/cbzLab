@@ -270,6 +270,7 @@ public partial class MainWindow : Window
         {
             var xml = ComicInfoXml.Build(file.RawXml, file.BuildWriteValues());
             _archive.Save(file.Path, file.Path, file.Format, xml);
+            file.MarkSaved(xml);
             _viewModel.StatusText = $"Saved {file.FileName}";
         }
         catch (System.Exception ex)
@@ -355,6 +356,74 @@ public partial class MainWindow : Window
     private void OnTabCreators(object? sender, RoutedEventArgs e) => _viewModel.ActiveTab = SchemaService.TabCreators;
     private void OnTabStory(object? sender, RoutedEventArgs e) => _viewModel.ActiveTab = SchemaService.TabStory;
     private void OnTabExtras(object? sender, RoutedEventArgs e) => _viewModel.ActiveTab = SchemaService.TabExtras;
+
+    //---------------------------------------------------------------- keyboard accelerators (slice 16)
+
+    /// <summary>
+    /// Ctrl+1..Ctrl+5 (jump to tab), Ctrl+Tab/Ctrl+Shift+Tab (cycle tabs), F6
+    /// (focus the file list) - ports TabNumberAccelerator_Invoked/CtrlTab_Invoked/
+    /// CtrlShiftTab_Invoked/F6_Invoked from the winui original. Attached to
+    /// RootGrid rather than individual MenuItem.HotKey since none of these are
+    /// menu items. Shift+F6 (focus the search box) is deliberately not ported -
+    /// there's no search box in this port yet to focus. Uses SchemaService.
+    /// TabOrder rather than hardcoding the five tab names, so this stays correct
+    /// if the tab order ever changes.
+    ///
+    /// F6 needed FileList.Focusable="True" in the xaml too - confirmed by a
+    /// throwaway diagnostic that Avalonia's ListBox doesn't reliably focus via
+    /// a bare Focus() call otherwise (Focus() returned false, IsFocused stayed
+    /// false); NavigationMethod.Tab explicitly is also used rather than the
+    /// default Unspecified, since that's what actually produced a working,
+    /// verified Focus()=true/IsFocused=true result.
+    /// </summary>
+    private void OnRootGridKeyDown(object? sender, KeyEventArgs e)
+    {
+        var tabs = SchemaService.TabOrder;
+        var currentIndex = System.Array.IndexOf(tabs, _viewModel.ActiveTab);
+
+        if (e.KeyModifiers == KeyModifiers.Control && e.Key is >= Key.D1 and <= Key.D5)
+        {
+            var index = e.Key - Key.D1;
+            if (index < tabs.Length)
+                _viewModel.ActiveTab = tabs[index];
+            e.Handled = true;
+        }
+        else if (e.KeyModifiers == KeyModifiers.Control && e.Key == Key.Tab)
+        {
+            _viewModel.ActiveTab = tabs[(currentIndex + 1) % tabs.Length];
+            e.Handled = true;
+        }
+        else if (e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift) && e.Key == Key.Tab)
+        {
+            _viewModel.ActiveTab = tabs[(currentIndex - 1 + tabs.Length) % tabs.Length];
+            e.Handled = true;
+        }
+        else if (e.KeyModifiers == KeyModifiers.None && e.Key == Key.F6)
+        {
+            FileList.Focus(NavigationMethod.Tab);
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>
+    /// Ctrl+A (select every open file) / Delete (remove the selection, reusing
+    /// the same unsaved-changes confirm as the Remove button) - ports
+    /// FileListSelectAll_Invoked/FileListDelete_Invoked, attached directly to
+    /// FileList so they don't fight with text selection/deletion in a field.
+    /// </summary>
+    private async void OnFileListKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.KeyModifiers == KeyModifiers.Control && e.Key == Key.A)
+        {
+            FileList.SelectAll();
+            e.Handled = true;
+        }
+        else if (e.KeyModifiers == KeyModifiers.None && e.Key == Key.Delete)
+        {
+            e.Handled = true;
+            await RemoveWithConfirmAsync(_viewModel.SelectedFiles.ToList());
+        }
+    }
 
     //---------------------------------------------------------------- menu bar (slice 4)
 

@@ -10,7 +10,8 @@
           Background="{DynamicResource ThBg}"
           DragDrop.AllowDrop="True"
           DragDrop.DragOver="OnDragOver" DragDrop.DragEnter="OnDragEnter"
-          DragDrop.DragLeave="OnDragLeave" DragDrop.Drop="OnDrop">
+          DragDrop.DragLeave="OnDragLeave" DragDrop.Drop="OnDrop"
+          KeyDown="OnRootGridKeyDown">
 
         <!--menu bar (slice 4): scoped to items that wire to functionality
             already built in earlier slices, plus About - see plan for the
@@ -18,22 +19,22 @@
             Revert/Remove/Close, keyboard accelerators)-->
         <Menu Grid.Row="0">
             <MenuItem Header="_File">
-                <MenuItem Header="Open…" Click="OnOpen" />
+                <MenuItem Header="Open…" Click="OnOpen" HotKey="Ctrl+O" />
                 <!--slice 12: items populated/cleared via RecentMenu.Items in
                     code (BuildRecentMenu), same pattern as RebuildGridColumns-->
                 <MenuItem x:Name="RecentMenu" Header="Open Recent" />
                 <Separator />
-                <MenuItem Header="Save" Click="OnSave" />
+                <MenuItem Header="Save" Click="OnSave" HotKey="Ctrl+S" />
                 <Separator />
                 <!--file lifecycle slice: Revert/Remove/Close/Close All - Save As/
                     Save All stay deferred, they need a validation dialog, a
                     multi-format picker, and a progress dialog not built yet-->
                 <MenuItem Header="Revert" Click="OnRevert" />
                 <MenuItem Header="Remove from List" Click="OnRemove" />
-                <MenuItem Header="Close" Click="OnCloseFile" />
+                <MenuItem Header="Close" Click="OnCloseFile" HotKey="Ctrl+W" />
                 <MenuItem Header="Close All" Click="OnCloseAll" />
                 <Separator />
-                <MenuItem Header="Quit" Click="OnQuit" />
+                <MenuItem Header="Quit" Click="OnQuit" HotKey="Ctrl+Q" />
             </MenuItem>
             <MenuItem Header="_View">
                 <!--same one-way + explicit-toggle pattern as GridViewToggle
@@ -101,10 +102,14 @@
         <Grid Grid.Row="3" ColumnDefinitions="260,Auto,*" IsVisible="{Binding !IsGridViewActive}">
 
             <!--sidebar: open files-->
+            <!--Ctrl+A/Delete attached to the list itself, not the window, so
+                they don't fight with text selection/deletion in a field-->
             <ListBox x:Name="FileList" Grid.Column="0"
                      ItemsSource="{Binding DisplayedFiles}"
                      SelectionMode="Multiple"
-                     SelectionChanged="FileList_SelectionChanged">
+                     Focusable="True"
+                     SelectionChanged="FileList_SelectionChanged"
+                     KeyDown="OnFileListKeyDown">
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="vm:ComicFileViewModel">
                         <Grid ColumnDefinitions="30,*" Margin="0,3">
