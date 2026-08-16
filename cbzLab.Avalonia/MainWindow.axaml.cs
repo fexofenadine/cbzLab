@@ -886,7 +886,60 @@ public partial class MainWindow : Window
         EntryTemplate = new FuncDataTemplate<FieldViewModel>((f, _) => BuildEntryRow(f), true),
         TextTemplate = new FuncDataTemplate<FieldViewModel>((f, _) => BuildTextRow(f), true),
         ComboTemplate = new FuncDataTemplate<FieldViewModel>((f, _) => BuildComboRow(f), true),
+        DateTemplate = new FuncDataTemplate<FieldViewModel>((f, _) => BuildDateRow(f), true),
+        NumericGroupTemplate = new FuncDataTemplate<FieldViewModel>((f, _) => BuildNumericGroupRow(f), true),
     };
+
+    /// <summary>
+    /// Year's composite date row (slice 17) - a single free-text TextBox bound
+    /// to DateDisplayValue rather than a calendar-picker widget. DateFieldHelper
+    /// already parses full dates, year-only, and "MM/yyyy" from plain text, so
+    /// this gives fully working read/write date editing with none of the winui
+    /// CalendarView suppression-flag complexity (see CLAUDE.md's calendar-picker
+    /// notes) - a picker convenience UI can be layered on later without
+    /// changing how the value itself is stored or parsed.
+    /// </summary>
+    private static Control BuildDateRow(FieldViewModel field)
+    {
+        var box = new TextBox();
+        box.Bind(TextBox.TextProperty, new Binding(nameof(FieldViewModel.DateDisplayValue)) { Mode = BindingMode.TwoWay });
+        return BuildRow(field, box);
+    }
+
+    /// <summary>
+    /// Row-shared numeric fields (slice 17) - Number/Count/Volume or
+    /// AlternateNumber/AlternateCount side by side, each with its own label,
+    /// rather than three separate full-width rows. Each companion gets its own
+    /// DataContext (they're independent FieldViewModel instances, not reachable
+    /// through the primary field's own bindings).
+    /// </summary>
+    private static Control BuildNumericGroupRow(FieldViewModel field)
+    {
+        var row = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 16,
+            Margin = new Thickness(0, 0, 0, 14),
+        };
+        row.Children.Add(BuildNumericGroupItem(field));
+        foreach (var companion in field.RowCompanions)
+            row.Children.Add(BuildNumericGroupItem(companion));
+        return row;
+    }
+
+    private static Control BuildNumericGroupItem(FieldViewModel field)
+    {
+        var label = new TextBlock { FontSize = 12, Opacity = 0.7 };
+        label.Bind(TextBlock.TextProperty, new Binding(nameof(FieldViewModel.Label)));
+
+        var box = new TextBox { Width = 90 };
+        box.Bind(TextBox.TextProperty, new Binding(nameof(FieldViewModel.Value)) { Mode = BindingMode.TwoWay });
+
+        var item = new StackPanel { Spacing = 2, DataContext = field };
+        item.Children.Add(label);
+        item.Children.Add(box);
+        return item;
+    }
 
     private static Control BuildEntryRow(FieldViewModel field)
     {
