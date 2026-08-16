@@ -69,15 +69,23 @@ public static class DateFieldHelper
         if (input.Length == 0)
             return ("", "", "");
 
-        if (DateTime.TryParse(input, CultureInfo.CurrentCulture, DateTimeStyles.None, out var full))
-            return (full.Year.ToString(), full.Month.ToString(), full.Day.ToString());
-
+        //partial-date forms (year-only, "MM/yyyy") are checked BEFORE
+        //DateTime.TryParse, not after - .NET's parser doesn't reject a
+        //2-component input like "03/2019", it silently fills in the missing
+        //day as 1 and succeeds as a "full" date, which used to make every
+        //partial date the user actually typed get written with a fabricated
+        //Day=1 instead of staying genuinely dayless. Confirmed by reading the
+        //real saved ComicInfo.xml before this fix: a "03/2019" edit wrote
+        //<Day>1</Day>, never reaching the regex below at all.
         if (Regex.IsMatch(input, @"^\d{4}$"))
             return (input, "", "");
 
         var m = Regex.Match(input, @"^(\d{1,2})[/\-](\d{4})$");
         if (m.Success && int.TryParse(m.Groups[1].Value, out var mm) && mm is >= 1 and <= 12)
             return (m.Groups[2].Value, mm.ToString(), "");
+
+        if (DateTime.TryParse(input, CultureInfo.CurrentCulture, DateTimeStyles.None, out var full))
+            return (full.Year.ToString(), full.Month.ToString(), full.Day.ToString());
 
         return null;
     }
