@@ -41,6 +41,7 @@ public partial class MainWindow : Window
     private readonly ComicVineService _comicVine;
     private readonly MainViewModel _viewModel;
     private readonly FieldValueConverter _fieldValueConverter = new();
+    private ComicFileViewModel? _lastRightTappedFile;
 
     public MainWindow()
     {
@@ -584,6 +585,99 @@ public partial class MainWindow : Window
             e.Handled = true;
             await RemoveWithConfirmAsync(_viewModel.SelectedFiles.ToList());
         }
+    }
+
+    /// <summary>
+    /// Right-clicking a file outside the current selection replaces the
+    /// selection with just that file first, matching familiar file-manager
+    /// behaviour; right-clicking within an existing multi-selection leaves
+    /// it untouched - ports FileList_RightTapped from the winui original.
+    /// </summary>
+    private void OnFileListContextRequested(object? sender, ContextRequestedEventArgs e)
+    {
+        if ((e.Source as StyledElement)?.DataContext is ComicFileViewModel file)
+        {
+            _lastRightTappedFile = file;
+            if (!FileList.SelectedItems!.Contains(file))
+                FileList.SelectedItem = file;
+        }
+    }
+
+    /// <summary>
+    /// Greys out context menu items that wouldn't do anything given the
+    /// current selection, rather than letting them silently no-op - ports
+    /// FileContextFlyout_Opening from the winui original.
+    /// </summary>
+    private void FileContextMenu_Opening(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        if (sender is not ContextMenu menu)
+            return;
+        var hasSelection = _viewModel.HasSelection;
+        var singleSelection = _viewModel.SelectedFiles.Count == 1;
+        var batchSelection = _viewModel.SelectedFiles.Count > 1;
+        foreach (var item in menu.Items.OfType<MenuItem>())
+        {
+            item.IsEnabled = (item.Header as string) switch
+            {
+                "Open Containing Folder" => singleSelection,
+                "Copy Fields to Rest of Selection" => batchSelection,
+                _ => hasSelection,
+            };
+        }
+    }
+
+    /// <summary>
+    /// Opens Explorer with the current file pre-selected. Single-file only -
+    /// doesn't make sense to interpret for a multi-selection.
+    /// </summary>
+    private void OnOpenContainingFolder(object? sender, RoutedEventArgs e)
+    {
+        var file = _viewModel.CurrentFile;
+        if (file is null)
+            return;
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = $"/select,\"{file.Path}\"",
+                UseShellExecute = true,
+            });
+        }
+        catch (System.Exception ex)
+        {
+            _log.Warning($"Could not open containing folder for '{file.Path}': {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// The right-clicked file (captured by OnFileListContextRequested)
+    /// becomes the source; every other currently-selected file is a target.
+    /// Lets the user pick which populated fields to copy rather than blindly
+    /// copying everything - ports OnCopyFieldsToSelection from the winui
+    /// original.
+    /// </summary>
+    private async void OnCopyFieldsToSelection(object? sender, RoutedEventArgs e)
+    {
+        var source = _lastRightTappedFile;
+        var targets = _viewModel.SelectedFiles.Where(f => f != source).ToList();
+        if (source is null || targets.Count == 0)
+        {
+            _viewModel.StatusText = "Select multiple files, then right-click one to copy its fields to the rest";
+            return;
+        }
+
+        var tags = await CopyFieldsDialog.ShowAsync(this, source, targets.Count, _schema);
+        if (tags is null || tags.Count == 0)
+            return;
+
+        foreach (var target in targets)
+            foreach (var tag in tags)
+                target.SetValue(tag, source.GetValue(tag));
+
+        _viewModel.RefreshEditor();
+        _viewModel.StatusText = $"Copied {tags.Count} field{(tags.Count == 1 ? "" : "s")} "
+            + $"from '{source.FileName}' to {targets.Count} file{(targets.Count == 1 ? "" : "s")}";
     }
 
     //---------------------------------------------------------------- menu bar (slice 4)

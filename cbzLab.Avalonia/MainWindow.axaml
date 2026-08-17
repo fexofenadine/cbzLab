@@ -111,7 +111,19 @@
                      SelectionMode="Multiple"
                      Focusable="True"
                      SelectionChanged="FileList_SelectionChanged"
-                     KeyDown="OnFileListKeyDown">
+                     KeyDown="OnFileListKeyDown"
+                     ContextRequested="OnFileListContextRequested">
+                <ListBox.ContextMenu>
+                    <ContextMenu Opening="FileContextMenu_Opening">
+                        <MenuItem Header="Save" Click="OnSave" />
+                        <MenuItem Header="Revert" Click="OnRevert" />
+                        <MenuItem Header="Remove from List" Click="OnRemove" />
+                        <Separator />
+                        <MenuItem Header="Copy Fields to Rest of Selection" Click="OnCopyFieldsToSelection" />
+                        <Separator />
+                        <MenuItem Header="Open Containing Folder" Click="OnOpenContainingFolder" />
+                    </ContextMenu>
+                </ListBox.ContextMenu>
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="vm:ComicFileViewModel">
                         <Grid ColumnDefinitions="30,*"
