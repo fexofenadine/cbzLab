@@ -3,8 +3,10 @@ using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
+using Avalonia.Data.Converters;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
@@ -1129,28 +1131,126 @@ public partial class MainWindow : Window
         return item;
     }
 
+    /// <summary>
+    /// Batch mode (slice 22) - entry field row is a Grid rather than the plain
+    /// StackPanel every other row uses: the textbox column is star-sized so it
+    /// actually stretches when the fields-fill-width setting is on, mirroring
+    /// the winui original's own reason for using a Grid here. The picker
+    /// button sits beside it, visible whenever ShowPicker is true (batch mode
+    /// always offers it; single-file mode only when there's recent-value
+    /// history for this tag).
+    /// </summary>
     private Control BuildEntryRow(FieldViewModel field)
     {
         var box = new TextBox();
         box.Bind(TextBox.TextProperty, new Binding(nameof(FieldViewModel.Value)) { Mode = BindingMode.TwoWay });
-        return BuildRow(field, box);
+        box.Bind(TextBox.PlaceholderTextProperty, new Binding(nameof(FieldViewModel.PlaceholderText)));
+
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+        Grid.SetColumn(box, 0);
+        grid.Children.Add(box);
+        var picker = BuildValuePickerButton(field, nameof(FieldViewModel.ShowPicker));
+        Grid.SetColumn(picker, 1);
+        grid.Children.Add(picker);
+
+        return BuildRow(field, box, grid);
     }
 
+    /// <summary>
+    /// Batch mode (slice 22) - the picker sits next to the label instead of
+    /// beside the textbox, since the textbox itself is already full width;
+    /// mirrors the winui original's TextFieldTemplate layout. Only shown in
+    /// batch mode (IsBatch), unlike the entry-field picker which also offers
+    /// single-file recent-value history.
+    /// </summary>
     private Control BuildTextRow(FieldViewModel field)
     {
         var box = new TextBox { AcceptsReturn = true, Height = 80, TextWrapping = TextWrapping.Wrap };
         box.Bind(TextBox.TextProperty, new Binding(nameof(FieldViewModel.Value)) { Mode = BindingMode.TwoWay });
-        return BuildRow(field, box);
+        box.Bind(TextBox.PlaceholderTextProperty, new Binding(nameof(FieldViewModel.PlaceholderText)));
+
+        var label = new TextBlock { FontSize = 12, Opacity = 0.7 };
+        label.Bind(TextBlock.TextProperty, new Binding(nameof(FieldViewModel.Label)));
+        var header = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        header.Children.Add(label);
+        header.Children.Add(BuildValuePickerButton(field, nameof(FieldViewModel.IsBatch)));
+
+        AttachRevertContextMenu(box, field);
+        var panel = new StackPanel { Spacing = 4, DataContext = field };
+        panel.Bind(StackPanel.MarginProperty, new Binding(nameof(MainViewModel.FieldMargin)) { Source = _viewModel });
+        panel.Children.Add(header);
+        panel.Children.Add(box);
+        return panel;
     }
 
+    /// <summary>
+    /// Batch mode (slice 22) - a plain ComboBox can't represent "N distinct
+    /// values across the selection" as one of its own items, so batch mode
+    /// swaps it for a button showing BatchButtonText with the same picker
+    /// flyout every other field uses, mirroring the winui original's
+    /// ComboFieldTemplate (ComboBox visible when !IsBatch, DropDownButton
+    /// visible when IsBatch).
+    /// </summary>
     private Control BuildComboRow(FieldViewModel field)
     {
-        var combo = new ComboBox { ItemsSource = field.Options };
+        var combo = new ComboBox { ItemsSource = field.Options, MinWidth = 280 };
         combo.Bind(ComboBox.SelectedItemProperty, new Binding(nameof(FieldViewModel.Value)) { Mode = BindingMode.TwoWay });
-        return BuildRow(field, combo);
+        combo.Bind(ComboBox.PlaceholderTextProperty, new Binding(nameof(FieldViewModel.PlaceholderText)));
+        combo.Bind(Visual.IsVisibleProperty, new Binding(nameof(FieldViewModel.IsBatch)) { Converter = BoolConverters.Not });
+
+        var batchButton = new Button { MinWidth = 280, HorizontalContentAlignment = HorizontalAlignment.Left };
+        batchButton.Bind(ContentControl.ContentProperty, new Binding(nameof(FieldViewModel.BatchButtonText)));
+        batchButton.Bind(Visual.IsVisibleProperty, new Binding(nameof(FieldViewModel.IsBatch)));
+        batchButton.Flyout = BuildValuePickerFlyout(field);
+
+        var stack = new StackPanel { Spacing = 2, DataContext = field };
+        stack.Children.Add(combo);
+        stack.Children.Add(batchButton);
+        return BuildRow(field, combo, stack);
     }
 
-    private Control BuildRow(FieldViewModel field, Control input)
+    /// <summary>
+    /// Detected-values-across-the-selection (or recent-values, single-file)
+    /// picker (slice 22) - one Flyout+ListBox shape shared by every field
+    /// widget type, mirroring the winui original's three copies of the same
+    /// DropDownButton/Flyout/ListView markup. Selecting an item sets the
+    /// field's Value directly (same as typing it) and closes the flyout;
+    /// SelectedItem is reset afterward so the same value can be picked again
+    /// without a no-op SelectionChanged.
+    /// </summary>
+    private FlyoutBase BuildValuePickerFlyout(FieldViewModel field)
+    {
+        var listBox = new ListBox { MinWidth = 300, MaxHeight = 260 };
+        listBox.Bind(ItemsControl.ItemsSourceProperty, new Binding(nameof(FieldViewModel.DistinctValues)) { Source = field });
+        listBox.ItemTemplate = new FuncDataTemplate<DistinctValue>((dv, _) => new TextBlock { Text = dv?.Display ?? "" }, true);
+        var flyout = new Flyout { Content = listBox, Placement = PlacementMode.Bottom };
+        listBox.SelectionChanged += (_, _) =>
+        {
+            if (listBox.SelectedItem is DistinctValue dv)
+                field.Value = dv.Value;
+            listBox.SelectedItem = null;
+            flyout.Hide();
+        };
+        return flyout;
+    }
+
+    private Button BuildValuePickerButton(FieldViewModel field, string visibilityProperty)
+    {
+        var button = new Button { Content = "▾", Padding = new Thickness(8, 2) };
+        ToolTip.SetTip(button, "Choose a value");
+        button.Bind(Visual.IsVisibleProperty, new Binding(visibilityProperty) { Source = field });
+        button.Flyout = BuildValuePickerFlyout(field);
+        return button;
+    }
+
+    /// <summary>
+    /// display defaults to input, but entry/combo rows (slice 22) pass a
+    /// separate wrapping Grid/StackPanel that also holds the batch picker -
+    /// the context menu still attaches to the actual editable control
+    /// (input), not the wrapper, so right-click only reverts on the field
+    /// itself rather than anywhere in its row.
+    /// </summary>
+    private Control BuildRow(FieldViewModel field, Control input, Control? display = null)
     {
         var label = new TextBlock { FontSize = 12, Opacity = 0.7 };
         label.Bind(TextBlock.TextProperty, new Binding(nameof(FieldViewModel.Label)));
@@ -1159,7 +1259,7 @@ public partial class MainWindow : Window
         var panel = new StackPanel { Spacing = 2, DataContext = field };
         panel.Bind(StackPanel.MarginProperty, new Binding(nameof(MainViewModel.FieldMargin)) { Source = _viewModel });
         panel.Children.Add(label);
-        panel.Children.Add(input);
+        panel.Children.Add(display ?? input);
         return panel;
     }
 
