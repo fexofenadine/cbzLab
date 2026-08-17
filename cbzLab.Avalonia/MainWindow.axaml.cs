@@ -1210,6 +1210,14 @@ public partial class MainWindow : Window
         return row;
     }
 
+    /// <summary>
+    /// Batch mode (slice 22) - matches the winui original's NumericGroupTemplate:
+    /// the mixed-value placeholder text is bound (so a differing Number/Count/
+    /// Volume across the selection reads as "multiple values", not blank), but
+    /// there's deliberately no picker button here, unlike entry/text/combo
+    /// fields - the winui original doesn't have one for numeric-group items
+    /// either, and a detected-values list is a poor fit for fields this narrow.
+    /// </summary>
     private Control BuildNumericGroupItem(FieldViewModel field)
     {
         var label = new TextBlock { FontSize = 12, Opacity = 0.7 };
@@ -1217,6 +1225,7 @@ public partial class MainWindow : Window
 
         var box = new TextBox { Width = 90 };
         box.Bind(TextBox.TextProperty, new Binding(nameof(FieldViewModel.Value)) { Mode = BindingMode.TwoWay });
+        box.Bind(TextBox.PlaceholderTextProperty, new Binding(nameof(FieldViewModel.PlaceholderText)));
         AttachRevertContextMenu(box, field);
 
         var item = new StackPanel { Spacing = 2, DataContext = field };
