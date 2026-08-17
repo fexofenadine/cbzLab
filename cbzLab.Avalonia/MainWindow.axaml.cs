@@ -34,7 +34,7 @@ public partial class MainWindow : Window
     //improvement pass; becomes the real "2.0.0" once this port reaches
     //parity with the winui original - see cbzLab.Avalonia.csproj's own
     //comment on the matching Version/AssemblyVersion/FileVersion properties
-    public const string DisplayVersion = "2.0.0 Beta 1.0";
+    public const string DisplayVersion = "2.0.0 Beta 1.1";
 
     private readonly LogService _log;
     private readonly SettingsService _settings;

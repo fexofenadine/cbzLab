@@ -24,7 +24,7 @@
         AssemblyVersion/FileVersion must be strictly numeric (no "beta" text
         allowed there) - MainWindow.axaml.cs's DisplayVersion constant carries
         the human-readable "2.0.0 Beta 1.0" string shown in the title bar/About.-->
-    <Version>2.0.0-beta1.0</Version>
+    <Version>2.0.0-beta1.1</Version>
     <AssemblyVersion>2.0.0.0</AssemblyVersion>
     <FileVersion>2.0.0.0</FileVersion>
   </PropertyGroup>
