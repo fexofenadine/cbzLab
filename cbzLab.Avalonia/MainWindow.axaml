@@ -25,6 +25,19 @@
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="Padding" Value="10,6" />
         </Style>
+        <!--per-file close button (slice 26) - small and flat by default so it
+            doesn't visually compete with the cover thumbnail/filename, same
+            transparent-until-interacted-with idea as the toolbar buttons above-->
+        <Style Selector="Button.rowclose">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Padding" Value="6,2" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Opacity" Value="0.6" />
+        </Style>
+        <Style Selector="Button.rowclose:pointerover">
+            <Setter Property="Opacity" Value="1" />
+        </Style>
     </Window.Styles>
 
     <Grid x:Name="RootGrid" RowDefinitions="Auto,Auto,*,Auto"
@@ -85,6 +98,10 @@
                 <MenuItem Header="Copy ComicInfo.xml" Click="OnCopyXml" />
                 <MenuItem Header="Paste ComicInfo.xml" Click="OnPasteXml" />
                 <Separator />
+                <!--slice 26: not a winui feature - this port's own addition,
+                    since the toolbar has no drag-to-rearrange affordance of
+                    its own-->
+                <MenuItem Header="Customize Toolbar…" Click="OnCustomizeToolbar" />
                 <MenuItem Header="Settings…" Click="OnSettings" />
             </MenuItem>
             <MenuItem Header="_Help">
@@ -92,7 +109,7 @@
             </MenuItem>
         </Menu>
 
-        <!--toolbar (slice 25): matches the winui original's real structure -
+        <!--toolbar (slice 25/26): matches the winui original's real structure -
             flat buttons (no visible "box" at rest, see Window.Styles above),
             thin vertical separators between logical groups instead of
             uniform button borders, and a scroll-left/right overflow (matches
@@ -102,7 +119,10 @@
             to a second row. "Choose Columns…" removed - it was never a
             toolbar button in the winui original either, only reachable via
             the View menu and the grid's own right-click menu, both already
-            wired in this port.-->
+            wired in this port. The button list itself isn't static XAML
+            anymore (slice 26, Customize Toolbar) - ToolbarPanel is built and
+            rebuilt in code from AppSettings.ToolbarButtons, same
+            RebuildX() pattern already used for RebuildGridColumns.-->
         <Border Grid.Row="1" Background="{DynamicResource ThBg2}"
                 BorderBrush="{DynamicResource ThSep}" BorderThickness="0,0,0,1">
             <Grid ColumnDefinitions="Auto,*,Auto">
@@ -111,60 +131,7 @@
 
                 <ScrollViewer Grid.Column="1" x:Name="ToolbarScroll"
                               HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
-                    <StackPanel Orientation="Horizontal" Spacing="2" Margin="8,4">
-                        <Button Classes="toolflat" Click="OnOpen" Content="Open…"
-                                ToolTip.Tip="Open archives" />
-                        <Button Classes="toolflat" Click="OnSave" Content="Save"
-                                ToolTip.Tip="Save the selected file(s) in place" />
-                        <Button Classes="toolflat" Click="OnSaveAll"
-                                ToolTip.Tip="Save every file with unsaved changes">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <TextBlock Text="Save All" />
-                                <!--dirty-count badge (slice 23) - HasDirtyFiles/DirtyCount were already fully wired-->
-                                <Border Background="{DynamicResource ThBg2}"
-                                        BorderBrush="{DynamicResource ThDirtyFg}" BorderThickness="1.5"
-                                        CornerRadius="9" MinWidth="18" Height="18" Padding="4,0"
-                                        IsVisible="{Binding HasDirtyFiles}">
-                                    <TextBlock Text="{Binding DirtyCount}" FontSize="11" FontWeight="SemiBold"
-                                               Foreground="{DynamicResource ThDirtyFg}"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                </Border>
-                            </StackPanel>
-                        </Button>
-                        <Border Width="1" Margin="6,4" Background="{DynamicResource ThSep}" />
-                        <Button Classes="toolflat" Click="OnRemove" Content="Remove"
-                                ToolTip.Tip="Remove the selected file(s) from the list (not from disk)" />
-                        <Button Classes="toolflat" Click="OnRevert" Content="Revert"
-                                ToolTip.Tip="Discard edits on the current file and reload from disk" />
-                        <Border Width="1" Margin="6,4" Background="{DynamicResource ThSep}" />
-                        <Button Classes="toolflat" Click="OnCopyXml" Content="Copy XML"
-                                ToolTip.Tip="Copy the current file's ComicInfo.xml to the clipboard" />
-                        <Button Classes="toolflat" Click="OnPasteXml" Content="Paste XML"
-                                ToolTip.Tip="Replace the current file's metadata from clipboard XML" />
-                        <Border Width="1" Margin="6,4" Background="{DynamicResource ThSep}" />
-                        <Button Classes="toolflat" Click="OnGuessFromFilename" Content="Guess from Filename"
-                                ToolTip.Tip="Fill empty Series/Number/Volume/Year fields from the filename and folder" />
-                        <Border Width="1" Margin="6,4" Background="{DynamicResource ThSep}"
-                                IsVisible="{Binding OnlineLookupEnabled}" />
-                        <Button Classes="toolflat" Click="OnSearchComicVine" Content="Search ComicVine…"
-                                ToolTip.Tip="Search ComicVine for this file's series and issue"
-                                IsVisible="{Binding OnlineLookupEnabled}" />
-                        <Border Width="1" Margin="6,4" Background="{DynamicResource ThSep}" />
-                        <!--IsChecked bound one-way only throughout this toolbar: a TwoWay
-                            bool?/bool ToggleButton binding didn't round-trip back to the
-                            viewmodel reliably (visual toggle flipped, the property never
-                            changed) - flipping it explicitly in each click handler instead-->
-                        <ToggleButton Classes="toolflat" Content="All Fields"
-                                      IsChecked="{Binding ShowAllFields, Mode=OneWay}" Click="OnToggleShowAllFields"
-                                      ToolTip.Tip="Show all fields, including empty ones" />
-                        <ToggleButton Classes="toolflat" Content="Extras"
-                                      IsChecked="{Binding ShowExtraFields, Mode=OneWay}" Click="OnToggleShowExtraFields"
-                                      ToolTip.Tip="Show unofficial/extra fields" />
-                        <Border Width="1" Margin="6,4" Background="{DynamicResource ThSep}" />
-                        <ToggleButton Classes="toolflat" x:Name="GridViewToggle" Content="Grid View"
-                                      IsChecked="{Binding IsGridViewActive, Mode=OneWay}" Click="OnToggleGridView"
-                                      ToolTip.Tip="Switch between the editor and a table view of your library" />
-                    </StackPanel>
+                    <StackPanel x:Name="ToolbarPanel" Orientation="Horizontal" Spacing="2" Margin="8,4" />
                 </ScrollViewer>
 
                 <Button Grid.Column="2" Classes="toolflat" Click="OnToolbarScrollRight"
@@ -217,7 +184,7 @@
                     </ListBox.ContextMenu>
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:ComicFileViewModel">
-                            <Grid ColumnDefinitions="30,*"
+                            <Grid ColumnDefinitions="30,*,Auto"
                                   Margin="{Binding $parent[ListBox].((vm:MainViewModel)DataContext).FileRowMargin}">
                                 <Border Grid.Column="0" Width="30" Height="40" CornerRadius="2" Background="{DynamicResource ThBg2}">
                                     <Image Source="{Binding CoverImage}" Stretch="UniformToFill" IsVisible="{Binding HasCover}" />
@@ -230,6 +197,14 @@
                                     <TextBlock Text="{Binding Subtitle}" FontSize="12" Opacity="{Binding SubtitleOpacity}"
                                                TextTrimming="CharacterEllipsis" />
                                 </StackPanel>
+                                <!--per-row close (slice 26, not a winui feature - a new
+                                    convenience so closing one file doesn't need File menu ->
+                                    Close or selecting it first. Reuses RemoveWithConfirmAsync
+                                    with a single-file list, same unsaved-changes guard as
+                                    every other close/remove path in this port.-->
+                                <Button Grid.Column="2" Classes="rowclose" Content="✕"
+                                        VerticalAlignment="Top" Click="OnCloseFileRow"
+                                        ToolTip.Tip="Close this file" />
                             </Grid>
                         </DataTemplate>
                     </ListBox.ItemTemplate>

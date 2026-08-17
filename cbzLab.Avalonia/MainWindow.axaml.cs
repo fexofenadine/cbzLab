@@ -70,6 +70,7 @@ public partial class MainWindow : Window
         DataContext = _viewModel;
         FieldList.ItemTemplate = BuildFieldTemplateSelector();
         RebuildGridColumns();
+        RebuildToolbar();
         BuildRecentMenu();
 
         //restores the remembered sort mode - SortCombo's xaml-default
@@ -530,6 +531,19 @@ public partial class MainWindow : Window
         await RemoveWithConfirmAsync(_viewModel.OpenFiles.ToList());
 
     /// <summary>
+    /// Per-file close button (slice 26) - not a winui feature, a new
+    /// convenience so closing one file doesn't need File -> Close or
+    /// selecting it first. sender is the clicked Button; its DataContext is
+    /// the row's own ComicFileViewModel (set by the ListBox's ItemTemplate),
+    /// same lookup shape as every other per-row action in this codebase.
+    /// </summary>
+    private async void OnCloseFileRow(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as Control)?.DataContext is ComicFileViewModel file)
+            await RemoveWithConfirmAsync(new List<ComicFileViewModel> { file });
+    }
+
+    /// <summary>
     /// Removes files from the list (never from disk), confirming first when any
     /// of them carry unsaved changes - ports RemoveWithConfirmAsync verbatim
     /// from the winui original. Shared by Remove, Close, and Close All.
@@ -757,7 +771,186 @@ public partial class MainWindow : Window
             + $"from '{source.FileName}' to {targets.Count} file{(targets.Count == 1 ? "" : "s")}";
     }
 
-    //---------------------------------------------------------------- toolbar (slice 25)
+    //---------------------------------------------------------------- toolbar (slice 25/26)
+
+    /// <summary>
+    /// Every button the toolbar can show, in the port's own fixed reference
+    /// order - not a winui feature, this port's own Customize Toolbar
+    /// addition (slice 26). AppSettings.ToolbarButtons is the ordered subset
+    /// actually enabled; Group drives where a separator gets inserted (a new
+    /// separator appears whenever two adjacent enabled items belong to
+    /// different groups, mirroring the fixed groupings the old static xaml
+    /// toolbar used).
+    /// </summary>
+    internal static readonly (string Id, string Label, int Group)[] ToolbarCatalog =
+    {
+        ("Open", "Open…", 0),
+        ("Save", "Save", 0),
+        ("SaveAll", "Save All", 0),
+        ("Remove", "Remove", 1),
+        ("Revert", "Revert", 1),
+        ("CopyXml", "Copy XML", 2),
+        ("PasteXml", "Paste XML", 2),
+        ("GuessFromFilename", "Guess from Filename", 3),
+        ("SearchComicVine", "Search ComicVine…", 4),
+        ("AllFields", "All Fields", 5),
+        ("Extras", "Extras", 5),
+        ("GridView", "Grid View", 6),
+    };
+
+    /// <summary>
+    /// Builds ToolbarPanel's children from AppSettings.ToolbarButtons - same
+    /// RebuildX() shape as RebuildGridColumns. Unknown ids (e.g. a stale
+    /// settings file from before an id was renamed) are skipped rather than
+    /// throwing. A group-boundary separator is inserted between adjacent
+    /// enabled items whose ToolbarCatalog Group differs - SearchComicVine's
+    /// own IsVisible binding on OnlineLookupEnabled can still leave a
+    /// separator with nothing visible after it if it's enabled here but
+    /// ComicVine itself is off; a minor, known cosmetic edge case, not worth
+    /// the extra complexity of a fully dynamic separator-visibility binding
+    /// for one optional button.
+    /// </summary>
+    private void RebuildToolbar()
+    {
+        ToolbarPanel.Children.Clear();
+        int? lastGroup = null;
+        foreach (var id in _settings.Settings.ToolbarButtons)
+        {
+            var index = System.Array.FindIndex(ToolbarCatalog, d => d.Id == id);
+            if (index < 0)
+                continue;
+            var def = ToolbarCatalog[index];
+            var control = BuildToolbarButtonControl(def.Id);
+            if (control is null)
+                continue;
+
+            if (lastGroup is not null && lastGroup != def.Group)
+                ToolbarPanel.Children.Add(BuildToolbarSeparator());
+            ToolbarPanel.Children.Add(control);
+            lastGroup = def.Group;
+        }
+    }
+
+    private Control BuildToolbarSeparator() =>
+        new Border { Width = 1, Margin = new Thickness(6, 4), Background = GetThemeBrush("ThSep") };
+
+    private Control? BuildToolbarButtonControl(string id) => id switch
+    {
+        "Open" => MakeToolButton("Open…", OnOpen, "Open archives"),
+        "Save" => MakeToolButton("Save", OnSave, "Save the selected file(s) in place"),
+        "SaveAll" => BuildSaveAllButton(),
+        "Remove" => MakeToolButton("Remove", OnRemove, "Remove the selected file(s) from the list (not from disk)"),
+        "Revert" => MakeToolButton("Revert", OnRevert, "Discard edits on the current file and reload from disk"),
+        "CopyXml" => MakeToolButton("Copy XML", OnCopyXml, "Copy the current file's ComicInfo.xml to the clipboard"),
+        "PasteXml" => MakeToolButton("Paste XML", OnPasteXml, "Replace the current file's metadata from clipboard XML"),
+        "GuessFromFilename" => MakeToolButton("Guess from Filename", OnGuessFromFilename,
+            "Fill empty Series/Number/Volume/Year fields from the filename and folder"),
+        "SearchComicVine" => BuildSearchComicVineButton(),
+        "AllFields" => BuildToolToggle("All Fields", nameof(MainViewModel.ShowAllFields),
+            OnToggleShowAllFields, "Show all fields, including empty ones"),
+        "Extras" => BuildToolToggle("Extras", nameof(MainViewModel.ShowExtraFields),
+            OnToggleShowExtraFields, "Show unofficial/extra fields"),
+        "GridView" => BuildToolToggle("Grid View", nameof(MainViewModel.IsGridViewActive),
+            OnToggleGridView, "Switch between the editor and a table view of your library"),
+        _ => null,
+    };
+
+    private static Button MakeToolButton(string content, System.EventHandler<RoutedEventArgs> handler, string tooltip)
+    {
+        var button = new Button { Content = content };
+        button.Classes.Add("toolflat");
+        ToolTip.SetTip(button, tooltip);
+        button.Click += handler;
+        return button;
+    }
+
+    private static ToggleButton BuildToolToggle(
+        string content, string boundProperty, System.EventHandler<RoutedEventArgs> handler, string tooltip)
+    {
+        var toggle = new ToggleButton { Content = content };
+        toggle.Classes.Add("toolflat");
+        ToolTip.SetTip(toggle, tooltip);
+        toggle.Bind(ToggleButton.IsCheckedProperty, new Binding(boundProperty) { Mode = BindingMode.OneWay });
+        toggle.Click += handler;
+        return toggle;
+    }
+
+    //dirty-count badge (slice 23), pulled out of the old static xaml as-is
+    private Button BuildSaveAllButton()
+    {
+        var button = new Button();
+        button.Classes.Add("toolflat");
+        ToolTip.SetTip(button, "Save every file with unsaved changes");
+        button.Click += OnSaveAll;
+
+        var badgeText = new TextBlock
+        {
+            FontSize = 11,
+            FontWeight = FontWeight.SemiBold,
+            Foreground = GetThemeBrush("ThDirtyFg"),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        badgeText.Bind(TextBlock.TextProperty, new Binding(nameof(MainViewModel.DirtyCount)) { Source = _viewModel });
+
+        var badge = new Border
+        {
+            Background = GetThemeBrush("ThBg2"),
+            BorderBrush = GetThemeBrush("ThDirtyFg"),
+            BorderThickness = new Thickness(1.5),
+            CornerRadius = new CornerRadius(9),
+            MinWidth = 18,
+            Height = 18,
+            Padding = new Thickness(4, 0),
+            Child = badgeText,
+        };
+        badge.Bind(Visual.IsVisibleProperty, new Binding(nameof(MainViewModel.HasDirtyFiles)) { Source = _viewModel });
+
+        var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        content.Children.Add(new TextBlock { Text = "Save All" });
+        content.Children.Add(badge);
+        button.Content = content;
+        return button;
+    }
+
+    //only visible when OnlineLookupEnabled (ComicVine is configured/on) -
+    //matches the old static xaml button's own IsVisible binding
+    private Button BuildSearchComicVineButton()
+    {
+        var button = new Button { Content = "Search ComicVine…" };
+        button.Classes.Add("toolflat");
+        ToolTip.SetTip(button, "Search ComicVine for this file's series and issue");
+        button.Click += OnSearchComicVine;
+        button.Bind(Visual.IsVisibleProperty, new Binding(nameof(MainViewModel.OnlineLookupEnabled)) { Source = _viewModel });
+        return button;
+    }
+
+    /// <summary>
+    /// Looks up a live theme brush by resource key, same pattern GetErrorBrush
+    /// already uses - the brush object itself is a mutable, shared
+    /// SolidColorBrush that ThemeService repaints in place on theme change, so
+    /// a plain assignment (not a DynamicResource binding) still stays live.
+    /// </summary>
+    private IBrush GetThemeBrush(string key)
+    {
+        this.TryFindResource(key, out var res);
+        return res as IBrush ?? Brushes.Gray;
+    }
+
+    /// <summary>
+    /// Customize Toolbar (slice 26) - not a winui feature. Persists the new
+    /// button set/order to AppSettings.ToolbarButtons and rebuilds the live
+    /// toolbar immediately, same save-then-refresh shape as OnChooseColumns.
+    /// </summary>
+    private async void OnCustomizeToolbar(object? sender, RoutedEventArgs e)
+    {
+        var chosen = await ToolbarCustomizeDialog.ShowAsync(this, _settings.Settings.ToolbarButtons, ToolbarCatalog);
+        if (chosen is null)
+            return;
+        _settings.Settings.ToolbarButtons = chosen;
+        _settings.Save();
+        RebuildToolbar();
+    }
 
     private const double ToolbarScrollStep = 200;
 

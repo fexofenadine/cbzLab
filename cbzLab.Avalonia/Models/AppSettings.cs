@@ -110,4 +110,16 @@ public class AppSettings
     //empty means let the platform pick a default starting folder
     [JsonPropertyName("last_open_folder")]
     public string LastOpenFolder { get; set; } = "";
+
+    //ordered list of enabled toolbar item ids (MainWindow.ToolbarCatalog has
+    //the full set) - not a winui feature, this port's own Customize Toolbar
+    //addition. GuessFromFilename/SearchComicVine start disabled since the
+    //Tools menu already covers them and the toolbar was getting crowded;
+    //still in the catalog so they can be re-added via Customize Toolbar.
+    [JsonPropertyName("toolbar_buttons")]
+    public List<string> ToolbarButtons { get; set; } = new()
+    {
+        "Open", "Save", "SaveAll", "Remove", "Revert", "CopyXml", "PasteXml",
+        "AllFields", "Extras", "GridView",
+    };
 }
