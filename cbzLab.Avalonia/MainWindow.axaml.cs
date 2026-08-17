@@ -1056,8 +1056,8 @@ public partial class MainWindow : Window
         {
             Orientation = Orientation.Horizontal,
             Spacing = 16,
-            Margin = new Thickness(0, 0, 0, 14),
         };
+        row.Bind(StackPanel.MarginProperty, new Binding(nameof(MainViewModel.FieldMargin)) { Source = _viewModel });
         row.Children.Add(BuildNumericGroupItem(field));
         foreach (var companion in field.RowCompanions)
             row.Children.Add(BuildNumericGroupItem(companion));
@@ -1106,7 +1106,8 @@ public partial class MainWindow : Window
         label.Bind(TextBlock.TextProperty, new Binding(nameof(FieldViewModel.Label)));
         AttachRevertContextMenu(input, field);
 
-        var panel = new StackPanel { Spacing = 2, Margin = new Thickness(0, 0, 0, 14), DataContext = field };
+        var panel = new StackPanel { Spacing = 2, DataContext = field };
+        panel.Bind(StackPanel.MarginProperty, new Binding(nameof(MainViewModel.FieldMargin)) { Source = _viewModel });
         panel.Children.Add(label);
         panel.Children.Add(input);
         return panel;
