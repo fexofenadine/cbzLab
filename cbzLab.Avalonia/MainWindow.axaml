@@ -152,7 +152,9 @@
 
         <!--grid view (slice 2): dirty-indicator column is fixed/declared here like
             the winui original; the rest come from AppSettings.GridColumns, built
-            in code (RebuildGridColumns) since there's no column picker dialog yet-->
+            in code (RebuildGridColumns). Right-click context menu (Edit/Choose
+            Columns…) added in a later slice, mirroring OnGridRightTapped/
+            GridContextFlyout_Opening from the winui original-->
         <DataGrid Grid.Row="3" x:Name="ComicsGrid"
                   ItemsSource="{Binding DisplayedFiles}"
                   IsReadOnly="True"
@@ -171,6 +173,13 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
             </DataGrid.Columns>
+            <DataGrid.ContextMenu>
+                <ContextMenu Opening="GridContextMenu_Opening">
+                    <MenuItem x:Name="GridEditMenuItem" Header="Edit" Click="OnGridEditSelection" />
+                    <Separator />
+                    <MenuItem Header="Choose Columns…" Click="OnChooseColumns" />
+                </ContextMenu>
+            </DataGrid.ContextMenu>
         </DataGrid>
 
         <!--drag-and-drop overlay (slice 11): shown only while a file is being

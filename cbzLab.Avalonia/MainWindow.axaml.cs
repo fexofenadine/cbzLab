@@ -1020,17 +1020,45 @@ public partial class MainWindow : Window
 
     /// <summary>
     /// Double-click switches back to the sidebar+editor view with that row
-    /// selected - mirrors SwitchToEditorForSelection in the winui original,
-    /// simplified (no right-click/context-menu Edit path yet, see plan).
+    /// selected.
     /// </summary>
     private void OnGridDoubleTapped(object? sender, TappedEventArgs e)
     {
-        if (ComicsGrid.SelectedItem is not ComicFileViewModel file)
-            return;
+        if (ComicsGrid.SelectedItem is ComicFileViewModel file)
+            SwitchToEditorForSelection(new[] { file });
+    }
 
+    /// <summary>
+    /// Grid context menu (Edit/Choose Columns…) - mirrors GridContextFlyout_Opening
+    /// in the winui original: labels the Edit item by selection count and
+    /// disables it when nothing is selected (e.g. a right-click on empty
+    /// space below the last row).
+    /// </summary>
+    private void GridContextMenu_Opening(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        var count = ComicsGrid.SelectedItems.Count;
+        GridEditMenuItem.Header = count > 1 ? $"Edit {count} Books in Batch Editor" : "Edit This Book";
+        GridEditMenuItem.IsEnabled = count > 0;
+    }
+
+    private void OnGridEditSelection(object? sender, RoutedEventArgs e)
+    {
+        var files = ComicsGrid.SelectedItems.Cast<ComicFileViewModel>().ToList();
+        if (files.Count > 0)
+            SwitchToEditorForSelection(files);
+    }
+
+    /// <summary>
+    /// Shared by double-click (always one file) and the context menu's Edit
+    /// item (one or many) - mirrors SwitchToEditorForSelection in the winui
+    /// original.
+    /// </summary>
+    private void SwitchToEditorForSelection(IEnumerable<ComicFileViewModel> files)
+    {
         _viewModel.IsGridViewActive = false;
         FileList.SelectedItems!.Clear();
-        FileList.SelectedItems!.Add(file);
+        foreach (var file in files)
+            FileList.SelectedItems!.Add(file);
     }
 
     //---------------------------------------------------------------- field templates
