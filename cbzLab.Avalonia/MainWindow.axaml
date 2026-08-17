@@ -260,7 +260,13 @@
                     width columns clipped the longer labels ("Publicatio...").
                     Correct tab identity/selected-state styling (the actual ask)
                     matters more than exact width parity, so left as auto-width.-->
-                <TabControl Grid.Row="2" x:Name="EditorTabs" Height="44" Margin="16,10,16,0"
+                <!--FontSize explicit here, not inherited from anywhere - FluentTheme's
+                    own default TabItem header font turned out much larger than the
+                    rest of this app's UI chrome (confirmed by screenshot after
+                    switching from plain Buttons, which defaulted to a normal size,
+                    to a real TabControl - not related to EditorFontSize, which only
+                    reaches FieldList below, a sibling, not an ancestor, of this-->
+                <TabControl Grid.Row="2" x:Name="EditorTabs" Height="44" Margin="16,10,16,0" FontSize="14"
                             SelectionChanged="OnEditorTabsSelectionChanged"
                             IsVisible="{Binding HasSelection}">
                     <TabItem Header="Basic Info" />
