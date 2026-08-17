@@ -6,6 +6,27 @@
         Title="cbzLab 2.0.0 Beta 1.0"
         Width="900" Height="640">
 
+    <Window.Styles>
+        <!--flat toolbar buttons (slice 25) - matches the winui original's own
+            ToolButtonStyle/ToolToggleStyle exactly (Background/BorderBrush
+            Transparent, Padding 10,6): no visible button "box" at rest, just
+            the toolbar's own background showing through. A ToggleButton's own
+            :checked pseudo-class style (part of FluentTheme, not overridden
+            here) still applies its accent-colored background on top of this,
+            confirmed live - so Grid View/All Fields/Extras still show clearly
+            pressed/active despite the base Background being Transparent.-->
+        <Style Selector="Button.toolflat">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Padding" Value="10,6" />
+        </Style>
+        <Style Selector="ToggleButton.toolflat">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Padding" Value="10,6" />
+        </Style>
+    </Window.Styles>
+
     <Grid x:Name="RootGrid" RowDefinitions="Auto,Auto,*,Auto"
           Background="{DynamicResource ThBg}"
           DragDrop.AllowDrop="True"
@@ -71,56 +92,85 @@
             </MenuItem>
         </Menu>
 
-        <!--toolbar (slice 23): matches the winui original's full button set -
-            previously missing Copy/Paste XML, Guess from Filename, Search
-            ComicVine, and the All Fields/Extra Fields toggles, all reachable
-            only via the Tools/View menus until now. Real overflow was
-            confirmed against the winui build (left/right scroll arrows,
-            "All Fi..." cut off) - Avalonia's toolbar doesn't scroll, so this
-            wraps instead; a scroll region is a possible follow-up if the
-            window gets narrow enough for that to matter in practice.-->
-        <!--buttons are direct children of the WrapPanel (not nested in a
-            StackPanel) - a WrapPanel only wraps its own direct children, so
-            an inner StackPanel here would just overflow as one giant
-            never-wrapping child, which is exactly the bug this replaced:
-            buttons ran off the right edge on a narrow window instead of
-            wrapping to a second line-->
-        <WrapPanel Grid.Row="1" Orientation="Horizontal" ItemSpacing="8" LineSpacing="6" Margin="12,10">
-            <Button x:Name="OpenButton" Content="Open…" Click="OnOpen" />
-            <Button x:Name="SaveButton" Content="Save" Click="OnSave" />
-            <Button x:Name="SaveAllButton" Click="OnSaveAll" ToolTip.Tip="Save every file with unsaved changes">
-                <StackPanel Orientation="Horizontal" Spacing="6">
-                    <TextBlock Text="Save All" />
-                    <!--dirty-count badge (slice 23) - previously missing;
-                        HasDirtyFiles/DirtyCount were already fully wired-->
-                    <Border Background="{DynamicResource ThBg2}"
-                            BorderBrush="{DynamicResource ThDirtyFg}" BorderThickness="1.5"
-                            CornerRadius="9" MinWidth="18" Height="18" Padding="4,0"
-                            IsVisible="{Binding HasDirtyFiles}">
-                        <TextBlock Text="{Binding DirtyCount}" FontSize="11" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource ThDirtyFg}"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Border>
-                </StackPanel>
-            </Button>
-            <Button x:Name="RevertButton" Content="Revert" Click="OnRevert"
-                    ToolTip.Tip="Discard edits and reload the current file from disk" />
-            <Button x:Name="RemoveButton" Content="Remove" Click="OnRemove"
-                    ToolTip.Tip="Remove the selected file(s) from the list (not from disk)" />
-            <Button Content="Copy XML" Click="OnCopyXml" />
-            <Button Content="Paste XML" Click="OnPasteXml" />
-            <Button Content="Guess from Filename" Click="OnGuessFromFilename" />
-            <Button Content="Search ComicVine…" Click="OnSearchComicVine"
-                    IsVisible="{Binding OnlineLookupEnabled}" />
-            <!--IsChecked bound one-way only throughout this toolbar: a TwoWay
-                bool?/bool ToggleButton binding didn't round-trip back to the
-                viewmodel reliably (visual toggle flipped, the property never
-                changed) - flipping it explicitly in each click handler instead-->
-            <ToggleButton Content="All Fields" IsChecked="{Binding ShowAllFields, Mode=OneWay}" Click="OnToggleShowAllFields" />
-            <ToggleButton Content="Extras" IsChecked="{Binding ShowExtraFields, Mode=OneWay}" Click="OnToggleShowExtraFields" />
-            <ToggleButton x:Name="GridViewToggle" Content="Grid View" IsChecked="{Binding IsGridViewActive, Mode=OneWay}" Click="OnToggleGridView" />
-            <Button x:Name="ChooseColumnsButton" Content="Choose Columns…" Click="OnChooseColumns" />
-        </WrapPanel>
+        <!--toolbar (slice 25): matches the winui original's real structure -
+            flat buttons (no visible "box" at rest, see Window.Styles above),
+            thin vertical separators between logical groups instead of
+            uniform button borders, and a scroll-left/right overflow (matches
+            the winui original's own OnToolbarScrollLeft/Right - always
+            shown rather than hidden-when-not-needed, so clicking with
+            nothing to scroll is just a harmless no-op) instead of wrapping
+            to a second row. "Choose Columns…" removed - it was never a
+            toolbar button in the winui original either, only reachable via
+            the View menu and the grid's own right-click menu, both already
+            wired in this port.-->
+        <Border Grid.Row="1" Background="{DynamicResource ThBg2}"
+                BorderBrush="{DynamicResource ThSep}" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <Button Grid.Column="0" Classes="toolflat" Click="OnToolbarScrollLeft"
+                        ToolTip.Tip="Scroll toolbar left" Content="&lt;" />
+
+                <ScrollViewer Grid.Column="1" x:Name="ToolbarScroll"
+                              HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
+                    <StackPanel Orientation="Horizontal" Spacing="2" Margin="8,4">
+                        <Button Classes="toolflat" Click="OnOpen" Content="Open…"
+                                ToolTip.Tip="Open archives" />
+                        <Button Classes="toolflat" Click="OnSave" Content="Save"
+                                ToolTip.Tip="Save the selected file(s) in place" />
+                        <Button Classes="toolflat" Click="OnSaveAll"
+                                ToolTip.Tip="Save every file with unsaved changes">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="Save All" />
+                                <!--dirty-count badge (slice 23) - HasDirtyFiles/DirtyCount were already fully wired-->
+                                <Border Background="{DynamicResource ThBg2}"
+                                        BorderBrush="{DynamicResource ThDirtyFg}" BorderThickness="1.5"
+                                        CornerRadius="9" MinWidth="18" Height="18" Padding="4,0"
+                                        IsVisible="{Binding HasDirtyFiles}">
+                                    <TextBlock Text="{Binding DirtyCount}" FontSize="11" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource ThDirtyFg}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                            </StackPanel>
+                        </Button>
+                        <Border Width="1" Margin="6,4" Background="{DynamicResource ThSep}" />
+                        <Button Classes="toolflat" Click="OnRemove" Content="Remove"
+                                ToolTip.Tip="Remove the selected file(s) from the list (not from disk)" />
+                        <Button Classes="toolflat" Click="OnRevert" Content="Revert"
+                                ToolTip.Tip="Discard edits on the current file and reload from disk" />
+                        <Border Width="1" Margin="6,4" Background="{DynamicResource ThSep}" />
+                        <Button Classes="toolflat" Click="OnCopyXml" Content="Copy XML"
+                                ToolTip.Tip="Copy the current file's ComicInfo.xml to the clipboard" />
+                        <Button Classes="toolflat" Click="OnPasteXml" Content="Paste XML"
+                                ToolTip.Tip="Replace the current file's metadata from clipboard XML" />
+                        <Border Width="1" Margin="6,4" Background="{DynamicResource ThSep}" />
+                        <Button Classes="toolflat" Click="OnGuessFromFilename" Content="Guess from Filename"
+                                ToolTip.Tip="Fill empty Series/Number/Volume/Year fields from the filename and folder" />
+                        <Border Width="1" Margin="6,4" Background="{DynamicResource ThSep}"
+                                IsVisible="{Binding OnlineLookupEnabled}" />
+                        <Button Classes="toolflat" Click="OnSearchComicVine" Content="Search ComicVine…"
+                                ToolTip.Tip="Search ComicVine for this file's series and issue"
+                                IsVisible="{Binding OnlineLookupEnabled}" />
+                        <Border Width="1" Margin="6,4" Background="{DynamicResource ThSep}" />
+                        <!--IsChecked bound one-way only throughout this toolbar: a TwoWay
+                            bool?/bool ToggleButton binding didn't round-trip back to the
+                            viewmodel reliably (visual toggle flipped, the property never
+                            changed) - flipping it explicitly in each click handler instead-->
+                        <ToggleButton Classes="toolflat" Content="All Fields"
+                                      IsChecked="{Binding ShowAllFields, Mode=OneWay}" Click="OnToggleShowAllFields"
+                                      ToolTip.Tip="Show all fields, including empty ones" />
+                        <ToggleButton Classes="toolflat" Content="Extras"
+                                      IsChecked="{Binding ShowExtraFields, Mode=OneWay}" Click="OnToggleShowExtraFields"
+                                      ToolTip.Tip="Show unofficial/extra fields" />
+                        <Border Width="1" Margin="6,4" Background="{DynamicResource ThSep}" />
+                        <ToggleButton Classes="toolflat" x:Name="GridViewToggle" Content="Grid View"
+                                      IsChecked="{Binding IsGridViewActive, Mode=OneWay}" Click="OnToggleGridView"
+                                      ToolTip.Tip="Switch between the editor and a table view of your library" />
+                    </StackPanel>
+                </ScrollViewer>
+
+                <Button Grid.Column="2" Classes="toolflat" Click="OnToolbarScrollRight"
+                        ToolTip.Tip="Scroll toolbar right" Content="&gt;" />
+            </Grid>
+        </Border>
 
         <!--sidebar+editor: slice 1 view, hidden while the grid view is active-->
         <Grid Grid.Row="2" ColumnDefinitions="260,Auto,*" IsVisible="{Binding !IsGridViewActive}">
@@ -236,8 +286,12 @@
                 <!--filters VisibleFields by label/tag text within the currently open
                     file; distinct from FileFilterBox, which filters the sidebar's own
                     file list - disabled in batch mode (IsSearchEnabled), same as the
-                    winui original-->
-                <TextBox Grid.Row="1" x:Name="SearchBox" Margin="16,10,16,0" PlaceholderText="Search fields…"
+                    winui original. Padding/Height explicit and tighter than the
+                    FluentTheme TextBox default - this is touched rarely, so it
+                    shouldn't claim as much vertical weight as a field the user
+                    edits constantly.-->
+                <TextBox Grid.Row="1" x:Name="SearchBox" Margin="16,8,16,0" Padding="10,4" Height="32"
+                         PlaceholderText="Search fields…"
                          Text="{Binding SearchText, Mode=TwoWay}"
                          IsEnabled="{Binding IsSearchEnabled}" />
 

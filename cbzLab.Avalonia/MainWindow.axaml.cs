@@ -757,6 +757,32 @@ public partial class MainWindow : Window
             + $"from '{source.FileName}' to {targets.Count} file{(targets.Count == 1 ? "" : "s")}";
     }
 
+    //---------------------------------------------------------------- toolbar (slice 25)
+
+    private const double ToolbarScrollStep = 200;
+
+    /// <summary>
+    /// Ports OnToolbarScrollLeft/Right from the winui original - always
+    /// enabled rather than hidden/disabled when there's nothing to scroll,
+    /// so clicking either with the toolbar fully visible is a harmless
+    /// no-op (Offset just clamps to 0 or the max). Avalonia's ScrollViewer
+    /// doesn't have the winui ChangeView/HorizontalOffset/ScrollableWidth
+    /// API - Offset (a Vector) and Extent/Viewport (Sizes) are the
+    /// equivalent here, confirmed via reflection on Avalonia.Controls.dll.
+    /// </summary>
+    private void OnToolbarScrollLeft(object? sender, RoutedEventArgs e)
+    {
+        var offset = ToolbarScroll.Offset;
+        ToolbarScroll.Offset = offset.WithX(System.Math.Max(0, offset.X - ToolbarScrollStep));
+    }
+
+    private void OnToolbarScrollRight(object? sender, RoutedEventArgs e)
+    {
+        var offset = ToolbarScroll.Offset;
+        var maxX = System.Math.Max(0, ToolbarScroll.Extent.Width - ToolbarScroll.Viewport.Width);
+        ToolbarScroll.Offset = offset.WithX(System.Math.Min(maxX, offset.X + ToolbarScrollStep));
+    }
+
     //---------------------------------------------------------------- menu bar (slice 4)
 
     private void OnQuit(object? sender, RoutedEventArgs e) => Close();
