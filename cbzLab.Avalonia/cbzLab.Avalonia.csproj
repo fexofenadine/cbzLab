@@ -29,6 +29,31 @@
     <FileVersion>2.0.0.0</FileVersion>
   </PropertyGroup>
 
+  <!--scoped to Release only, not the main PropertyGroup above: SelfContained
+      (and RID-specific output it implies) applies to plain `dotnet build`
+      too, not just `dotnet publish`, if left unconditional - confirmed the
+      hard way when a debug build silently started producing bin/Debug/
+      net8.0/win-x64/ (a full self-contained framework copy) instead of the
+      normal bin/Debug/net8.0/ single-dll output, and a stale pre-existing
+      exe at the old path kept getting tested instead of the real new build.
+      Every publish command actually used for this project passes -c Release
+      (see CLAUDE.md), so gating on Configuration keeps `dotnet build`'s
+      default Debug config fast and framework-dependent while Release
+      publishes still get the single-file bundle below.-->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <!--matches cbzLab.csproj's own publish settings, so `dotnet publish -c
+        Release` needs no extra flags on the command line either - the winui
+        original already carries the same reasoning in its own (longer)
+        comment on these same three properties. IncludeNativeLibrariesForSelfExtract
+        bundles Avalonia's native deps (Skia/HarfBuzz/ANGLE) into the single
+        exe instead of leaving them as loose DLLs beside it.-->
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.1.1" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
@@ -51,5 +76,19 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+
+  <!--SkiaSharp/HarfBuzzSharp ship their native .pdb files as content-copied
+      publish outputs (~105MB combined) alongside their .dll - the .dll
+      itself is a "native library" IncludeNativeLibrariesForSelfExtract
+      already bundles into the exe above, but its .pdb isn't covered by
+      that flag and would otherwise stay loose. cbzLab.Avalonia.pdb (this
+      project's own, small) is left alone - matches the winui original,
+      which ships exactly one pdb for the same debugging reason.-->
+  <Target Name="RemoveThirdPartyNativePdbsFromPublish" AfterTargets="ComputeFilesToPublish">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+                              Condition="'%(Filename)' == 'libSkiaSharp' or '%(Filename)' == 'libHarfBuzzSharp'" />
+    </ItemGroup>
+  </Target>
 
 </Project>
