@@ -64,6 +64,17 @@ public partial class MainWindow : Window
         RebuildGridColumns();
         BuildRecentMenu();
 
+        //restores the remembered sort mode - SortCombo's xaml-default
+        //SelectedIndex="0" already fired SortCombo_SelectionChanged once,
+        //synchronously during InitializeComponent(), before _viewModel
+        //existed (guarded above); now that it does, seed the real value
+        SortCombo.SelectedIndex = _viewModel.SortMode switch
+        {
+            FileSortMode.SeriesNumber => 1,
+            FileSortMode.ModifiedFirst => 2,
+            _ => 0,
+        };
+
         _theme.RegisterResources();
         _theme.ThemeChanged += UpdateElementTheme;
         _theme.Apply(_settings.Settings.Theme);
@@ -513,6 +524,26 @@ public partial class MainWindow : Window
     private void FileList_SelectionChanged(object? sender, SelectionChangedEventArgs e) =>
         _viewModel.SetSelection(FileList.SelectedItems!.Cast<ComicFileViewModel>());
 
+    /// <summary>
+    /// File-list filter/sort UI (slice 23) - previously missing entirely from
+    /// this port despite MainViewModel.FileFilterText/SortMode/DisplayedFiles
+    /// already being fully ported and working. SortCombo has SelectedIndex="0"
+    /// in the axaml, which fires this handler once synchronously during
+    /// InitializeComponent(), before _viewModel exists - same guard the winui
+    /// original uses for the same reason.
+    /// </summary>
+    private void SortCombo_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_viewModel is null)
+            return;
+        _viewModel.SortMode = SortCombo.SelectedIndex switch
+        {
+            1 => FileSortMode.SeriesNumber,
+            2 => FileSortMode.ModifiedFirst,
+            _ => FileSortMode.Name,
+        };
+    }
+
     private void OnTabBasicInfo(object? sender, RoutedEventArgs e) => _viewModel.ActiveTab = SchemaService.TabBasicInfo;
     private void OnTabPublication(object? sender, RoutedEventArgs e) => _viewModel.ActiveTab = SchemaService.TabPublication;
     private void OnTabCreators(object? sender, RoutedEventArgs e) => _viewModel.ActiveTab = SchemaService.TabCreators;
@@ -523,13 +554,13 @@ public partial class MainWindow : Window
 
     /// <summary>
     /// Ctrl+1..Ctrl+5 (jump to tab), Ctrl+Tab/Ctrl+Shift+Tab (cycle tabs), F6
-    /// (focus the file list) - ports TabNumberAccelerator_Invoked/CtrlTab_Invoked/
-    /// CtrlShiftTab_Invoked/F6_Invoked from the winui original. Attached to
-    /// RootGrid rather than individual MenuItem.HotKey since none of these are
-    /// menu items. Shift+F6 (focus the search box) is deliberately not ported -
-    /// there's no search box in this port yet to focus. Uses SchemaService.
-    /// TabOrder rather than hardcoding the five tab names, so this stays correct
-    /// if the tab order ever changes.
+    /// (focus the file list), Shift+F6 (focus the search field, slice 23 - the
+    /// search box itself didn't exist in this port until now) - ports
+    /// TabNumberAccelerator_Invoked/CtrlTab_Invoked/CtrlShiftTab_Invoked/
+    /// F6_Invoked/ShiftF6_Invoked from the winui original. Attached to RootGrid
+    /// rather than individual MenuItem.HotKey since none of these are menu
+    /// items. Uses SchemaService.TabOrder rather than hardcoding the five tab
+    /// names, so this stays correct if the tab order ever changes.
     ///
     /// F6 needed FileList.Focusable="True" in the xaml too - confirmed by a
     /// throwaway diagnostic that Avalonia's ListBox doesn't reliably focus via
@@ -563,6 +594,11 @@ public partial class MainWindow : Window
         else if (e.KeyModifiers == KeyModifiers.None && e.Key == Key.F6)
         {
             FileList.Focus(NavigationMethod.Tab);
+            e.Handled = true;
+        }
+        else if (e.KeyModifiers == KeyModifiers.Shift && e.Key == Key.F6)
+        {
+            SearchBox.Focus(NavigationMethod.Tab);
             e.Handled = true;
         }
     }
@@ -1186,7 +1222,7 @@ public partial class MainWindow : Window
     {
         var box = new TextBox();
         box.Bind(TextBox.TextProperty, new Binding(nameof(FieldViewModel.DateDisplayValue)) { Mode = BindingMode.TwoWay });
-        return BuildRow(field, box);
+        return BuildRow(field, box, WrapWithErrorBorder(box, field));
     }
 
     /// <summary>
@@ -1229,8 +1265,10 @@ public partial class MainWindow : Window
         AttachRevertContextMenu(box, field);
 
         var item = new StackPanel { Spacing = 2, DataContext = field };
+        item.Bind(ToolTip.TipProperty, new Binding(nameof(FieldViewModel.Tooltip)) { Source = field });
         item.Children.Add(label);
-        item.Children.Add(box);
+        item.Children.Add(WrapWithErrorBorder(box, field));
+        item.Children.Add(BuildErrorText(field, 200));
         return item;
     }
 
@@ -1250,8 +1288,9 @@ public partial class MainWindow : Window
         box.Bind(TextBox.PlaceholderTextProperty, new Binding(nameof(FieldViewModel.PlaceholderText)));
 
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
-        Grid.SetColumn(box, 0);
-        grid.Children.Add(box);
+        var bordered = WrapWithErrorBorder(box, field);
+        Grid.SetColumn(bordered, 0);
+        grid.Children.Add(bordered);
         var picker = BuildValuePickerButton(field, nameof(FieldViewModel.ShowPicker));
         Grid.SetColumn(picker, 1);
         grid.Children.Add(picker);
@@ -1281,6 +1320,7 @@ public partial class MainWindow : Window
         AttachRevertContextMenu(box, field);
         var panel = new StackPanel { Spacing = 4, DataContext = field };
         panel.Bind(StackPanel.MarginProperty, new Binding(nameof(MainViewModel.FieldMargin)) { Source = _viewModel });
+        panel.Bind(ToolTip.TipProperty, new Binding(nameof(FieldViewModel.Tooltip)) { Source = field });
         panel.Children.Add(header);
         panel.Children.Add(box);
         return panel;
@@ -1309,7 +1349,7 @@ public partial class MainWindow : Window
         var stack = new StackPanel { Spacing = 2, DataContext = field };
         stack.Children.Add(combo);
         stack.Children.Add(batchButton);
-        return BuildRow(field, combo, stack);
+        return BuildRow(field, combo, stack, showErrorFeedback: false);
     }
 
     /// <summary>
@@ -1353,7 +1393,13 @@ public partial class MainWindow : Window
     /// (input), not the wrapper, so right-click only reverts on the field
     /// itself rather than anywhere in its row.
     /// </summary>
-    private Control BuildRow(FieldViewModel field, Control input, Control? display = null)
+    /// <summary>
+    /// showErrorFeedback is false for combo rows - the winui original's
+    /// ComboFieldTemplate has no error border/message at all (a constrained
+    /// option list doesn't have the same free-text format problems live
+    /// validation catches), unlike entry/date/numeric-group, which all do.
+    /// </summary>
+    private Control BuildRow(FieldViewModel field, Control input, Control? display = null, bool showErrorFeedback = true)
     {
         var label = new TextBlock { FontSize = 12, Opacity = 0.7 };
         label.Bind(TextBlock.TextProperty, new Binding(nameof(FieldViewModel.Label)));
@@ -1361,9 +1407,55 @@ public partial class MainWindow : Window
 
         var panel = new StackPanel { Spacing = 2, DataContext = field };
         panel.Bind(StackPanel.MarginProperty, new Binding(nameof(MainViewModel.FieldMargin)) { Source = _viewModel });
+        panel.Bind(ToolTip.TipProperty, new Binding(nameof(FieldViewModel.Tooltip)) { Source = field });
         panel.Children.Add(label);
         panel.Children.Add(display ?? input);
+        if (showErrorFeedback)
+            panel.Children.Add(BuildErrorText(field, 360));
         return panel;
+    }
+
+    /// <summary>
+    /// Live-validation feedback (slice 23) - ports the winui original's
+    /// ErrorBorder-converter Border + ErrorMessage TextBlock pair, previously
+    /// missing everywhere in this port despite FieldViewModel.HasError/
+    /// ErrorMessage already being fully populated by MainViewModel.ValidateLive.
+    /// ThErrorLbl is looked up once per row build via TryFindResource (the
+    /// same pattern ValidationDialog already uses) - safe to call before a
+    /// file is ever opened since RegisterResources() runs in the constructor
+    /// before any row is actually materialized.
+    /// </summary>
+    private Border WrapWithErrorBorder(Control input, FieldViewModel field)
+    {
+        var errorBrush = GetErrorBrush();
+        var border = new Border { BorderThickness = new Thickness(1.5), CornerRadius = new CornerRadius(4), Child = input };
+        border.Bind(Border.BorderBrushProperty, new Binding(nameof(FieldViewModel.HasError))
+        {
+            Source = field,
+            Converter = new FuncValueConverter<bool, IBrush>(has => has ? errorBrush : Brushes.Transparent),
+        });
+        return border;
+    }
+
+    private TextBlock BuildErrorText(FieldViewModel field, double maxWidth)
+    {
+        var text = new TextBlock
+        {
+            FontSize = 11,
+            TextWrapping = TextWrapping.Wrap,
+            MaxWidth = maxWidth,
+            Margin = new Thickness(0, 3, 0, 0),
+            Foreground = GetErrorBrush(),
+        };
+        text.Bind(TextBlock.TextProperty, new Binding(nameof(FieldViewModel.ErrorMessage)) { Source = field });
+        text.Bind(Visual.IsVisibleProperty, new Binding(nameof(FieldViewModel.HasError)) { Source = field });
+        return text;
+    }
+
+    private IBrush GetErrorBrush()
+    {
+        this.TryFindResource("ThErrorLbl", out var res);
+        return res as IBrush ?? Brushes.OrangeRed;
     }
 
     /// <summary>
