@@ -117,6 +117,17 @@ public partial class MainWindow : Window
         if (topLevel is null)
             return;
 
+        //remembers the last folder opened from, across launches - restored from
+        //cbzLab_settings.json below; neither the winui original nor this port
+        //had this until now (see "Behaviour changes queued for the rewrite")
+        IStorageFolder? startLocation = null;
+        var lastFolder = _settings.Settings.LastOpenFolder;
+        if (!string.IsNullOrEmpty(lastFolder))
+        {
+            try { startLocation = await topLevel.StorageProvider.TryGetFolderFromPathAsync(lastFolder); }
+            catch (System.Exception ex) { _log.Error("Could not resolve last open folder", ex); }
+        }
+
         IReadOnlyList<IStorageFile> picked;
         try
         {
@@ -124,6 +135,7 @@ public partial class MainWindow : Window
             {
                 Title = "Open comic archive",
                 AllowMultiple = true,
+                SuggestedStartLocation = startLocation,
                 FileTypeFilter = new[]
                 {
                     new FilePickerFileType("Comic archives") { Patterns = new[] { "*.cbz", "*.cbr", "*.zip", "*.rar" } },
@@ -135,6 +147,16 @@ public partial class MainWindow : Window
             _log.Error("File picker failed", ex);
             _viewModel.StatusText = $"File picker failed: {ex.Message}";
             return;
+        }
+
+        if (picked.Count > 0)
+        {
+            var folder = System.IO.Path.GetDirectoryName(picked[0].Path.LocalPath);
+            if (!string.IsNullOrEmpty(folder) && folder != _settings.Settings.LastOpenFolder)
+            {
+                _settings.Settings.LastOpenFolder = folder;
+                _settings.Save();
+            }
         }
 
         await OpenPathsAsync(picked.Select(f => f.Path.LocalPath).ToList());

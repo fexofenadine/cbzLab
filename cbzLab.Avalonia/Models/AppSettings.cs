@@ -106,4 +106,8 @@ public class AppSettings
     //to audit across a library at a glance
     [JsonPropertyName("grid_columns")]
     public List<string> GridColumns { get; set; } = new() { "Series", "Number", "Writer", "Publisher" };
+
+    //empty means let the platform pick a default starting folder
+    [JsonPropertyName("last_open_folder")]
+    public string LastOpenFolder { get; set; } = "";
 }
