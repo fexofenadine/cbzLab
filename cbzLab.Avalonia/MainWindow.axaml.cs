@@ -313,92 +313,126 @@ public partial class MainWindow : Window
     //---------------------------------------------------------------- saving
 
     /// <summary>
-    /// Now validates before saving, same as OnSaveAll/OnSaveAs (slice 19) - this
-    /// was a real pre-existing gap flagged there, not fixed at the time since it
-    /// wasn't part of that slice's approved scope.
+    /// Batch-mode-aware, same as the winui original's OnSave: a multi-selection
+    /// saves every dirty selected file (confirming formats per the
+    /// ConfirmBatchSave setting, same as Save All), otherwise just the current
+    /// file, silently, in its existing format. Both routes now go through the
+    /// shared SaveFilesAsync pipeline (slice 21) - previously this had its own
+    /// inline, non-format-confirming, non-progress-dialog save logic duplicated
+    /// from it.
     /// </summary>
     private async void OnSave(object? sender, RoutedEventArgs e)
     {
-        var file = _viewModel.CurrentFile;
-        if (file is null)
+        if (!_viewModel.HasSelection)
             return;
 
-        var errors = _validation.Validate(file.FileName, file.CurrentValues);
-        if (errors.Count > 0 && !await ValidationDialog.ShowAsync(this, errors))
-            return;
-
-        try
+        if (_viewModel.IsBatchMode)
         {
-            var xml = ComicInfoXml.Build(file.RawXml, file.BuildWriteValues());
-            _archive.Save(file.Path, file.Path, file.Format, xml);
-            file.MarkSaved(xml);
-            _viewModel.StatusText = $"Saved {file.FileName}";
+            var targets = _viewModel.SelectedFiles.Where(f => f.IsDirty).ToList();
+            if (targets.Count == 0)
+            {
+                _viewModel.StatusText = "No changes to save in the selection";
+                return;
+            }
+            await SaveFilesAsync(targets, confirmFormats: _settings.Settings.ConfirmBatchSave);
         }
-        catch (System.Exception ex)
+        else
         {
-            _log.Error($"Failed to save '{file.Path}'", ex);
-            _viewModel.StatusText = $"Failed to save {file.FileName}: {ex.Message}";
+            await SaveFilesAsync(new List<ComicFileViewModel> { _viewModel.CurrentFile! }, confirmFormats: false);
         }
     }
 
     /// <summary>
-    /// Saves every dirty open file to its own current path/format - ports
-    /// OnSaveAll from the winui original, scoped down: no per-file format
-    /// picker (MultiSaveAsync) and no cancellable progress dialog for large
-    /// batches, both left as a follow-up slice since neither is required for
-    /// the feature to actually work. Validates every target first, same as
-    /// OnSaveAs below.
+    /// Saves every dirty open file - ports OnSaveAll from the winui original.
+    /// Save All always confirms the per-file format list, regardless of the
+    /// ConfirmBatchSave setting (that setting only affects the batch-mode
+    /// plain Save button above).
     /// </summary>
     private async void OnSaveAll(object? sender, RoutedEventArgs e)
     {
-        var targets = _viewModel.OpenFiles.Where(f => f.IsDirty).ToList();
+        var targets = _viewModel.DirtyFiles();
         if (targets.Count == 0)
         {
             _viewModel.StatusText = "Nothing to save";
             return;
         }
 
-        await SaveFilesAsync(targets);
+        await SaveFilesAsync(targets, confirmFormats: true);
     }
 
     /// <summary>
-    /// Shared by OnSaveAll and OnMainWindowClosing's "Save All" choice
-    /// (slice 24) - validates then saves every target file, reporting
-    /// per-file failures together rather than one dialog per failure.
-    /// Returns true only if every file saved successfully, so callers that
-    /// need to know it's safe to proceed (closing the window) can check.
+    /// The shared save pipeline (slice 21) - ports SaveFilesAsync from the
+    /// winui original in full: validation (fix/save-anyway), an optional
+    /// per-file format-confirmation dialog (MultiSaveDialog - shown whenever
+    /// the caller asks for it, or a batch of more than one file has
+    /// ConfirmBatchSave on), a cancellable progress dialog for multi-file
+    /// saves, and per-file writes that change extension when the chosen
+    /// format differs from the file's current one. Returns true only if
+    /// every file saved successfully, so callers that need to know it's
+    /// safe to proceed (closing the window) can check.
     /// </summary>
-    private async Task<bool> SaveFilesAsync(List<ComicFileViewModel> targets)
+    private async Task<bool> SaveFilesAsync(List<ComicFileViewModel> files, bool confirmFormats)
     {
-        var errors = targets.SelectMany(f => _validation.Validate(f.FileName, f.CurrentValues)).ToList();
+        if (files.Count == 0)
+            return true;
+
+        var errors = files.SelectMany(f => _validation.Validate(f.FileName, f.CurrentValues)).ToList();
         if (errors.Count > 0 && !await ValidationDialog.ShowAsync(this, errors))
             return false;
 
+        List<(ComicFileViewModel File, ArchiveFormat Format)> plan;
+        if (confirmFormats || (files.Count > 1 && _settings.Settings.ConfirmBatchSave))
+        {
+            var chosen = await MultiSaveDialog.ShowAsync(this, files);
+            if (chosen is null)
+                return false;
+            plan = chosen;
+        }
+        else
+        {
+            plan = files.Select(f => (f, f.Format == ArchiveFormat.Unknown ? ArchiveFormat.Cbz : f.Format)).ToList();
+        }
+
+        if (plan.Any(p => p.Format == ArchiveFormat.Cbr) && _archive.FindRarTool() is null)
+        {
+            await MessageDialog.ShowAsync(this, "No RAR tool available",
+                "Saving as CBR requires an external RAR tool. Set its path in Settings, "
+                + "or choose CBZ as the output format instead.");
+            return false;
+        }
+
+        ProgressDialog? progress = plan.Count > 1 ? new ProgressDialog("Saving files", plan.Count) : null;
+        progress?.ShowNonBlocking(this);
+
         var failures = new List<string>();
         var saved = 0;
-        foreach (var file in targets)
+        var i = 0;
+        foreach (var (file, format) in plan)
         {
-            var format = file.Format == ArchiveFormat.Unknown ? ArchiveFormat.Cbz : file.Format;
-            if (format == ArchiveFormat.Cbr && _archive.FindRarTool() is null)
-            {
-                failures.Add($"{file.FileName}: CBR requires an external RAR tool (see Settings)");
-                continue;
-            }
+            if (progress?.IsCancelled == true)
+                break;
+            i++;
+            progress?.Report(i, plan.Count, file.FileName);
+
+            var dest = format == file.Format
+                ? file.Path
+                : System.IO.Path.ChangeExtension(file.Path, format == ArchiveFormat.Cbz ? ".cbz" : ".cbr");
 
             var xml = ComicInfoXml.Build(file.RawXml, file.BuildWriteValues());
             try
             {
-                await Task.Run(() => _archive.Save(file.Path, file.Path, format, xml));
-                file.MarkSaved(xml);
+                await Task.Run(() => _archive.Save(file.Path, dest, format, xml));
+                file.MarkSaved(xml, dest, format);
                 saved++;
             }
             catch (System.Exception ex)
             {
-                _log.Error($"Failed to save '{file.Path}'", ex);
+                _log.Error($"Failed to save '{file.Path}' as {format}", ex);
                 failures.Add($"{file.FileName}: {ex.Message}");
             }
         }
 
+        progress?.Complete();
         _viewModel.RefreshEditor();
 
         if (failures.Count > 0)
@@ -1014,7 +1048,7 @@ public partial class MainWindow : Window
 
         if (choice == UnsavedChoice.Save)
         {
-            var ok = await SaveFilesAsync(dirty);
+            var ok = await SaveFilesAsync(dirty, confirmFormats: true);
             //a failed save keeps the window open so nothing is silently lost
             if (!ok)
                 return;
@@ -1199,6 +1233,12 @@ public partial class MainWindow : Window
         _viewModel.EditorFontSize = _settings.Settings.EditorFontSize;
         _viewModel.OnlineLookupEnabled = _settings.Settings.ComicVineEnabled;
         _viewModel.EditorFontFamily = _settings.Settings.EditorFontFamily;
+
+        //closes a real, previously-flagged gap (CLAUDE.md slice 5): these two
+        //were only ever read once, at MainViewModel construction, so toggling
+        //them in Settings had no visible effect until the app was restarted
+        _viewModel.EditorFieldsMaxWidth = _settings.Settings.EditorFieldsFillWidth ? double.PositiveInfinity : 780;
+        _viewModel.ApplyDensitySetting(_settings.Settings.CompactDensity);
     }
 
     //---------------------------------------------------------------- comicvine search (slice 7/8)

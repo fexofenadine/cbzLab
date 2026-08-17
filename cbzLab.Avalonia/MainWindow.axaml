@@ -182,6 +182,17 @@
                             <MenuItem Header="Open Containing Folder" Click="OnOpenContainingFolder" />
                         </ContextMenu>
                     </ListBox.ContextMenu>
+                    <!--closes the "sidebar ListBoxItems report their accessible Name
+                        as ComicFileViewModel's ToString()" gap flagged since slice 1
+                        (CLAUDE.md) - AutomationProperties.Name has to be set on the
+                        generated ListBoxItem container itself, not on anything inside
+                        the DataTemplate (that only names the inner element UIA sees as
+                        a separate node) - confirmed by testing both ways live.-->
+                    <ListBox.Styles>
+                        <Style Selector="ListBoxItem" x:DataType="vm:ComicFileViewModel">
+                            <Setter Property="AutomationProperties.Name" Value="{Binding FileName}" />
+                        </Style>
+                    </ListBox.Styles>
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:ComicFileViewModel">
                             <Grid ColumnDefinitions="30,*,Auto"
