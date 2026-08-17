@@ -3,7 +3,7 @@
         xmlns:vm="using:cbzLab.ViewModels"
         x:Class="cbzLab.Avalonia.MainWindow"
         x:DataType="vm:MainViewModel"
-        Title="cbzLab (Avalonia preview)"
+        Title="cbzLab 2.0.0 Beta 1.0"
         Width="900" Height="640">
 
     <Grid x:Name="RootGrid" RowDefinitions="Auto,Auto,*,Auto"

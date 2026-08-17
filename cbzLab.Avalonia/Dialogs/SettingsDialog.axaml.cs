@@ -11,10 +11,9 @@ namespace cbzLab.Avalonia.Dialogs;
 
 /// <summary>
 /// Avalonia's replacement for the general/editor-preferences, RAR tool path,
-/// and ComicVine portions of AppDialogs.SettingsAsync (cbzLab/Dialogs/
-/// AppDialogs.cs line 918). Theme (needs ThemeService, not ported), folder
-/// links, and Reset to Defaults are all deliberately not here yet - see
-/// CLAUDE.md slice 5/6/10 notes. Same Window + ShowDialog pattern as
+/// ComicVine, theme, and Reset to Defaults portions of AppDialogs.SettingsAsync
+/// (cbzLab/Dialogs/AppDialogs.cs line 918). Folder links (slice 10 notes)
+/// are still deliberately not here. Same Window + ShowDialog pattern as
 /// MessageDialog/ChooseColumnsDialog.
 /// </summary>
 public partial class SettingsDialog : Window
@@ -24,7 +23,10 @@ public partial class SettingsDialog : Window
         { "Segoe UI", "Segoe UI Variable", "Consolas", "Cascadia Code", "Georgia", "Comic Sans MS" };
 
     private ComicVineService? _comicVine;
+    private ThemeService? _theme;
+    private SettingsService? _settings;
     private bool _saved;
+    private bool _resetToDefaults;
 
     public SettingsDialog()
     {
@@ -35,6 +37,10 @@ public partial class SettingsDialog : Window
 
     private void Populate(AppSettingsSnapshot s)
     {
+        foreach (var name in _theme!.ThemeNames)
+            ThemeCombo.Items.Add(name);
+        ThemeCombo.SelectedItem = _theme.ThemeNames.Contains(s.Theme) ? s.Theme : _theme.CurrentThemeName;
+
         FontSizeBox.Value = (decimal)s.EditorFontSize;
         FontFamilyCombo.SelectedItem = FontFamilyOptions.Contains(s.EditorFontFamily) ? s.EditorFontFamily : FontFamilyOptions[0];
         CoverSourceCombo.SelectedIndex = s.CoverSource == "last" ? 1 : 0;
@@ -69,6 +75,29 @@ public partial class SettingsDialog : Window
     private void OnCancel(object? sender, RoutedEventArgs e)
     {
         _saved = false;
+        Close();
+    }
+
+    /// <summary>
+    /// Unlike the winui original (whose ContentDialog closes on any of its
+    /// three buttons, forcing the confirm step to happen after closing),
+    /// this Window stays open through the nested ConfirmDialog - simpler,
+    /// and avoids a race between Close() and the async confirmation. Resets
+    /// immediately on confirmation, bypassing every other field on this
+    /// dialog - Save's own field-by-field writeback never runs, matching
+    /// the winui original's own "Reset bypasses Save" behaviour.
+    /// </summary>
+    private async void OnResetToDefaults(object? sender, RoutedEventArgs e)
+    {
+        var confirmed = await ConfirmDialog.ShowAsync(this, "Reset to defaults",
+            "This resets every preference - theme, fonts, toggles, and your ComicVine API key - "
+            + "back to default. Your open files, schema, and ComicVine cache/history aren't touched. "
+            + "This can't be undone.", "Reset");
+        if (!confirmed)
+            return;
+
+        _settings!.ResetToDefaults();
+        _resetToDefaults = true;
         Close();
     }
 
@@ -146,9 +175,17 @@ public partial class SettingsDialog : Window
     /// real object, not a copy), so the caller can immediately reflect any
     /// live-UI-relevant changes (font size/family) afterward.
     /// </summary>
-    public static async Task<bool> ShowAsync(Window owner, SettingsService settings, ArchiveService archive, ComicVineService comicVine)
+    /// <summary>
+    /// Returns (Saved, ResetToDefaults) rather than a single bool, since
+    /// Reset to Defaults (slice 24) needs the caller to refresh live UI
+    /// (theme, editor font) the same way a normal Save does, but without
+    /// running this method's own field-by-field writeback - ResetToDefaults()
+    /// already wrote every field directly.
+    /// </summary>
+    public static async Task<(bool Saved, bool ResetToDefaults)> ShowAsync(
+        Window owner, SettingsService settings, ArchiveService archive, ComicVineService comicVine, ThemeService theme)
     {
-        var dlg = new SettingsDialog { _comicVine = comicVine };
+        var dlg = new SettingsDialog { _comicVine = comicVine, _theme = theme, _settings = settings };
         var s = settings.Settings;
         dlg.Populate(new AppSettingsSnapshot(s));
 
@@ -159,9 +196,12 @@ public partial class SettingsDialog : Window
 
         await dlg.ShowDialog(owner);
 
+        if (dlg._resetToDefaults)
+            return (false, true);
         if (!dlg._saved)
-            return false;
+            return (false, false);
 
+        s.Theme = dlg.ThemeCombo.SelectedItem as string ?? s.Theme;
         s.EditorFontSize = (double)(dlg.FontSizeBox.Value ?? (decimal)s.EditorFontSize);
         s.EditorFontFamily = dlg.FontFamilyCombo.SelectedItem as string ?? s.EditorFontFamily;
         s.CoverSource = dlg.CoverSourceCombo.SelectedIndex == 1 ? "last" : "first";
@@ -184,7 +224,7 @@ public partial class SettingsDialog : Window
         s.ComicVineAlwaysReview = dlg.AlwaysReviewCheck.IsChecked == true;
 
         settings.Save();
-        return true;
+        return (true, false);
     }
 }
 
@@ -194,14 +234,14 @@ public partial class SettingsDialog : Window
 /// actually chosen to save anything.
 /// </summary>
 internal readonly record struct AppSettingsSnapshot(
-    double EditorFontSize, string EditorFontFamily, string CoverSource, bool EditorFieldsFillWidth,
+    string Theme, double EditorFontSize, string EditorFontFamily, string CoverSource, bool EditorFieldsFillWidth,
     bool RememberLastTab, bool CompactDensity, bool ShowAllFieldsDefault, bool ShowExtraFieldsDefault,
     string DefaultSaveFormat, bool ConfirmBatchSave, bool AutoPageCount, int MaxRecentFiles,
     bool AutoSelectFirstOnOpen, bool ClearFilterOnOpen, string LiveValidationMode, int MaxRecentValues,
     string RarToolPath, bool ComicVineEnabled, string ComicVineApiKey, bool ComicVineAlwaysReview)
 {
     public AppSettingsSnapshot(Models.AppSettings s) : this(
-        s.EditorFontSize, s.EditorFontFamily, s.CoverSource, s.EditorFieldsFillWidth,
+        s.Theme, s.EditorFontSize, s.EditorFontFamily, s.CoverSource, s.EditorFieldsFillWidth,
         s.RememberLastTab, s.CompactDensity, s.ShowAllFieldsDefault, s.ShowExtraFieldsDefault,
         s.DefaultSaveFormat, s.ConfirmBatchSave, s.AutoPageCount, s.MaxRecentFiles,
         s.AutoSelectFirstOnOpen, s.ClearFilterOnOpen, s.LiveValidationMode, s.MaxRecentValues,

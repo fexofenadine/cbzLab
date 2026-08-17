@@ -30,6 +30,12 @@ namespace cbzLab.Avalonia;
 /// </summary>
 public partial class MainWindow : Window
 {
+    //bump the beta number (1.0 -> 1.1, 2.0, ...) after each significant
+    //improvement pass; becomes the real "2.0.0" once this port reaches
+    //parity with the winui original - see cbzLab.Avalonia.csproj's own
+    //comment on the matching Version/AssemblyVersion/FileVersion properties
+    public const string DisplayVersion = "2.0.0 Beta 1.0";
+
     private readonly LogService _log;
     private readonly SettingsService _settings;
     private readonly SchemaService _schema;
@@ -42,10 +48,12 @@ public partial class MainWindow : Window
     private readonly MainViewModel _viewModel;
     private readonly FieldValueConverter _fieldValueConverter = new();
     private ComicFileViewModel? _lastRightTappedFile;
+    private bool _forceClose;
 
     public MainWindow()
     {
         InitializeComponent();
+        Closing += OnMainWindowClosing;
 
         //same construction order as App.xaml.cs in the winui project
         _log = new LogService();
@@ -342,9 +350,21 @@ public partial class MainWindow : Window
             return;
         }
 
+        await SaveFilesAsync(targets);
+    }
+
+    /// <summary>
+    /// Shared by OnSaveAll and OnMainWindowClosing's "Save All" choice
+    /// (slice 24) - validates then saves every target file, reporting
+    /// per-file failures together rather than one dialog per failure.
+    /// Returns true only if every file saved successfully, so callers that
+    /// need to know it's safe to proceed (closing the window) can check.
+    /// </summary>
+    private async Task<bool> SaveFilesAsync(List<ComicFileViewModel> targets)
+    {
         var errors = targets.SelectMany(f => _validation.Validate(f.FileName, f.CurrentValues)).ToList();
         if (errors.Count > 0 && !await ValidationDialog.ShowAsync(this, errors))
-            return;
+            return false;
 
         var failures = new List<string>();
         var saved = 0;
@@ -374,9 +394,13 @@ public partial class MainWindow : Window
         _viewModel.RefreshEditor();
 
         if (failures.Count > 0)
+        {
             await MessageDialog.ShowAsync(this, "Some files could not be saved", string.Join("\n\n", failures));
-        else
-            _viewModel.StatusText = saved == 1 ? "Saved 1 file" : $"Saved {saved} files";
+            return false;
+        }
+
+        _viewModel.StatusText = saved == 1 ? "Saved 1 file" : $"Saved {saved} files";
+        return true;
     }
 
     /// <summary>
@@ -720,6 +744,44 @@ public partial class MainWindow : Window
 
     private void OnQuit(object? sender, RoutedEventArgs e) => Close();
 
+    /// <summary>
+    /// Unsaved-changes guard on close (slice 24) - ports OnAppWindowClosing
+    /// from the winui original. Previously missing entirely: Ctrl+Q and the
+    /// window's own titlebar close button both discarded unsaved work with
+    /// no prompt at all. Fires for both, since Close() (used by OnQuit) and
+    /// the titlebar button both raise this same event - one interception
+    /// point covers both paths, same as the winui original's single
+    /// AppWindowClosing handler. Cancel synchronously, then resolve
+    /// asynchronously with the user and force-close only if appropriate -
+    /// Avalonia's Closing handler can't simply be awaited in place, same
+    /// constraint the winui original documents for AppWindowClosingEventArgs.
+    /// </summary>
+    private async void OnMainWindowClosing(object? sender, WindowClosingEventArgs e)
+    {
+        if (_forceClose)
+            return;
+
+        var dirty = _viewModel.DirtyFiles();
+        if (dirty.Count == 0)
+            return;
+
+        e.Cancel = true;
+        var choice = await UnsavedChangesDialog.ShowAsync(this, dirty.Select(f => f.FileName));
+        if (choice == UnsavedChoice.Cancel)
+            return;
+
+        if (choice == UnsavedChoice.Save)
+        {
+            var ok = await SaveFilesAsync(dirty);
+            //a failed save keeps the window open so nothing is silently lost
+            if (!ok)
+                return;
+        }
+
+        _forceClose = true;
+        Close();
+    }
+
     //same one-way + explicit-toggle pattern as OnToggleGridView below, for the
     //same reason: MenuItem's ToggleType="CheckBox" IsChecked is bool?, and a
     //TwoWay bool?/bool binding didn't round-trip reliably when this was first
@@ -732,7 +794,7 @@ public partial class MainWindow : Window
 
     private async void OnAbout(object? sender, RoutedEventArgs e) =>
         await MessageDialog.ShowAsync(this, "About cbzLab",
-            "cbzLab (Avalonia preview)\nComicInfo.xml metadata editor for CBZ/CBR archives.");
+            $"cbzLab {DisplayVersion}\nComicInfo.xml metadata editor for CBZ/CBR archives.");
 
     //---------------------------------------------------------------- tools (slice 15)
 
@@ -863,15 +925,19 @@ public partial class MainWindow : Window
 
     /// <summary>
     /// Mirrors what the winui OnSettings does for the fields that exist in
-    /// this port: reflect font size/family and (slice 6) OnlineLookupEnabled
-    /// onto the live MainViewModel immediately, no re-select/restart needed.
+    /// this port: reflect font size/family, OnlineLookupEnabled, and (slice
+    /// 24) theme onto the live app immediately, no re-select/restart needed.
+    /// Reset to Defaults takes the same refresh path as a normal Save, since
+    /// ResetToDefaults() already wrote every field directly into Settings.
     /// </summary>
     private async void OnSettings(object? sender, RoutedEventArgs e)
     {
-        var saved = await SettingsDialog.ShowAsync(this, _settings, _archive, _comicVine);
-        if (!saved)
+        var (saved, resetToDefaults) = await SettingsDialog.ShowAsync(this, _settings, _archive, _comicVine, _theme);
+        if (!saved && !resetToDefaults)
             return;
 
+        _theme.Apply(_settings.Settings.Theme);
+        BuildThemeMenu();
         _viewModel.EditorFontSize = _settings.Settings.EditorFontSize;
         _viewModel.OnlineLookupEnabled = _settings.Settings.ComicVineEnabled;
         _viewModel.EditorFontFamily = _settings.Settings.EditorFontFamily;
