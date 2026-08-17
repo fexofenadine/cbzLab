@@ -142,8 +142,16 @@
         <!--sidebar+editor: slice 1 view, hidden while the grid view is active-->
         <Grid Grid.Row="2" ColumnDefinitions="260,Auto,*" IsVisible="{Binding !IsGridViewActive}">
 
-            <!--sidebar: open files-->
-            <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*,Auto">
+            <!--sidebar: open files. Background was missing entirely here and on
+                FileList below - the winui original explicitly paints both with
+                ThListBg (a real, separate theme key from ThBg - confirmed via
+                themes.json, e.g. VS Code Dark+'s list_bg #252526 vs bg #1e1e1e -
+                not just a duplicate). Without it, this pane fell through to
+                FluentTheme's own built-in ListBox background, which tracks
+                light/dark but not any of this app's actual theme colours -
+                reported live as "brown"/"grey" on dark themes and a plain white
+                that should have been the theme's own panel colour on light ones.-->
+            <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*,Auto" Background="{DynamicResource ThListBg}">
                 <TextBlock Grid.Row="0" Text="OPEN FILES" FontSize="11" FontWeight="SemiBold"
                            Opacity="0.6" Margin="4,8,4,4" />
 
@@ -168,6 +176,7 @@
                          ItemsSource="{Binding DisplayedFiles}"
                          SelectionMode="Multiple"
                          Focusable="True"
+                         Background="{DynamicResource ThListBg}"
                          SelectionChanged="FileList_SelectionChanged"
                          KeyDown="OnFileListKeyDown"
                          ContextRequested="OnFileListContextRequested">
@@ -203,7 +212,7 @@
                                 <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
                                         <TextBlock Text="{Binding FileName}" TextTrimming="CharacterEllipsis" MaxWidth="170" />
-                                        <TextBlock Text="&#x2022;" FontWeight="Bold" Foreground="{DynamicResource ThDirtyFg}" IsVisible="{Binding IsDirty}" />
+                                        <TextBlock Text="&#x2022;" FontWeight="Bold" Foreground="{DynamicResource ThListDirty}" IsVisible="{Binding IsDirty}" />
                                     </StackPanel>
                                     <TextBlock Text="{Binding Subtitle}" FontSize="12" Opacity="{Binding SubtitleOpacity}"
                                                TextTrimming="CharacterEllipsis" />
@@ -356,7 +365,7 @@
                 <DataGridTemplateColumn Header="" Width="32" CanUserSort="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate x:DataType="vm:ComicFileViewModel">
-                            <TextBlock Text="&#x2022;" FontWeight="Bold" FontSize="16" Foreground="{DynamicResource ThDirtyFg}"
+                            <TextBlock Text="&#x2022;" FontWeight="Bold" FontSize="16" Foreground="{DynamicResource ThListDirty}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"
                                        IsVisible="{Binding IsDirty}" />
                         </DataTemplate>
