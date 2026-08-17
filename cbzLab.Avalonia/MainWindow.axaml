@@ -260,15 +260,25 @@
                     width columns clipped the longer labels ("Publicatio...").
                     Correct tab identity/selected-state styling (the actual ask)
                     matters more than exact width parity, so left as auto-width.-->
-                <!--FontSize explicit here, not inherited from anywhere - FluentTheme's
-                    own default TabItem header font turned out much larger than the
-                    rest of this app's UI chrome (confirmed by screenshot after
-                    switching from plain Buttons, which defaulted to a normal size,
-                    to a real TabControl - not related to EditorFontSize, which only
-                    reaches FieldList below, a sibling, not an ancestor, of this-->
+                <!--FontSize="14" on the TabControl itself only fixed the unselected
+                    tabs - FluentTheme's TabItem:selected style sets its own FontSize
+                    (a style-selector match beats plain inheritance in Avalonia's
+                    property precedence), so the active tab stayed oversized. The
+                    explicit TabItem/TabItem:selected style rules below target the
+                    items directly, which does win over the theme's own selected-state
+                    style (not related to EditorFontSize, which only reaches FieldList
+                    below, a sibling, not an ancestor, of this)-->
                 <TabControl Grid.Row="2" x:Name="EditorTabs" Height="44" Margin="16,10,16,0" FontSize="14"
                             SelectionChanged="OnEditorTabsSelectionChanged"
                             IsVisible="{Binding HasSelection}">
+                    <TabControl.Styles>
+                        <Style Selector="TabItem">
+                            <Setter Property="FontSize" Value="14" />
+                        </Style>
+                        <Style Selector="TabItem:selected">
+                            <Setter Property="FontSize" Value="14" />
+                        </Style>
+                    </TabControl.Styles>
                     <TabItem Header="Basic Info" />
                     <TabItem Header="Publication" />
                     <TabItem Header="Creators" />
