@@ -4,7 +4,13 @@
     <!--avalonia rewrite skeleton (step 1 of the port, see CLAUDE.md): plain
         net8.0, no windows-specific tfm suffix, targeting windows + linux
         desktop from one build-->
-    <OutputType>Exe</OutputType>
+    <!--WinExe, not Exe: plain Exe allocates a console window on Windows (the
+        blank/black window that stayed open behind the GUI for the whole
+        session), matching a real bug rather than a testing artifact - the
+        winui original's own csproj already uses WinExe for the same reason.
+        WinExe is a Windows PE-subsystem concept with no meaning on Linux, so
+        this stays a no-op there rather than breaking cross-platform builds.-->
+    <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>cbzLab.Avalonia</RootNamespace>
     <AssemblyName>cbzLab.Avalonia</AssemblyName>

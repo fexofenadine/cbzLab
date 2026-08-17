@@ -79,43 +79,47 @@
             "All Fi..." cut off) - Avalonia's toolbar doesn't scroll, so this
             wraps instead; a scroll region is a possible follow-up if the
             window gets narrow enough for that to matter in practice.-->
-        <WrapPanel Grid.Row="1" Orientation="Horizontal" Margin="12,10">
-            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,4">
-                <Button x:Name="OpenButton" Content="Open…" Click="OnOpen" />
-                <Button x:Name="SaveButton" Content="Save" Click="OnSave" />
-                <Button x:Name="SaveAllButton" Click="OnSaveAll" ToolTip.Tip="Save every file with unsaved changes">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <TextBlock Text="Save All" />
-                        <!--dirty-count badge (slice 23) - previously missing;
-                            HasDirtyFiles/DirtyCount were already fully wired-->
-                        <Border Background="{DynamicResource ThBg2}"
-                                BorderBrush="{DynamicResource ThDirtyFg}" BorderThickness="1.5"
-                                CornerRadius="9" MinWidth="18" Height="18" Padding="4,0"
-                                IsVisible="{Binding HasDirtyFiles}">
-                            <TextBlock Text="{Binding DirtyCount}" FontSize="11" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource ThDirtyFg}"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                    </StackPanel>
-                </Button>
-                <Button x:Name="RevertButton" Content="Revert" Click="OnRevert"
-                        ToolTip.Tip="Discard edits and reload the current file from disk" />
-                <Button x:Name="RemoveButton" Content="Remove" Click="OnRemove"
-                        ToolTip.Tip="Remove the selected file(s) from the list (not from disk)" />
-                <Button Content="Copy XML" Click="OnCopyXml" />
-                <Button Content="Paste XML" Click="OnPasteXml" />
-                <Button Content="Guess from Filename" Click="OnGuessFromFilename" />
-                <Button Content="Search ComicVine…" Click="OnSearchComicVine"
-                        IsVisible="{Binding OnlineLookupEnabled}" />
-                <!--IsChecked bound one-way only throughout this toolbar: a TwoWay
-                    bool?/bool ToggleButton binding didn't round-trip back to the
-                    viewmodel reliably (visual toggle flipped, the property never
-                    changed) - flipping it explicitly in each click handler instead-->
-                <ToggleButton Content="All Fields" IsChecked="{Binding ShowAllFields, Mode=OneWay}" Click="OnToggleShowAllFields" />
-                <ToggleButton Content="Extras" IsChecked="{Binding ShowExtraFields, Mode=OneWay}" Click="OnToggleShowExtraFields" />
-                <ToggleButton x:Name="GridViewToggle" Content="Grid View" IsChecked="{Binding IsGridViewActive, Mode=OneWay}" Click="OnToggleGridView" />
-                <Button x:Name="ChooseColumnsButton" Content="Choose Columns…" Click="OnChooseColumns" />
-            </StackPanel>
+        <!--buttons are direct children of the WrapPanel (not nested in a
+            StackPanel) - a WrapPanel only wraps its own direct children, so
+            an inner StackPanel here would just overflow as one giant
+            never-wrapping child, which is exactly the bug this replaced:
+            buttons ran off the right edge on a narrow window instead of
+            wrapping to a second line-->
+        <WrapPanel Grid.Row="1" Orientation="Horizontal" ItemSpacing="8" LineSpacing="6" Margin="12,10">
+            <Button x:Name="OpenButton" Content="Open…" Click="OnOpen" />
+            <Button x:Name="SaveButton" Content="Save" Click="OnSave" />
+            <Button x:Name="SaveAllButton" Click="OnSaveAll" ToolTip.Tip="Save every file with unsaved changes">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="Save All" />
+                    <!--dirty-count badge (slice 23) - previously missing;
+                        HasDirtyFiles/DirtyCount were already fully wired-->
+                    <Border Background="{DynamicResource ThBg2}"
+                            BorderBrush="{DynamicResource ThDirtyFg}" BorderThickness="1.5"
+                            CornerRadius="9" MinWidth="18" Height="18" Padding="4,0"
+                            IsVisible="{Binding HasDirtyFiles}">
+                        <TextBlock Text="{Binding DirtyCount}" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource ThDirtyFg}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                </StackPanel>
+            </Button>
+            <Button x:Name="RevertButton" Content="Revert" Click="OnRevert"
+                    ToolTip.Tip="Discard edits and reload the current file from disk" />
+            <Button x:Name="RemoveButton" Content="Remove" Click="OnRemove"
+                    ToolTip.Tip="Remove the selected file(s) from the list (not from disk)" />
+            <Button Content="Copy XML" Click="OnCopyXml" />
+            <Button Content="Paste XML" Click="OnPasteXml" />
+            <Button Content="Guess from Filename" Click="OnGuessFromFilename" />
+            <Button Content="Search ComicVine…" Click="OnSearchComicVine"
+                    IsVisible="{Binding OnlineLookupEnabled}" />
+            <!--IsChecked bound one-way only throughout this toolbar: a TwoWay
+                bool?/bool ToggleButton binding didn't round-trip back to the
+                viewmodel reliably (visual toggle flipped, the property never
+                changed) - flipping it explicitly in each click handler instead-->
+            <ToggleButton Content="All Fields" IsChecked="{Binding ShowAllFields, Mode=OneWay}" Click="OnToggleShowAllFields" />
+            <ToggleButton Content="Extras" IsChecked="{Binding ShowExtraFields, Mode=OneWay}" Click="OnToggleShowExtraFields" />
+            <ToggleButton x:Name="GridViewToggle" Content="Grid View" IsChecked="{Binding IsGridViewActive, Mode=OneWay}" Click="OnToggleGridView" />
+            <Button x:Name="ChooseColumnsButton" Content="Choose Columns…" Click="OnChooseColumns" />
         </WrapPanel>
 
         <!--sidebar+editor: slice 1 view, hidden while the grid view is active-->
@@ -237,18 +241,34 @@
                          Text="{Binding SearchText, Mode=TwoWay}"
                          IsEnabled="{Binding IsSearchEnabled}" />
 
-                <!--tab strip (slice 23) - moved here from a global row below the
+                <!--tab strip (slice 23/24) - moved here from a global row below the
                     toolbar, which was wrong: tabs filter this file's fields and
                     only make sense once a file is selected, matching the winui
-                    original's TabView, which lives inside this same editor column-->
-                <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="4" Margin="16,10,16,0"
+                    original's TabView, which lives inside this same editor
+                    column. A real TabControl now, not a row of plain Buttons -
+                    the buttons had no selected-state styling at all, so there
+                    was no visual way to tell which tab was active. Height fixed
+                    at 44 (matching the winui TabView's own Height="44") so the
+                    control's normally-expanding content-presenter area (empty
+                    here - the shared field list below is the real content,
+                    same architecture as the winui original) doesn't push the
+                    field list down or fight the Grid's own row sizing.-->
+                <!--left-aligned, auto-width tabs rather than stretching evenly
+                    across the width like the winui original's TabView - tried a
+                    UniformGrid ItemsPanel to match that, but with 5 tabs of
+                    uneven label length ("Basic Info" vs "Publication") equal-
+                    width columns clipped the longer labels ("Publicatio...").
+                    Correct tab identity/selected-state styling (the actual ask)
+                    matters more than exact width parity, so left as auto-width.-->
+                <TabControl Grid.Row="2" x:Name="EditorTabs" Height="44" Margin="16,10,16,0"
+                            SelectionChanged="OnEditorTabsSelectionChanged"
                             IsVisible="{Binding HasSelection}">
-                    <Button Content="Basic Info" Click="OnTabBasicInfo" />
-                    <Button Content="Publication" Click="OnTabPublication" />
-                    <Button Content="Creators" Click="OnTabCreators" />
-                    <Button Content="Story" Click="OnTabStory" />
-                    <Button Content="Extras" Click="OnTabExtras" />
-                </StackPanel>
+                    <TabItem Header="Basic Info" />
+                    <TabItem Header="Publication" />
+                    <TabItem Header="Creators" />
+                    <TabItem Header="Story" />
+                    <TabItem Header="Extras" />
+                </TabControl>
 
                 <ScrollViewer Grid.Row="3" Padding="16,10">
                     <!--FontSize/FontFamily bound here (not wired until slice 5, when

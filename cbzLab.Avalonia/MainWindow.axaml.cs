@@ -83,6 +83,13 @@ public partial class MainWindow : Window
             _ => 0,
         };
 
+        //restores the remembered tab the same way (slice 24) - previously
+        //RememberLastTab's persisted index was read by MainViewModel's own
+        //constructor but never written back anywhere, and EditorTabs itself
+        //didn't exist as a real control to seed until this slice
+        var tabIndex = _settings.Settings.RememberLastTab ? _settings.Settings.ActiveTab : 0;
+        EditorTabs.SelectedIndex = tabIndex >= 0 && tabIndex < EditorTabs.ItemCount ? tabIndex : 0;
+
         _theme.RegisterResources();
         _theme.ThemeChanged += UpdateElementTheme;
         _theme.Apply(_settings.Settings.Theme);
@@ -568,11 +575,22 @@ public partial class MainWindow : Window
         };
     }
 
-    private void OnTabBasicInfo(object? sender, RoutedEventArgs e) => _viewModel.ActiveTab = SchemaService.TabBasicInfo;
-    private void OnTabPublication(object? sender, RoutedEventArgs e) => _viewModel.ActiveTab = SchemaService.TabPublication;
-    private void OnTabCreators(object? sender, RoutedEventArgs e) => _viewModel.ActiveTab = SchemaService.TabCreators;
-    private void OnTabStory(object? sender, RoutedEventArgs e) => _viewModel.ActiveTab = SchemaService.TabStory;
-    private void OnTabExtras(object? sender, RoutedEventArgs e) => _viewModel.ActiveTab = SchemaService.TabExtras;
+    /// <summary>
+    /// EditorTabs (slice 24 - a real TabControl, replacing a row of plain
+    /// Buttons with no selected-state styling at all) is the single source
+    /// of truth for which tab is active - clicking a tab, and every keyboard
+    /// shortcut below, all just set EditorTabs.SelectedIndex, and this is the
+    /// one place that pushes the result into MainViewModel.ActiveTab. Fires
+    /// once synchronously during InitializeComponent() (TabControl defaults
+    /// to selecting its first item), before _viewModel exists - same guard
+    /// SortCombo_SelectionChanged already needed for the same reason.
+    /// </summary>
+    private void OnEditorTabsSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_viewModel is null || EditorTabs.SelectedIndex < 0)
+            return;
+        _viewModel.ActiveTab = SchemaService.TabOrder[EditorTabs.SelectedIndex];
+    }
 
     //---------------------------------------------------------------- keyboard accelerators (slice 16)
 
@@ -595,24 +613,23 @@ public partial class MainWindow : Window
     /// </summary>
     private void OnRootGridKeyDown(object? sender, KeyEventArgs e)
     {
-        var tabs = SchemaService.TabOrder;
-        var currentIndex = System.Array.IndexOf(tabs, _viewModel.ActiveTab);
+        var tabCount = EditorTabs.ItemCount;
 
         if (e.KeyModifiers == KeyModifiers.Control && e.Key is >= Key.D1 and <= Key.D5)
         {
             var index = e.Key - Key.D1;
-            if (index < tabs.Length)
-                _viewModel.ActiveTab = tabs[index];
+            if (index < tabCount)
+                EditorTabs.SelectedIndex = index;
             e.Handled = true;
         }
         else if (e.KeyModifiers == KeyModifiers.Control && e.Key == Key.Tab)
         {
-            _viewModel.ActiveTab = tabs[(currentIndex + 1) % tabs.Length];
+            EditorTabs.SelectedIndex = (EditorTabs.SelectedIndex + 1) % tabCount;
             e.Handled = true;
         }
         else if (e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift) && e.Key == Key.Tab)
         {
-            _viewModel.ActiveTab = tabs[(currentIndex - 1 + tabs.Length) % tabs.Length];
+            EditorTabs.SelectedIndex = (EditorTabs.SelectedIndex - 1 + tabCount) % tabCount;
             e.Handled = true;
         }
         else if (e.KeyModifiers == KeyModifiers.None && e.Key == Key.F6)
@@ -759,11 +776,17 @@ public partial class MainWindow : Window
     private async void OnMainWindowClosing(object? sender, WindowClosingEventArgs e)
     {
         if (_forceClose)
+        {
+            PersistUiState();
             return;
+        }
 
         var dirty = _viewModel.DirtyFiles();
         if (dirty.Count == 0)
+        {
+            PersistUiState();
             return;
+        }
 
         e.Cancel = true;
         var choice = await UnsavedChangesDialog.ShowAsync(this, dirty.Select(f => f.FileName));
@@ -779,7 +802,23 @@ public partial class MainWindow : Window
         }
 
         _forceClose = true;
+        PersistUiState();
         Close();
+    }
+
+    /// <summary>
+    /// Remembered-tab persistence (slice 24) - the setting itself
+    /// (RememberLastTab) already existed and was read at startup, but
+    /// nothing ever wrote ActiveTab back; EditorTabs is now a real
+    /// TabControl worth remembering the index of. Only called right before
+    /// an actual close (or when there's nothing to confirm), not on every
+    /// close attempt - matches the winui original's PersistUiState, which
+    /// skips saving on a cancelled close too.
+    /// </summary>
+    private void PersistUiState()
+    {
+        _settings.Settings.ActiveTab = EditorTabs.SelectedIndex;
+        _settings.Save();
     }
 
     //same one-way + explicit-toggle pattern as OnToggleGridView below, for the
