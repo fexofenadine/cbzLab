@@ -8,14 +8,7 @@ namespace cbzLab.Avalonia.Dialogs;
 
 public enum UnsavedChoice { Save, Discard, Cancel }
 
-/// <summary>
-/// Avalonia's replacement for AppDialogs.UnsavedPromptAsync (cbzLab/Dialogs/
-/// AppDialogs.cs line 68) - see MessageDialog for why this is its own Window
-/// rather than a ContentDialog-style static method. Shown on close/quit when
-/// files have unsaved changes; lists them and offers save all / discard /
-/// cancel. Previously missing entirely from this port - Ctrl+Q and the
-/// window's own close button both discarded unsaved work with no prompt.
-/// </summary>
+//shown on close/quit when files have unsaved changes
 public partial class UnsavedChangesDialog : Window
 {
     private UnsavedChoice _result = UnsavedChoice.Cancel;

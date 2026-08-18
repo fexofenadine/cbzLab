@@ -9,16 +9,8 @@ using cbzLab.Services;
 
 namespace cbzLab.Avalonia.Dialogs;
 
-/// <summary>
-/// Avalonia's replacement for the general/editor-preferences, RAR tool path,
-/// ComicVine, theme, and Reset to Defaults portions of AppDialogs.SettingsAsync
-/// (cbzLab/Dialogs/AppDialogs.cs line 918). Folder links (slice 10 notes)
-/// are still deliberately not here. Same Window + ShowDialog pattern as
-/// MessageDialog/ChooseColumnsDialog.
-/// </summary>
 public partial class SettingsDialog : Window
 {
-    //same fixed list as the winui original
     private static readonly string[] FontFamilyOptions =
         { "Segoe UI", "Segoe UI Variable", "Consolas", "Cascadia Code", "Georgia", "Comic Sans MS" };
 
@@ -78,15 +70,7 @@ public partial class SettingsDialog : Window
         Close();
     }
 
-    /// <summary>
-    /// Unlike the winui original (whose ContentDialog closes on any of its
-    /// three buttons, forcing the confirm step to happen after closing),
-    /// this Window stays open through the nested ConfirmDialog - simpler,
-    /// and avoids a race between Close() and the async confirmation. Resets
-    /// immediately on confirmation, bypassing every other field on this
-    /// dialog - Save's own field-by-field writeback never runs, matching
-    /// the winui original's own "Reset bypasses Save" behaviour.
-    /// </summary>
+    //resets immediately on confirmation; Save's own field-by-field writeback never runs
     private async void OnResetToDefaults(object? sender, RoutedEventArgs e)
     {
         var confirmed = await ConfirmDialog.ShowAsync(this, "Reset to defaults",
@@ -124,9 +108,6 @@ public partial class SettingsDialog : Window
 
     private void OnResetRarTool(object? sender, RoutedEventArgs e) => RarToolBox.Text = "";
 
-    //live show/hide as the checkbox is toggled, not just on next open - same
-    //shape as the winui original's Checked/Unchecked handlers, just via one
-    //Click handler instead of two events
     private void OnToggleComicVineEnabled(object? sender, RoutedEventArgs e) =>
         ComicVineRevealPanel.IsVisible = ComicVineEnabledCheck.IsChecked == true;
 
@@ -168,20 +149,7 @@ public partial class SettingsDialog : Window
         }
     }
 
-    /// <summary>
-    /// Shows the dialog seeded from the current settings; on Save, writes the
-    /// in-scope fields straight back into SettingsService.Settings and
-    /// persists - same shape as the winui original (write-then-Save on the
-    /// real object, not a copy), so the caller can immediately reflect any
-    /// live-UI-relevant changes (font size/family) afterward.
-    /// </summary>
-    /// <summary>
-    /// Returns (Saved, ResetToDefaults) rather than a single bool, since
-    /// Reset to Defaults (slice 24) needs the caller to refresh live UI
-    /// (theme, editor font) the same way a normal Save does, but without
-    /// running this method's own field-by-field writeback - ResetToDefaults()
-    /// already wrote every field directly.
-    /// </summary>
+    //ResetToDefaults writes every field directly, bypassing the writeback below
     public static async Task<(bool Saved, bool ResetToDefaults)> ShowAsync(
         Window owner, SettingsService settings, ArchiveService archive, ComicVineService comicVine, ThemeService theme)
     {
@@ -228,11 +196,7 @@ public partial class SettingsDialog : Window
     }
 }
 
-/// <summary>
-/// Read-only snapshot of the fields this dialog seeds from, so Populate()
-/// doesn't take a live mutable AppSettings reference before the user has
-/// actually chosen to save anything.
-/// </summary>
+//read-only snapshot so Populate() doesn't hold a live mutable settings reference
 internal readonly record struct AppSettingsSnapshot(
     string Theme, double EditorFontSize, string EditorFontFamily, string CoverSource, bool EditorFieldsFillWidth,
     bool RememberLastTab, bool CompactDensity, bool ShowAllFieldsDefault, bool ShowExtraFieldsDefault,

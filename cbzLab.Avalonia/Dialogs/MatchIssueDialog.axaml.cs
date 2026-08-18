@@ -7,15 +7,8 @@ using cbzLab.Models;
 
 namespace cbzLab.Avalonia.Dialogs;
 
-/// <summary>
-/// Avalonia's replacement for AppDialogs.MatchIssueAsync/BrowseIssuesAsync
-/// (cbzLab/Dialogs/AppDialogs.cs lines 520/554). Simplified: always shows the
-/// full issue list rather than WinUI's separate "Confirm issue" micro-dialog
-/// for a clean single match - the matched issue is pre-selected in the same
-/// list instead. See CLAUDE.md slice 7 notes. Slice 8 adds autoAcceptSingleMatch
-/// (batch mode: a clean single match skips the dialog entirely) and
-/// contextLabel (which file a batch match prompt is for).
-/// </summary>
+//always shows the full issue list, with a number match pre-selected;
+//autoAcceptSingleMatch (batch mode) skips the dialog entirely on a clean match
 public partial class MatchIssueDialog : Window
 {
     private int? _selected;
@@ -46,10 +39,7 @@ public partial class MatchIssueDialog : Window
         return string.Join(" · ", parts);
     }
 
-    //ports FindNumberMatches/NormalizeIssueNumber verbatim from AppDialogs.cs
-    //lines 650-665 - comicvine issue numbers are free-text, not guaranteed to
-    //format identically to what's in the file's own Number field (leading
-    //zeros in particular)
+    //comicvine issue numbers are free-text and may differ in leading zeros
     private static List<ComicVineIssueSummary> FindNumberMatches(List<ComicVineIssueSummary> issues, string number)
     {
         var normalized = NormalizeIssueNumber(number);

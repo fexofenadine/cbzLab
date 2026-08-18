@@ -88,8 +88,7 @@ public class AppSettings
     [JsonPropertyName("editor_font_family")]
     public string EditorFontFamily { get; set; } = "Segoe UI";
 
-    //master switch: off by default. When off, no ComicVine ui exists anywhere
-    //in the app (not greyed out, not present) — see MainViewModel.OnlineLookupEnabled
+    //master switch — off means no ComicVine ui exists anywhere, not just greyed out
     [JsonPropertyName("comicvine_enabled")]
     public bool ComicVineEnabled { get; set; }
 
@@ -102,8 +101,7 @@ public class AppSettings
     [JsonPropertyName("grid_view_active")]
     public bool GridViewActive { get; set; }
 
-    //a reasonable starter set — the fields most people would actually want
-    //to audit across a library at a glance
+    //a reasonable starter set for a library-wide audit
     [JsonPropertyName("grid_columns")]
     public List<string> GridColumns { get; set; } = new() { "Series", "Number", "Writer", "Publisher" };
 }

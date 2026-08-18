@@ -10,12 +10,7 @@ using cbzLab.ViewModels;
 
 namespace cbzLab.Avalonia.Dialogs;
 
-/// <summary>
-/// Confirms a multi-file save, listing each file with a per-file CBZ/CBR
-/// format selector - ports AppDialogs.MultiSaveAsync as its own Window
-/// (same Window-per-dialog pattern as ChooseColumnsDialog), built entirely
-/// in code since the file list is only known at runtime.
-/// </summary>
+//confirms a multi-file save, listing each file with a per-file CBZ/CBR selector
 public partial class MultiSaveDialog : Window
 {
     private readonly List<(ComicFileViewModel File, ComboBox Combo)> _rows = new();

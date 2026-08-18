@@ -5,33 +5,13 @@ namespace cbzLab.ViewModels;
 
 /// <summary>
 /// Bridges a single localized date string to/from ComicInfo's separate
-/// Year/Month/Day tags. Full dates parse and format via the current
-/// culture's own DateTime handling — so this correctly follows whatever
-/// format the OS is set to (dd/MM/yyyy on an Australian machine, MM/dd/yyyy
-/// on a US one, etc.) without hardcoding any particular locale.
-///
-/// Anything that isn't a recognizable full date doesn't just fail: a bare
-/// 4-digit number is read as year-only, and "MM/yyyy" as year+month, both
-/// common for older or uncertain publication dates where a full date
-/// genuinely isn't known — ComicInfo's schema explicitly allows partial
-/// dates, and this needs to keep supporting that, not just full dates.
-///
-/// This deliberately does not try to derive a fully generic partial-date
-/// ordering from arbitrary cultures' own full-date patterns (e.g. working
-/// out whether a bare two-part "07/2015" should be read as month/year or
-/// year/month based on the current culture's day-vs-month ordering) — that
-/// is a lot of complexity for a case (year+month, no day) that is rare in
-/// practice compared to either a full date or year-only. "MM/yyyy" is used
-/// as one fixed, documented convention for that one partial case.
+/// Year/Month/Day tags, using the current culture's own DateTime formatting.
+/// Partial dates (bare year, or "MM/yyyy") are supported since ComicInfo
+/// allows them; arbitrary-culture partial-date ordering is not attempted.
 /// </summary>
 public static class DateFieldHelper
 {
-    /// <summary>
-    /// Composes a display string from Year/Month/Day, in whichever of the
-    /// three is actually populated. Empty if Year itself is empty — ComicInfo
-    /// dates are always anchored on year; a month or day with no year isn't
-    /// a meaningful partial date.
-    /// </summary>
+    //empty if Year is empty - a month/day with no year isn't a meaningful partial date
     public static string FormatForDisplay(string year, string month, string day)
     {
         if (year.Length == 0)
@@ -45,8 +25,7 @@ public static class DateFieldHelper
             }
             catch (ArgumentOutOfRangeException)
             {
-                //an out-of-range combination (bad data from elsewhere) falls
-                //through to the looser renderings below rather than throwing
+                //out-of-range combination - fall through to looser renderings below
             }
         }
 
@@ -56,27 +35,15 @@ public static class DateFieldHelper
         return year;
     }
 
-    /// <summary>
-    /// Parses user input back into (Year, Month, Day) — each may be empty
-    /// for a partial date. Returns null if the input isn't recognized as a
-    /// full date, a bare year, or "MM/yyyy" — the caller should leave the
-    /// underlying fields untouched in that case rather than overwrite good
-    /// data with a failed guess.
-    /// </summary>
+    //returns null (leave fields untouched) if input isn't a full date, bare year, or "MM/yyyy"
     public static (string Year, string Month, string Day)? Parse(string input)
     {
         input = input.Trim();
         if (input.Length == 0)
             return ("", "", "");
 
-        //partial-date forms (year-only, "MM/yyyy") are checked BEFORE
-        //DateTime.TryParse, not after - .NET's parser doesn't reject a
-        //2-component input like "03/2019", it silently fills in the missing
-        //day as 1 and succeeds as a "full" date, which used to make every
-        //partial date the user actually typed get written with a fabricated
-        //Day=1 instead of staying genuinely dayless. Confirmed by reading the
-        //real saved ComicInfo.xml before this fix: a "03/2019" edit wrote
-        //<Day>1</Day>, never reaching the regex below at all.
+        //partial-date forms must be checked before DateTime.TryParse: it doesn't reject
+        //"03/2019", it silently fills Day=1 and succeeds as a full date
         if (Regex.IsMatch(input, @"^\d{4}$"))
             return (input, "", "");
 

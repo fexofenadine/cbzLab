@@ -4,15 +4,7 @@ using cbzLab.ViewModels;
 
 namespace cbzLab.Avalonia.Converters;
 
-/// <summary>
-/// Avalonia port of the WinUI FieldTemplateSelector (cbzLab/Converters). Avalonia
-/// has no DataTemplateSelector type - IDataTemplate's own Match/Build pair is the
-/// direct equivalent. Slice 17 adds the structural date/numeric-group checks
-/// (MonthCompanion, RowCompanions.Count) that slice 1 deliberately deferred -
-/// checked before field.Widget, same dispatch order as the WinUI original (see
-/// CLAUDE.md's "Composite fields" section): MonthCompanion first, then
-/// RowCompanions.Count, then the normal widget-type switch.
-/// </summary>
+//dispatches composite fields (date, numeric-group) before the normal widget-type switch
 public class FieldTemplateSelector : IDataTemplate
 {
     public IDataTemplate? EntryTemplate { get; set; }

@@ -13,13 +13,7 @@ using cbzLab.ViewModels;
 
 namespace cbzLab.Avalonia.Dialogs;
 
-/// <summary>
-/// Avalonia's replacement for AppDialogs.SearchComicVineAsync (cbzLab/Dialogs/
-/// AppDialogs.cs line 353). Same Window + ShowDialog pattern as every other
-/// dialog in this port. Cover thumbnails (slice 9): rows render immediately
-/// with text, covers pop in progressively as each download completes rather
-/// than blocking the whole list on the slowest image.
-/// </summary>
+//rows render immediately with text; covers pop in as each download completes
 public partial class SearchComicVineDialog : Window
 {
     private ComicVineService? _comicVine;
@@ -80,12 +74,7 @@ public partial class SearchComicVineDialog : Window
         }
     }
 
-    /// <summary>
-    /// Downloads and decodes one row's cover thumbnail in the background.
-    /// Fire-and-forget from the caller - failures are swallowed here (a
-    /// missing cover just means the placeholder slot stays empty, same as a
-    /// local file with no images, not a broken dialog).
-    /// </summary>
+    //fire-and-forget from the caller; failures leave the placeholder slot empty
     private async Task LoadCoverAsync(VolumeRow row, string url)
     {
         if (_comicVine is null)
@@ -140,12 +129,7 @@ public partial class SearchComicVineDialog : Window
     }
 }
 
-/// <summary>
-/// Bindable (not a plain record, unlike IssueRow/MatchIssueDialog) because
-/// Cover starts null and is filled in later once its thumbnail download
-/// completes - needs change notification for the Image binding to pick that
-/// up after the row is already on screen.
-/// </summary>
+//bindable, not a plain record: Cover is filled in later once its download completes
 internal class VolumeRow : ViewModelBase
 {
     public ComicVineVolume Volume { get; }

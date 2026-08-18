@@ -11,25 +11,12 @@ using cbzLab.ViewModels;
 
 namespace cbzLab.Avalonia.Dialogs;
 
-/// <summary>
-/// Avalonia's replacement for AppDialogs.ReviewComicVineBatchAsync (cbzLab/
-/// Dialogs/AppDialogs.cs line 770) - the batch counterpart to
-/// ReviewComicVineMatchDialog. Groups proposed changes by tag across every
-/// matched file: fields in ComicVineSharedTags that every file's matched
-/// issue agrees on are shown as one agreed line (ticked); if they disagree,
-/// that's flagged as a possible mismatch (unticked, every distinct value +
-/// file count listed). Per-issue fields (Number, Title, dates, Summary, Web)
-/// aren't held to the agreement check - always ticked, just report how many
-/// files they'd touch. The caller still writes each file's own matched value
-/// per checked tag, never a single value forced onto the whole batch.
-/// </summary>
+//batch counterpart to ReviewComicVineMatchDialog: fields in ComicVineSharedTags
+//that every matched file agrees on show as one ticked line; disagreement is
+//flagged and left unticked. per-issue fields aren't held to that check.
 public partial class ReviewComicVineBatchDialog : Window
 {
-    //fields where files sharing the same underlying issue-run genuinely
-    //ought to agree (creators, series-level facts, recurring narrative
-    //elements) - divergence here is worth flagging as a possible mismatch.
-    //everything else (Number, Title, Year/Month/Day, Summary, Web) is
-    //expected to vary per issue and isn't held to this check at all
+    //fields expected to agree across issues of the same run; divergence is flagged
     private static readonly HashSet<string> ComicVineSharedTags = new(System.StringComparer.Ordinal)
     {
         "Series", "Publisher", "Count",
@@ -83,7 +70,6 @@ public partial class ReviewComicVineBatchDialog : Window
 
             if (isShared && distinctValues.Count > 1)
             {
-                //genuinely divergent - needs a conscious decision, not a default
                 box.IsChecked = false;
                 headerRow.Children.Add(new TextBlock
                 {
@@ -105,7 +91,6 @@ public partial class ReviewComicVineBatchDialog : Window
             }
             else if (isShared)
             {
-                //every file's matched issue agrees
                 box.IsChecked = true;
                 row.Children.Add(headerRow);
                 row.Children.Add(new TextBlock
@@ -117,7 +102,6 @@ public partial class ReviewComicVineBatchDialog : Window
             }
             else
             {
-                //per-issue field - expected to vary, not held to the agreement check
                 box.IsChecked = true;
                 row.Children.Add(headerRow);
                 row.Children.Add(new TextBlock

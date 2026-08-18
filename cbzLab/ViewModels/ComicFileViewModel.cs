@@ -5,23 +5,21 @@ using Windows.Storage.Streams;
 namespace cbzLab.ViewModels;
 
 /// <summary>
-/// One open archive: its path, original raw ComicInfo.xml bytes, the last-saved
-/// values, the live edited values, dirty state and detected page count. Also
-/// derives the two-line sidebar presentation (filename + subtitle).
+/// One open archive: path, original raw ComicInfo.xml bytes, last-saved values,
+/// live edited values, dirty state, detected page count, and the derived sidebar
+/// subtitle.
 /// </summary>
 public class ComicFileViewModel : ViewModelBase
 {
     public string Path { get; private set; }
     public string FileName => System.IO.Path.GetFileName(Path);
 
-    //format of the archive as it exists on disk
     public ArchiveFormat Format { get; set; }
 
-    //raw xml bytes as read from the archive; writes are applied on top of these
-    //so complex elements such as <Pages> survive a round trip untouched
+    //writes are applied on top of these so complex elements (<Pages>) survive
+    //a round trip untouched
     public byte[]? RawXml { get; set; }
 
-    //last state on disk vs live edits in the form
     public Dictionary<string, string> SavedValues { get; private set; } = new(StringComparer.Ordinal);
     public Dictionary<string, string> CurrentValues { get; private set; } = new(StringComparer.Ordinal);
 
@@ -41,7 +39,6 @@ public class ComicFileViewModel : ViewModelBase
         private set => SetProperty(ref _subtitle, value);
     }
 
-    //dims the subtitle when there is no metadata to derive it from
     private double _subtitleOpacity = 1.0;
     public double SubtitleOpacity
     {
@@ -56,8 +53,6 @@ public class ComicFileViewModel : ViewModelBase
         private set => SetProperty(ref _coverImage, value);
     }
 
-    //true once a cover thumbnail has been decoded; used to fall back to the
-    //plain placeholder slot in the sidebar and to hide the editor header banner
     public bool HasCover => CoverImage is not null;
 
     public ComicFileViewModel(string path, ArchiveFormat format, byte[]? rawXml,
@@ -72,14 +67,8 @@ public class ComicFileViewModel : ViewModelBase
         UpdateSubtitle();
     }
 
-    /// <summary>
-    /// Decodes cover thumbnail bytes (the first image entry found when the
-    /// archive was read) into a small bitmap for the sidebar and editor header.
-    /// Must be called from the ui thread — BitmapImage has thread affinity.
-    /// Safe to call with null/empty bytes (an archive with no images, or a read
-    /// that failed): CoverImage simply stays null and callers fall back to the
-    /// plain placeholder slot.
-    /// </summary>
+    //must run on the ui thread — BitmapImage has thread affinity. Safe with
+    //null/empty bytes; CoverImage just stays null.
     public async Task LoadCoverAsync(byte[]? coverBytes)
     {
         if (coverBytes is null || coverBytes.Length == 0)
@@ -97,23 +86,18 @@ public class ComicFileViewModel : ViewModelBase
             }
             stream.Seek(0);
 
-            //downscaled decode target — plenty for a sidebar thumbnail or the
-            //small editor banner, and keeps memory sane across a big batch open
             var bitmap = new BitmapImage { DecodePixelWidth = 200 };
             await bitmap.SetSourceAsync(stream);
             CoverImage = bitmap;
         }
         catch
         {
-            //a corrupt or unsupported first image just means no thumbnail, not fatal
             CoverImage = null;
         }
         OnPropertyChanged(nameof(HasCover));
     }
 
-    /// <summary>
-    /// Applies a single field edit. Empty values are stored as removals.
-    /// </summary>
+    //empty values are stored as removals
     public void SetValue(string tag, string value)
     {
         if (string.IsNullOrEmpty(value))
@@ -124,12 +108,7 @@ public class ComicFileViewModel : ViewModelBase
         AfterValueChanged(tag);
     }
 
-    /// <summary>
-    /// Reverts a single field back to its last-saved value, discarding any
-    /// pending edit to just that field while leaving other pending edits on
-    /// this file alone. Unlike ReloadFrom (a full file revert), this never
-    /// touches RawXml or any other field.
-    /// </summary>
+    //unlike ReloadFrom (a full file revert), never touches RawXml or any other field
     public void RevertField(string tag)
     {
         if (SavedValues.TryGetValue(tag, out var saved))
@@ -140,11 +119,8 @@ public class ComicFileViewModel : ViewModelBase
         AfterValueChanged(tag);
     }
 
-    /// <summary>
-    /// Writes a value into both the saved baseline and the current values, for
-    /// programmatic fills (e.g. auto page count on open) that should not count
-    /// as a pending edit. Use SetValue for anything the user actually changed.
-    /// </summary>
+    //writes into both saved baseline and current values, for programmatic fills
+    //(e.g. auto page count on open) that shouldn't count as a pending edit
     public void SeedValue(string tag, string value)
     {
         if (string.IsNullOrEmpty(value))
@@ -161,9 +137,6 @@ public class ComicFileViewModel : ViewModelBase
         AfterValueChanged(tag);
     }
 
-    //shared tail for every single-field mutation above: dirty state always
-    //needs recomputing, and the sidebar subtitle only needs refreshing when
-    //one of the three fields it's derived from was the one that changed
     private void AfterValueChanged(string tag)
     {
         RecomputeDirty();
@@ -174,9 +147,6 @@ public class ComicFileViewModel : ViewModelBase
     public string GetValue(string tag) =>
         CurrentValues.TryGetValue(tag, out var v) ? v : "";
 
-    /// <summary>
-    /// Replaces all current values wholesale (used by Paste XML).
-    /// </summary>
     public void ReplaceCurrentValues(Dictionary<string, string> values)
     {
         CurrentValues = new Dictionary<string, string>(values, StringComparer.Ordinal);
@@ -184,10 +154,6 @@ public class ComicFileViewModel : ViewModelBase
         UpdateSubtitle();
     }
 
-    /// <summary>
-    /// Marks the file clean after a successful save, adopting the freshly written
-    /// xml as the new baseline.
-    /// </summary>
     public void MarkSaved(byte[] newRawXml, string? newPath = null, ArchiveFormat? newFormat = null)
     {
         RawXml = newRawXml;
@@ -203,9 +169,6 @@ public class ComicFileViewModel : ViewModelBase
         RecomputeDirty();
     }
 
-    /// <summary>
-    /// Adopts freshly re-read state from disk (used by Revert).
-    /// </summary>
     public void ReloadFrom(byte[]? rawXml, Dictionary<string, string> values, int detectedPageCount)
     {
         RawXml = rawXml;
@@ -216,10 +179,8 @@ public class ComicFileViewModel : ViewModelBase
         UpdateSubtitle();
     }
 
-    /// <summary>
-    /// Builds the dictionary passed to the xml writer: the union of saved and current
-    /// keys, with cleared fields present as empty strings so their elements are removed.
-    /// </summary>
+    //union of saved and current keys, with cleared fields as empty strings so
+    //their elements get removed from the xml
     public Dictionary<string, string> BuildWriteValues()
     {
         var result = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -230,7 +191,6 @@ public class ComicFileViewModel : ViewModelBase
 
     private void RecomputeDirty()
     {
-        //dictionaries compare equal when every non-empty value matches; missing == empty
         bool Differs()
         {
             foreach (var key in SavedValues.Keys.Union(CurrentValues.Keys))
@@ -245,11 +205,8 @@ public class ComicFileViewModel : ViewModelBase
         IsDirty = Differs();
     }
 
-    /// <summary>
-    /// Derives the sidebar subtitle from Series, Number and Volume:
-    /// Series + Number → "Batman #1" (Number beats Volume); Series + Volume →
-    /// "Batman - Vol.2"; each alone as itself; nothing → dimmed "no metadata".
-    /// </summary>
+    //Series + Number -> "Batman #1" (Number beats Volume); Series + Volume ->
+    //"Batman - Vol.2"; each alone as itself; nothing -> dimmed "no metadata"
     private void UpdateSubtitle()
     {
         var series = GetValue("Series").Trim();

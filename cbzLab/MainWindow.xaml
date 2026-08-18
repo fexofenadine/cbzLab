@@ -6,7 +6,7 @@
     xmlns:conv="using:cbzLab.Converters"
     xmlns:tv="using:WinUI.TableView">
 
-    <!--window has no Resources property in winui 3, so everything lives on the root grid-->
+    <!--Window has no Resources property; everything lives on the root grid-->
     <Grid x:Name="RootGrid" Background="{StaticResource ThBg}"
           AllowDrop="True"
           DragOver="RootGrid_DragOver"
@@ -39,16 +39,13 @@
                     </StackPanel.ContextFlyout>
                     <TextBlock Text="{Binding Label}" FontSize="12" Margin="0,0,0,4"
                                Foreground="{StaticResource ThLblFg}"/>
-                    <!--a Grid rather than a horizontal StackPanel: the textbox column is
-                        star-sized so it actually stretches when the fields-fill-width
-                        setting is on, rather than just hugging its own MinWidth-->
+                    <!--star-sized textbox column so it stretches when fields-fill-width is on-->
                     <Grid ColumnSpacing="6">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <!--the border is a decorative outline only; transparent when valid,
-                            so the textbox's own themed border still shows normally beneath it-->
+                        <!--transparent when valid, so the textbox's own border shows through-->
                         <Border Grid.Column="0"
                                 BorderBrush="{Binding HasError, Converter={StaticResource ErrorBorder}}"
                                 BorderThickness="1.5" CornerRadius="4">
@@ -58,8 +55,7 @@
                                      LostFocus="EntryField_LostFocus"
                                      MinWidth="280"/>
                         </Border>
-                        <!--picker: detected values across the batch selection, or recently
-                            typed values for this field when editing a single file-->
+                        <!--detected values in batch mode, recent values for a single file-->
                         <DropDownButton Grid.Column="1" Content="&#xE70D;" FontFamily="Segoe MDL2 Assets"
                                         ToolTipService.ToolTip="Choose a value"
                                         Visibility="{Binding ShowPicker, Converter={StaticResource BoolToVis}}">
@@ -80,7 +76,6 @@
                             </DropDownButton.Flyout>
                         </DropDownButton>
                     </Grid>
-                    <!--live validation message; save-time validation still runs separately on Save-->
                     <TextBlock Text="{Binding ErrorMessage}" FontSize="11" TextWrapping="Wrap"
                                Foreground="{StaticResource ThErrorLbl}" MaxWidth="360"
                                Margin="0,3,0,0"
@@ -100,7 +95,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="6">
                         <TextBlock Text="{Binding Label}" FontSize="12"
                                    Foreground="{StaticResource ThLblFg}"/>
-                        <!--batch picker sits next to the label since the textbox below is full width-->
+                        <!--picker sits next to the label since the textbox below is full width-->
                         <DropDownButton Content="&#xE70D;" FontFamily="Segoe MDL2 Assets"
                                         Height="24" Padding="6,0"
                                         ToolTipService.ToolTip="Choose from detected values"
@@ -167,12 +162,8 @@
                 </StackPanel>
             </DataTemplate>
 
-            <!--composite date field: Year/Month/Day combined into one localized text
-                entry (FieldViewModel.DateDisplayValue), with a calendar picker
-                alongside for convenience. Still freely typable — ComicInfo allows
-                partial dates (year-only, or year+month), which a calendar-only
-                control can't represent, so the picker is a convenience layered on
-                top of free text, not a replacement for it.-->
+            <!--Year/Month/Day as one localized text entry plus a calendar picker; stays
+                freely typable since ComicInfo allows partial dates the calendar can't represent-->
             <DataTemplate x:Key="DateFieldTemplate">
                 <StackPanel Margin="{Binding DataContext.FieldMargin, ElementName=RootGrid}"
                             ToolTipService.ToolTip="{Binding Tooltip}">
@@ -215,12 +206,8 @@
                 </StackPanel>
             </DataTemplate>
 
-            <!--narrow numeric fields that share a row instead of each getting one of
-                their own (Number+Count+Volume, AlternateNumber+AlternateCount) — see
-                FieldViewModel.RowCompanions. Each is still an independent value with
-                its own label, own textbox, and own Revert to Saved — they just happen
-                to sit side by side to save space, unlike the date field above where
-                the three genuinely compose into one meaning.-->
+            <!--narrow numeric fields sharing one row (see FieldViewModel.RowCompanions) -
+                each still independent (own label, textbox, Revert to Saved), just laid out together-->
             <DataTemplate x:Key="NumericGroupTemplate">
                 <StackPanel Margin="{Binding DataContext.FieldMargin, ElementName=RootGrid}">
                     <StackPanel Orientation="Horizontal" Spacing="16">
@@ -384,8 +371,7 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!--always shown rather than hidden-when-not-needed, to keep this simple —
-                    clicking them when there's nothing to scroll is just a harmless no-op-->
+                <!--always shown; clicking with nothing to scroll is a harmless no-op-->
                 <Button Grid.Column="0" Style="{StaticResource ToolButtonStyle}" Click="OnToolbarScrollLeft"
                         ToolTipService.ToolTip="Scroll toolbar left">
                     <FontIcon Glyph="&#xE76B;" FontSize="12"/>
@@ -528,8 +514,7 @@
                 <TextBlock Grid.Row="0" Text="OPEN FILES" FontSize="11" FontWeight="SemiBold"
                            Foreground="{StaticResource ThSectionFg}" Margin="14,10,14,6"/>
 
-                <!--filter is a separate, always-live text filter over the file list itself;
-                    distinct from the field-search box, which only searches within one open file-->
+                <!--separate from the field-search box, which only searches the open file-->
                 <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Margin="14,0,14,8">
                     <TextBox x:Name="FileFilterBox" Width="150"
                              PlaceholderText="Filter files…"
@@ -690,19 +675,9 @@
 
         <!--================================================================ grid view-->
         <Grid Grid.Row="2" Visibility="{Binding IsGridViewActive, Converter={StaticResource BoolToVis}}">
-            <!--read-only for now — see MainWindow.xaml.cs RebuildGridColumns for how
-                the dynamic (user-picked) columns are built. The dirty-indicator column
-                below is fixed, not part of that picker — declared here in xaml (rather
-                than built in code like the dynamic ones) since its DataTemplate never
-                changes, and RebuildGridColumns is careful to only clear/rebuild
-                everything AFTER this one, never touching it.-->
-            <!--SelectionUnit="Row" pins ctrl+click/shift+click to whole-row selection
-                everywhere in the row. Without it (default is CellOrRow), clicking a
-                data cell toggles just that cell into a separate cell-selection set,
-                so ctrl+click only extended row selection from the one templated
-                column (the dirty-indicator column, which has no cell content of its
-                own to be cell-selected). Grid is IsReadOnly, so there's no per-cell
-                editing/copy use case that would want cell-level selection anyway.-->
+            <!--dirty-indicator column is fixed here in xaml; RebuildGridColumns only
+                touches columns after it. SelectionUnit="Row" avoids the default CellOrRow
+                treating this column as independently cell-selectable, which broke ctrl+click.-->
             <tv:TableView x:Name="ComicsGrid"
                           ItemsSource="{Binding DisplayedFiles}"
                           IsReadOnly="True"

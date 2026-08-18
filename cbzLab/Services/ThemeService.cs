@@ -7,12 +7,9 @@ using Windows.UI;
 namespace cbzLab.Services;
 
 /// <summary>
-/// Loads colour themes from the user-editable themes.json plus any custom .json
-/// files in the themes directory, and applies them at runtime. Application works
-/// by mutating a fixed set of SolidColorBrush instances that the whole ui (and a
-/// curated set of system control resources) points at — changing a brush colour
-/// repaints everything live, no restart needed. Missing keys in a partial theme
-/// fall back to Solarized Dark.
+/// Loads colour themes from themes.json plus custom theme files, and applies them by
+/// mutating a fixed set of SolidColorBrush instances the whole ui points at — no
+/// restart needed. Missing keys in a partial theme fall back to Solarized Dark.
 /// </summary>
 public class ThemeService
 {
@@ -140,21 +137,14 @@ public class ThemeService
             _brushes[key] = new SolidColorBrush(ParseColour(HardFallback[key]));
     }
 
-    /// <summary>
-    /// Registers every theme brush into application resources (as ThBg, ThAccent,
-    /// ThEntryBg, ...) and overrides a curated set of system control resources so
-    /// native controls follow the theme too. Must run once before the main window
-    /// is created.
-    /// </summary>
+    //registers every brush as ThBg/ThAccent/etc and overrides system control resources; run once before the main window is created
     public void RegisterResources()
     {
         var res = Application.Current.Resources;
         foreach (var (key, brush) in _brushes)
             res["Th" + Pascalise(key)] = brush;
 
-        //system control resource overrides so ThemeResource lookups always land on
-        //our mutable brushes; a ResourceDictionary instance can only occupy one
-        //slot, so each theme variant gets its own dictionary (sharing the brushes)
+        //a ResourceDictionary instance can only occupy one slot, so each variant gets its own (sharing the brushes)
         var darkOverrides = new ResourceDictionary();
         FillSystemOverrides(darkOverrides);
         var lightOverrides = new ResourceDictionary();
@@ -207,14 +197,9 @@ public class ThemeService
 
         //menus
         Map("MenuFlyoutPresenterBackground", "bg2");
-        //MenuFlyoutItemForeground used to be mapped to "fg" here, which made
-        //plain MenuFlyoutItems (Open, Save, etc) render brighter than
-        //MenuBarItem/MenuFlyoutSubItem/ToggleMenuFlyoutItem/RadioMenuFlyoutItem,
-        //none of which read Control.Foreground for their normal-state text at
-        //all - confirmed by setting Foreground explicitly on ThemeMenu/
-        //RecentMenu and their generated items and seeing no visible change.
-        //removed so every menu item renders with the same system-default
-        //tone instead of some being themed and others not
+        //MenuFlyoutItemForeground deliberately not mapped: MenuBarItem/MenuFlyoutSubItem/
+        //Toggle/RadioMenuFlyoutItem don't honour Control.Foreground, so mapping it just made
+        //plain items render brighter than the rest
 
         //list view rows
         Map("ListViewItemForeground", "list_fg");
@@ -270,10 +255,7 @@ public class ThemeService
 
     //---------------------------------------------------------------- applying
 
-    /// <summary>
-    /// Applies a theme by name, mutating the shared brush instances so the whole ui
-    /// updates immediately. Unknown names fall back to the default theme.
-    /// </summary>
+    //unknown names fall back to the default theme
     public void Apply(string name)
     {
         if (!_themes.ContainsKey(name))

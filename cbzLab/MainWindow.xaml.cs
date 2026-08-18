@@ -18,25 +18,19 @@ using WinUI.TableView;
 
 namespace cbzLab;
 
-/// <summary>
-/// The main (and only) window. Owns the view model, orchestrates archive i/o and
-/// dialogs, and manages the menus that are populated at runtime (recent files,
-/// themes). Field/selection/filter state lives in MainViewModel.
-/// </summary>
+/// <summary>The main window — owns the view model, archive i/o, and dialogs.</summary>
 public sealed partial class MainWindow : Window
 {
     public MainViewModel ViewModel { get; }
 
     private bool _forceClose;
 
-    //the file a right-click landed on, used only by Copy Fields to Rest of
-    //Selection to know which of the selected files is the "source"
+    //right-clicked file; source for Copy Fields to Rest of Selection
     private ComicFileViewModel? _lastRightTappedFile;
 
-    //shared across every dynamically-built grid column — see RebuildGridColumns
     private readonly FieldValueConverter _fieldValueConverter = new();
 
-    //paths handed over on the command line, opened once the content tree is live
+    //command-line paths, opened once the content tree is live
     private List<string>? _pendingStartupPaths;
 
     public MainWindow()
@@ -48,22 +42,16 @@ public sealed partial class MainWindow : Window
         ViewModel = new MainViewModel(App.Schema, App.Settings, App.Validation, App.RecentValues);
         RootGrid.DataContext = ViewModel;
 
-        //window chrome: retrowave taskbar icon and a sensible default size
         try
         {
             AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "icon.ico"));
         }
         catch (Exception ex)
         {
-            //icon is cosmetic; never fatal, but worth a trace if it ever fails
             App.Log.Warning($"Could not set the taskbar icon: {ex.Message}");
         }
 
-        //restore the remembered window size/position, falling back to a sane
-        //default for anything that looks corrupt or was never saved (fresh
-        //install). This is a loose sanity net, not real multi-monitor
-        //awareness — a saved position from a monitor you've since unplugged
-        //could still end up off-screen; it only guards against nonsense values.
+        //loose sanity bounds, not real multi-monitor awareness
         var s = App.Settings.Settings;
         var validSize = s.WindowWidth is >= 400 and <= 8000 && s.WindowHeight is >= 300 and <= 8000;
         AppWindow.Resize(new Windows.Graphics.SizeInt32(
@@ -77,19 +65,12 @@ public sealed partial class MainWindow : Window
 
         AppWindow.Closing += OnAppWindowClosing;
 
-        //restore the remembered tab (fires SelectionChanged, which syncs the vm);
-        //ActiveTab keeps being tracked either way, this setting only controls
-        //whether it's applied again on the next launch
         var tabIndex = App.Settings.Settings.RememberLastTab ? App.Settings.Settings.ActiveTab : 0;
         EditorTabs.SelectedIndex = tabIndex >= 0 && tabIndex < EditorTabs.TabItems.Count ? tabIndex : 0;
 
-        //restore the remembered sort mode the same way. Both this line and
-        //EditorTabs.SelectedIndex above re-fire their SelectionChanged
-        //handlers, which is fine here since ViewModel already exists by this
-        //point in the constructor — the handlers also fire once earlier,
-        //synchronously during InitializeComponent() (SortCombo has
-        //SelectedIndex="0" in xaml; TabView auto-selects its first tab), when
-        //ViewModel does NOT exist yet. Both handlers guard against that.
+        //both this and EditorTabs.SelectedIndex above re-fire SelectionChanged;
+        //those handlers also fire once during InitializeComponent(), before
+        //ViewModel exists, so both guard against a null ViewModel
         SortCombo.SelectedIndex = ViewModel.SortMode switch
         {
             FileSortMode.SeriesNumber => 1,
@@ -97,7 +78,6 @@ public sealed partial class MainWindow : Window
             _ => 0,
         };
 
-        //theme switching flips fluent light/dark visual states to match the palette
         App.Theme.ThemeChanged += UpdateElementTheme;
         UpdateElementTheme();
 
@@ -110,10 +90,6 @@ public sealed partial class MainWindow : Window
     private void UpdateElementTheme() =>
         RootGrid.RequestedTheme = App.Theme.CurrentThemeIsLight ? ElementTheme.Light : ElementTheme.Dark;
 
-    /// <summary>
-    /// Queues file paths (from the command line) to be opened as soon as the
-    /// window's content tree has loaded.
-    /// </summary>
     public void QueueStartupPaths(List<string> paths) => _pendingStartupPaths = paths;
 
     private async void OnRootLoaded(object sender, RoutedEventArgs e)
@@ -128,27 +104,14 @@ public sealed partial class MainWindow : Window
 
     //---------------------------------------------------------------- toolbar scroll
 
-    //fixed-increment scroll rather than a full-width jump — several clicks
-    //to cross a wide toolbar is fine, and a full-width jump would overshoot
-    //past whatever the user actually wanted to reach
     private const double ToolbarScrollStep = 200;
 
-    /// <summary>
-    /// Forces the ScrollViewer to re-measure whenever its container resizes.
-    /// Without this, ScrollableWidth/HorizontalOffset can go stale after a
-    /// live window resize (as opposed to the size present at initial
-    /// layout) — the scroll buttons would appear to do nothing because
-    /// they're reading against an outdated scrollable range, not because
-    /// the click itself failed.
-    /// </summary>
+    //without this, ScrollableWidth/HorizontalOffset can go stale after a live resize
     private void OnToolbarGridSizeChanged(object sender, SizeChangedEventArgs e) =>
         ToolbarScroll.InvalidateMeasure();
 
     private void OnToolbarScrollLeft(object sender, RoutedEventArgs e)
     {
-        //force any pending layout (including from a resize that just
-        //happened) to actually apply before reading offsets, so this never
-        //acts on stale numbers
         ToolbarScroll.UpdateLayout();
         ToolbarScroll.ChangeView(Math.Max(0, ToolbarScroll.HorizontalOffset - ToolbarScrollStep), null, null);
     }
@@ -170,7 +133,6 @@ public sealed partial class MainWindow : Window
         picker.FileTypeFilter.Add(".zip");
         picker.FileTypeFilter.Add(".rar");
 
-        //unpackaged apps must associate pickers with the window handle
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
         WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
 
@@ -201,12 +163,6 @@ public sealed partial class MainWindow : Window
     private void RootGrid_DragLeave(object sender, DragEventArgs e) =>
         DropOverlay.Visibility = Visibility.Collapsed;
 
-    /// <summary>
-    /// Files dragged in from Explorer (or anywhere else that offers storage
-    /// items) are filtered to supported archive extensions and fed straight
-    /// into the same OpenPathsAsync pipeline the Open dialog and command-line
-    /// startup already use.
-    /// </summary>
     private async void RootGrid_Drop(object sender, DragEventArgs e)
     {
         DropOverlay.Visibility = Visibility.Collapsed;
@@ -235,15 +191,10 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    /// <summary>
-    /// Opens a set of paths: already-open files are re-selected, new ones are read
-    /// on a background thread with a cooperative progress dialog for larger sets.
-    /// </summary>
+    /// <summary>Opens paths: already-open files are re-selected, new ones read on a background thread.</summary>
     public async Task OpenPathsAsync(IReadOnlyList<string> paths)
     {
-        //clearing the filter first (rather than after) means a file that
-        //wouldn't have matched the old filter is visible in time to be
-        //auto-selected below, if that setting is also on
+        //clear before opening so a newly-visible file can still be auto-selected below
         if (paths.Count > 0 && App.Settings.Settings.ClearFilterOnOpen && ViewModel.FileFilterText.Length > 0)
             ViewModel.FileFilterText = "";
 
@@ -276,15 +227,13 @@ public sealed partial class MainWindow : Window
                 var result = await Task.Run(() => App.Archive.Read(path));
                 var values = ComicInfoXml.Parse(result.ComicInfoXml);
 
-                //unknown tags become editable Extras fields, persisted for future sessions
                 ViewModel.RegisterExtrasFrom(values.Keys);
 
                 var vm = new ComicFileViewModel(path, result.Format, result.ComicInfoXml,
                     values, result.ImagePageCount);
                 await vm.LoadCoverAsync(result.CoverBytes);
 
-                //auto page count fills the field only when it is empty; seeded into
-                //the baseline too so opening a file never shows as modified on its own
+                //seeded into the baseline too, so this alone never marks the file dirty
                 if (App.Settings.Settings.AutoPageCount
                     && result.ImagePageCount > 0
                     && vm.GetValue("PageCount").Length == 0)
@@ -312,8 +261,7 @@ public sealed partial class MainWindow : Window
         if (failures.Count == 0)
             return;
 
-        //XamlRoot is nullable until the content tree loads; fall back to the
-        //status bar rather than handing a null root to the dialog
+        //XamlRoot is null until the content tree loads
         if (RootGrid.XamlRoot is { } root)
             await AppDialogs.MessageAsync(root, "Some files could not be opened",
                 string.Join("\n", failures));
@@ -352,28 +300,21 @@ public sealed partial class MainWindow : Window
             ViewModel.StatusText = "Nothing to save";
             return;
         }
-        //save all always confirms with the per-file format list
         await SaveFilesAsync(targets, confirmFormats: true);
     }
 
-    /// <summary>
-    /// The shared save pipeline: validation (with fix/save-anyway), optional
-    /// multi-save confirmation with per-file format selectors, a cancellable
-    /// progress dialog, atomic per-file writes and error collection.
-    /// </summary>
+    /// <summary>Shared save pipeline: validate, confirm formats, write, report failures.</summary>
     private async Task SaveFilesAsync(List<ComicFileViewModel> files, bool confirmFormats)
     {
         if (files.Count == 0)
             return;
 
-        //on-save validation across every file being written
         var errors = files
             .SelectMany(f => App.Validation.Validate(f.FileName, f.CurrentValues))
             .ToList();
         if (errors.Count > 0 && !await AppDialogs.ValidationAsync(RootGrid.XamlRoot, errors))
             return;
 
-        //resolve the output format per file
         List<(ComicFileViewModel File, ArchiveFormat Format)> plan;
         if (confirmFormats || files.Count > 1 && App.Settings.Settings.ConfirmBatchSave)
         {
@@ -389,7 +330,6 @@ public sealed partial class MainWindow : Window
                 .ToList();
         }
 
-        //fail fast if cbr output is requested with no write tool available
         if (plan.Any(p => p.Format == ArchiveFormat.Cbr) && App.Archive.FindRarTool() is null)
         {
             await AppDialogs.MessageAsync(RootGrid.XamlRoot, "No RAR tool available",
@@ -414,7 +354,6 @@ public sealed partial class MainWindow : Window
             i++;
             progress?.Report(i, plan.Count, file.FileName);
 
-            //a format change writes a sibling file with the matching extension
             var dest = format == file.Format
                 ? file.Path
                 : Path.ChangeExtension(file.Path, format == ArchiveFormat.Cbz ? ".cbz" : ".cbr");
@@ -458,7 +397,6 @@ public sealed partial class MainWindow : Window
             SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
             SuggestedFileName = Path.GetFileNameWithoutExtension(file.Path),
         };
-        //order the choices so the configured default format comes first
         if (App.Settings.Settings.DefaultSaveFormat.Equals("cbr", StringComparison.OrdinalIgnoreCase))
         {
             picker.FileTypeChoices.Add("Comic RAR archive", new List<string> { ".cbr" });
@@ -541,32 +479,20 @@ public sealed partial class MainWindow : Window
     private async void OnRemove(object sender, RoutedEventArgs e) =>
         await RemoveWithConfirmAsync(ViewModel.SelectedFiles.ToList());
 
-    /// <summary>
-    /// Ctrl+A on the file list: selects every open file. Attached to the list
-    /// itself (not the window) so it doesn't fight with text selection in the
-    /// search box or a field.
-    /// </summary>
+    //attached to the list itself so it doesn't fight text selection in a field
     private void FileListSelectAll_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
         FileList.SelectAll();
     }
 
-    /// <summary>
-    /// Delete on the file list: removes the selected file(s), reusing the same
-    /// unsaved-changes confirmation as the toolbar Remove button.
-    /// </summary>
     private async void FileListDelete_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
         await RemoveWithConfirmAsync(ViewModel.SelectedFiles.ToList());
     }
 
-    /// <summary>
-    /// Right-clicking a file outside the current selection replaces the selection
-    /// with just that file first, matching familiar file-manager behaviour;
-    /// right-clicking within an existing multi-selection leaves it untouched.
-    /// </summary>
+    //right-clicking outside the current selection replaces it first, like Explorer
     private void FileList_RightTapped(object sender, RightTappedRoutedEventArgs e)
     {
         if ((e.OriginalSource as FrameworkElement)?.DataContext is ComicFileViewModel file)
@@ -577,10 +503,6 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    /// <summary>
-    /// Greys out context menu items that wouldn't do anything given the current
-    /// selection, rather than letting them silently no-op.
-    /// </summary>
     private void FileContextFlyout_Opening(object sender, object e)
     {
         if (sender is not MenuFlyout flyout)
@@ -599,10 +521,6 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    /// <summary>
-    /// Opens Explorer with the current file pre-selected. Single-file only —
-    /// doesn't make sense to interpret for a multi-selection.
-    /// </summary>
     private void OnOpenContainingFolder(object sender, RoutedEventArgs e)
     {
         var file = ViewModel.CurrentFile;
@@ -623,13 +541,7 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    /// <summary>
-    /// The right-clicked file (captured by FileList_RightTapped) becomes the
-    /// source; every other currently-selected file is a target. Lets the user
-    /// pick which populated fields to copy rather than blindly copying
-    /// everything — Number/Page Count in particular would be a predictable
-    /// footgun to copy by default across a batch of different issues.
-    /// </summary>
+    //right-clicked file is the source, rest of the selection is the target set
     private async void OnCopyFieldsToSelection(object sender, RoutedEventArgs e)
     {
         var source = _lastRightTappedFile;
@@ -662,10 +574,7 @@ public sealed partial class MainWindow : Window
     private async void OnCloseAll(object sender, RoutedEventArgs e) =>
         await RemoveWithConfirmAsync(ViewModel.OpenFiles.ToList());
 
-    /// <summary>
-    /// Removes files from the list (never from disk), confirming first when any of
-    /// them carry unsaved changes.
-    /// </summary>
+    //removes from the list, never from disk; confirms first if any carry unsaved changes
     private async Task RemoveWithConfirmAsync(List<ComicFileViewModel> files)
     {
         if (files.Count == 0)
@@ -686,14 +595,7 @@ public sealed partial class MainWindow : Window
 
     //---------------------------------------------------------------- tools
 
-    /// <summary>
-    /// Fills empty Series/Number/Volume/Year fields by parsing each selected
-    /// file's own filename and parent folder. Runs across the whole selection
-    /// (unlike Auto Page Count, which is single-file) since it's pure string
-    /// parsing — no archive read needed — and every file's path is genuinely
-    /// different, so there's no "same value everywhere" batch behaviour to
-    /// worry about here. Never overwrites a field that already has a value.
-    /// </summary>
+    //fills empty Series/Number/Volume/Year from each file's own filename/folder; never overwrites
     private void OnGuessFromFilename(object sender, RoutedEventArgs e)
     {
         if (!ViewModel.HasSelection)
@@ -717,7 +619,6 @@ public sealed partial class MainWindow : Window
         var filled = 0;
         void TryApply(string tag, string? value)
         {
-            //only ever fills a currently-empty field; never overwrites existing data
             if (string.IsNullOrWhiteSpace(value) || file.GetValue(tag).Length > 0)
                 return;
             file.SetValue(tag, value);
@@ -731,20 +632,10 @@ public sealed partial class MainWindow : Window
         return filled;
     }
 
-    /// <summary>
-    /// Shared by the single-file and batch ComicVine flows: resolves a series
-    /// to a volume (a remembered match, or the search dialog), remembers a
-    /// freshly-searched volume for next time, then fetches its issue list.
-    /// Returns null if the user cancelled the search or the volume has no
-    /// issues listed — either way, ViewModel.StatusText is left describing
-    /// why, and any user-facing message has already been shown, so the
-    /// caller only needs to stop.
-    /// </summary>
+    //shared by single-file and batch flows; null return means cancelled/empty and already messaged
     private async Task<(ComicVineVolume Volume, List<ComicVineIssueSummary> Issues)?> ResolveVolumeAndIssuesAsync(
         string seriesGuess)
     {
-        //a remembered volume for this exact series name skips straight to
-        //issue matching — the whole point of ComicVineCacheService's memory
         var volume = seriesGuess.Length > 0 ? App.ComicVine.GetRememberedVolume(seriesGuess) : null;
 
         if (volume is null)
@@ -772,7 +663,6 @@ public sealed partial class MainWindow : Window
         return (volume, issues);
     }
 
-    //shared "no API key configured yet" guard for both ComicVine entry points
     private async Task<bool> EnsureComicVineConfiguredAsync()
     {
         if (App.ComicVine.IsConfigured)
@@ -782,21 +672,12 @@ public sealed partial class MainWindow : Window
         return false;
     }
 
-    //shared series-name guess for both ComicVine entry points: the file's own
-    //Series field first, falling back to the same filename guess Guess From
-    //Filename itself uses
     private static string GuessSeriesForComicVine(ComicFileViewModel file)
     {
         var series = file.GetValue("Series");
         return series.Length > 0 ? series : FilenameGuessService.FromPath(file.Path).Series ?? "";
     }
 
-    /// <summary>
-    /// Full ComicVine flow: search a series, match (or pick) an issue, map
-    /// its data onto ComicInfo fields, and let the user review a before/after
-    /// comparison before applying any of it. Branches to the batch flow below
-    /// when multiple files are selected.
-    /// </summary>
     private async void OnSearchComicVine(object sender, RoutedEventArgs e)
     {
         if (ViewModel.IsBatchMode)
@@ -828,9 +709,7 @@ public sealed partial class MainWindow : Window
             var detail = await App.ComicVine.GetIssueDetailAsync(issueId.Value);
 
             var proposed = ComicVineService.MapToComicInfoFields(detail, volume);
-            //ComicVineAlwaysReview off skips the before/after dialog entirely and
-            //applies every field the match proposed, same as if the user had left
-            //every row checked in the review dialog and clicked apply
+            //off skips the review dialog and applies every proposed field directly
             var tagsToApply = App.Settings.Settings.ComicVineAlwaysReview
                 ? await AppDialogs.ReviewComicVineMatchAsync(RootGrid.XamlRoot, file, proposed, App.Schema)
                 : proposed.Keys.ToList();
@@ -859,18 +738,7 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    /// <summary>
-    /// Batch ComicVine: one series search shared across the whole selection,
-    /// then per-file issue matching (clean single-number matches auto-accept
-    /// without a popup — confirming every file one at a time would be its
-    /// own kind of tedious across a whole run; the aggregated review dialog
-    /// at the end is the real checkpoint), then one aggregated review
-    /// covering every matched file at once. Every field, for every file,
-    /// always applies that file's own matched value — the shared-vs-
-    /// divergent distinction in the review dialog only changes what's
-    /// ticked by default and whether a warning shows, never which value
-    /// gets written to which file.
-    /// </summary>
+    //one series search shared across the selection, then per-file issue matching and one aggregated review
     private async Task RunBatchComicVineSearchAsync()
     {
         var files = ViewModel.SelectedFiles.ToList();
@@ -921,8 +789,6 @@ public sealed partial class MainWindow : Window
                 perFileProposed[file] = ComicVineService.MapToComicInfoFields(detail, volume);
             }
 
-            //same ComicVineAlwaysReview bypass as the single-file flow above —
-            //union of every proposed tag across every matched file
             var tagsToApply = App.Settings.Settings.ComicVineAlwaysReview
                 ? await AppDialogs.ReviewComicVineBatchAsync(RootGrid.XamlRoot, perFileProposed, App.Schema)
                 : perFileProposed.Values.SelectMany(d => d.Keys).Distinct().ToList();
@@ -932,8 +798,6 @@ public sealed partial class MainWindow : Window
                 return;
             }
 
-            //every file always gets its own matched value for each checked
-            //tag — never a single value forced onto the whole selection
             var appliedFileCount = 0;
             foreach (var (file, proposed) in perFileProposed)
             {
@@ -985,7 +849,6 @@ public sealed partial class MainWindow : Window
 
         try
         {
-            //re-count from disk so the manual action always reflects reality
             var count = file.DetectedPageCount;
             if (count == 0)
             {
@@ -1046,19 +909,7 @@ public sealed partial class MainWindow : Window
 
     //---------------------------------------------------------------- grid view
 
-    /// <summary>
-    /// IsGridViewActive itself is already TwoWay-bound to the toggle button's
-    /// IsChecked, so the show/hide behaviour needs no code here. This
-    /// persists the choice, keeps columns current (cheap, and covers the
-    /// edge case of schema fields changing via schema_extra.json discovery
-    /// while the app is running), and carries selection across the toggle in
-    /// whichever direction it's heading — entering grid view seeds it from
-    /// the sidebar's current selection, leaving it does the reverse. Note
-    /// this handler only runs for the explicit toggle (button/menu click);
-    /// double-click/right-click routing (SwitchToEditorForSelection) sets
-    /// IsGridViewActive directly from code and handles its own, more
-    /// specific selection instead of going through here.
-    /// </summary>
+    //carries selection across the sidebar/grid toggle in whichever direction it's heading
     private void OnToggleGridView(object sender, RoutedEventArgs e)
     {
         App.Settings.Settings.GridViewActive = ViewModel.IsGridViewActive;
@@ -1090,18 +941,7 @@ public sealed partial class MainWindow : Window
         RebuildGridColumns();
     }
 
-    /// <summary>
-    /// Builds ComicsGrid's dynamic columns from the user's saved column
-    /// choice. Every column shares the same shape: bind the whole row (no
-    /// Path set — the standard way to bind to the whole source object) and
-    /// resolve its displayed value through FieldValueConverter, keyed by
-    /// that column's own tag as ConverterParameter — this is what lets
-    /// columns be entirely dynamic (picked at runtime via Choose Columns)
-    /// without needing a hardcoded property on ComicFileViewModel for every
-    /// one of the ~39 schema fields. Column 0, the dirty indicator, is
-    /// declared statically in xaml (its template never changes) and is
-    /// deliberately never touched here — only columns after it are rebuilt.
-    /// </summary>
+    //column 0 (dirty indicator) is static xaml and never touched here; the rest rebuild from saved columns
     private void RebuildGridColumns()
     {
         while (ComicsGrid.Columns.Count > 1)
@@ -1126,16 +966,7 @@ public sealed partial class MainWindow : Window
     private ComicFileViewModel? _lastGridTappedFile;
     private DateTime _lastGridTapTime;
 
-    /// <summary>
-    /// Double-click always acts on just the row under the cursor, regardless
-    /// of whatever else is currently selected — a distinct, unambiguous
-    /// action separate from "right-click the selection". Detected manually
-    /// via timing between successive taps on the same file, rather than
-    /// relying on DoubleTapped — that event wasn't firing reliably, most
-    /// likely swallowed internally by the grid's own row/selection input
-    /// handling before it bubbles up. Tapped is the gesture selection itself
-    /// already depends on, so it's the safer thing to build on.
-    /// </summary>
+    //manual double-tap timing: DoubleTapped wasn't firing reliably through the grid's own input handling
     private void OnGridTapped(object sender, TappedRoutedEventArgs e)
     {
         if ((e.OriginalSource as FrameworkElement)?.DataContext is not ComicFileViewModel file)
@@ -1153,14 +984,7 @@ public sealed partial class MainWindow : Window
         _lastGridTapTime = now;
     }
 
-    /// <summary>
-    /// Same "right-click outside the current selection replaces it" behaviour
-    /// already used for the sidebar's own file list. Right-clicks landing on
-    /// the column header are handed back to TableViewColumnHeader's own
-    /// sort/filter options rather than opening our row-scoped Edit/Choose
-    /// Columns menu — walking up from the tap target and marking the event
-    /// handled stops ComicsGrid.ContextFlyout from firing over the header.
-    /// </summary>
+    //header right-clicks defer to the column header's own sort/filter menu instead of ours
     private void OnGridRightTapped(object sender, RightTappedRoutedEventArgs e)
     {
         if (IsWithinColumnHeader(e.OriginalSource as DependencyObject))
@@ -1201,13 +1025,6 @@ public sealed partial class MainWindow : Window
             SwitchToEditorForSelection(files);
     }
 
-    /// <summary>
-    /// Shared by double-click (always one file) and the context menu's Edit
-    /// item (one or many): switches back to the normal sidebar+editor view
-    /// with exactly this selection. Persists GridViewActive itself, since
-    /// this sets it directly rather than through OnToggleGridView's own
-    /// Click handler.
-    /// </summary>
     private void SwitchToEditorForSelection(IEnumerable<ComicFileViewModel> files)
     {
         ViewModel.IsGridViewActive = false;
@@ -1243,9 +1060,6 @@ public sealed partial class MainWindow : Window
 
     //---------------------------------------------------------------- menus
 
-    /// <summary>
-    /// Rebuilds the View → Theme submenu as radio items, one per available theme.
-    /// </summary>
     private void BuildThemeMenu()
     {
         ThemeMenu.Items.Clear();
@@ -1268,9 +1082,6 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    /// <summary>
-    /// Rebuilds the File → Open Recent submenu from the persisted list.
-    /// </summary>
     private void BuildRecentMenu()
     {
         RecentMenu.Items.Clear();
@@ -1306,36 +1117,17 @@ public sealed partial class MainWindow : Window
     private void FileList_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
         ViewModel.SetSelection(FileList.SelectedItems.Cast<ComicFileViewModel>());
 
-    /// <summary>
-    /// Reverts one field to its saved value, from the field's own right-click
-    /// menu. No-ops harmlessly in batch mode (see MainViewModel.RevertFieldToSaved).
-    /// </summary>
     private void RevertField_Click(object sender, RoutedEventArgs e)
     {
         if (sender is MenuFlyoutItem { DataContext: FieldViewModel field })
             ViewModel.RevertFieldToSaved(field);
     }
 
-    //true while DateField_FlyoutOpened is seeding the calendar — programmatic
-    //SelectedDates changes fire SelectedDatesChanged just like user picks do,
-    //and without this guard merely opening the picker on a partial date
-    //(Year set, Month/Day empty) would write the seeded Month=1/Day=1
-    //placeholders into the file as real edits. relies on SelectedDatesChanged
-    //firing synchronously inside SelectedDates.Add, which is the standard
-    //winui/uwp collection-changed pattern (same as ListView.SelectedItems,
-    //ComboBox.SelectionChanged) rather than dispatcher-deferred - reasoned
-    //confirmed, not click-tested against the live picker in this environment
+    //guards against seeding the calendar (a programmatic SelectedDates change) being
+    //mistaken for a real pick and writing placeholder Month=1/Day=1 into a partial date
     private bool _suppressCalendarSelection;
 
-    /// <summary>
-    /// Seeds the calendar picker with the field's already-set date instead of
-    /// leaving it on today. Runs on every open (Flyout.Opened fires each
-    /// time, unlike CalendarView.Loaded which only fires once), so a
-    /// previously-picked date doesn't linger from an earlier open either.
-    /// #uncertain: CalendarView.SetDisplayDate(DateTimeOffset) is a real
-    /// WinUI API per docs but hasn't been compile-verified from this
-    /// environment - confirm on first build.
-    /// </summary>
+    //re-seeds on every open (Flyout.Opened, not CalendarView.Loaded) so a stale pick doesn't linger
     private void DateField_FlyoutOpened(object sender, object e)
     {
         if (sender is not Flyout { Content: CalendarView calendar })
@@ -1378,20 +1170,9 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    /// <summary>
-    /// A calendar pick assigns Year/Month/Day directly from the picked
-    /// date's own components — no string round-trip through
-    /// DateDisplayValue's parser, sidestepping any ambiguity there entirely.
-    /// Each assignment goes through the field's normal Value setter (exactly
-    /// as if the user had typed each individually), and since Month/Day
-    /// changing already triggers Year's DateDisplayValue to refresh (wired
-    /// in MainViewModel.WireFieldGroups), the textbox updates to show the
-    /// newly picked date with no extra code needed here.
-    /// </summary>
+    //assigns Year/Month/Day directly from the picked date, no string round-trip through the parser
     private void DateField_CalendarSelected(CalendarView sender, CalendarViewSelectedDatesChangedEventArgs args)
     {
-        //ignore the programmatic seeding from DateField_FlyoutOpened — only a
-        //genuine user pick should write values back
         if (_suppressCalendarSelection)
             return;
         if (args.AddedDates.Count == 0)
@@ -1407,10 +1188,6 @@ public sealed partial class MainWindow : Window
             field.DayCompanion.Value = picked.Day.ToString();
     }
 
-    /// <summary>
-    /// Ctrl+1..Ctrl+5 jump directly to a tab; the invoked KeyboardAccelerator's
-    /// own Key tells us which one fired, so one handler covers all five.
-    /// </summary>
     private void TabNumberAccelerator_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
@@ -1443,12 +1220,6 @@ public sealed partial class MainWindow : Window
             EditorTabs.SelectedIndex = (EditorTabs.SelectedIndex - 1 + count) % count;
     }
 
-    /// <summary>
-    /// F6 / Shift+F6 move keyboard focus between the sidebar and the editor
-    /// pane, matching the pane-cycling convention used by Explorer and Visual
-    /// Studio. The editor lands on the search box — a stable, always-present
-    /// control that sits right above the tabs and fields.
-    /// </summary>
     private void F6_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
@@ -1461,16 +1232,7 @@ public sealed partial class MainWindow : Window
         SearchBox.Focus(FocusState.Programmatic);
     }
 
-    /// <summary>
-    /// Records the field's current value into recent-value history once the
-    /// user leaves the field — not per-keystroke, so partial typing never
-    /// pollutes the history. Only wired on EntryFieldTemplate's TextBox (single-
-    /// line fields); multi-line and combo fields don't get recent-value history.
-    /// Refreshes this one field's picker immediately afterwards so the value
-    /// just typed shows up right away rather than only after navigating away
-    /// and back; batch mode's picker is untouched (still detected-across-
-    /// selection values, not recent-value history).
-    /// </summary>
+    //recorded on blur, not per-keystroke, so partial typing never pollutes the history
     private void EntryField_LostFocus(object sender, RoutedEventArgs e)
     {
         if (sender is not TextBox { DataContext: FieldViewModel field })
@@ -1482,16 +1244,9 @@ public sealed partial class MainWindow : Window
             ViewModel.ValidateFieldNow(field);
     }
 
-    /// <summary>
-    /// Maps the sort combo's selected index to a FileSortMode, same pattern as
-    /// EditorTabs_SelectionChanged below.
-    /// </summary>
     private void SortCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        //SortCombo has SelectedIndex="0" in xaml, which fires this handler
-        //synchronously during InitializeComponent() — before the constructor
-        //has reached the line that assigns ViewModel, not "harmless because
-        //no files are open yet" as an earlier version of this comment claimed
+        //SelectedIndex="0" in xaml fires this during InitializeComponent(), before ViewModel exists
         if (ViewModel is null)
             return;
         ViewModel.SortMode = SortCombo.SelectedIndex switch
@@ -1506,9 +1261,7 @@ public sealed partial class MainWindow : Window
 
     private void EditorTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        //same reasoning as SortCombo_SelectionChanged above — TabView
-        //commonly auto-selects its first tab on load, which can fire this
-        //before ViewModel is assigned in the constructor
+        //TabView auto-selects its first tab on load, same early-fire risk as SortCombo above
         if (ViewModel is null)
             return;
         var index = EditorTabs.SelectedIndex;
@@ -1519,10 +1272,6 @@ public sealed partial class MainWindow : Window
         App.Settings.Save();
     }
 
-    /// <summary>
-    /// A pick in the batch value popover applies to every selected file and closes
-    /// the flyout.
-    /// </summary>
     private void BatchPicker_ItemClick(object sender, ItemClickEventArgs e)
     {
         if (sender is ListView lv && lv.DataContext is FieldViewModel field
@@ -1555,7 +1304,6 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        //cancel synchronously, then resolve asynchronously with the user
         args.Cancel = true;
         var choice = await AppDialogs.UnsavedPromptAsync(RootGrid.XamlRoot, dirty.Select(f => f.FileName));
         if (choice == UnsavedChoice.Cancel)

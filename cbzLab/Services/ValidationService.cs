@@ -17,9 +17,6 @@ public class ValidationService
         _schema = schema;
     }
 
-    /// <summary>
-    /// Validates a single file's values, returning one error per offending field.
-    /// </summary>
     public List<ValidationError> Validate(string fileName, IReadOnlyDictionary<string, string> values)
     {
         var errors = new List<ValidationError>();
@@ -36,12 +33,7 @@ public class ValidationService
         return errors;
     }
 
-    /// <summary>
-    /// Checks a single field's value against the type constraints, with no file
-    /// context — used for live as-you-type feedback while editing. Returns null
-    /// when the value is valid (empty values are always valid). Validate() above
-    /// is built on this same check, so live and save-time validation never drift.
-    /// </summary>
+    //also used for live as-you-type feedback; Validate() above is built on this same check
     public (string Problem, string Suggestion)? CheckField(string tag, string value)
     {
         if (string.IsNullOrWhiteSpace(value))

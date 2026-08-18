@@ -2,14 +2,7 @@ namespace cbzLab.Services;
 
 public enum LogSeverity { Info, Warning, Error }
 
-/// <summary>
-/// Minimal plain-text logger writing one dated file per day under
-/// %appdata%\cbzLab\logs. Computes its own base directory rather than taking a
-/// dependency on SettingsService, so it can be constructed first, before any
-/// other service, and made available to their own error handling from the
-/// very start of the app. Every write is best-effort: a failing logger must
-/// never crash the app it exists to help debug.
-/// </summary>
+/// <summary>Plain-text logger, one dated file per day under %appdata%\cbzLab\logs. Constructed first, before any other service.</summary>
 public class LogService
 {
     private readonly string _logDir;
@@ -25,10 +18,7 @@ public class LogService
         {
             Directory.CreateDirectory(_logDir);
         }
-        catch
-        {
-            //logging must never be the thing that crashes the app
-        }
+        catch { }
     }
 
     private string CurrentLogPath => Path.Combine(_logDir, $"cbzLab-{DateTime.Now:yyyyMMdd}.log");
@@ -51,9 +41,6 @@ public class LogService
                 File.AppendAllText(CurrentLogPath, line);
             }
         }
-        catch
-        {
-            //a failing logger must never crash the app it's meant to help debug
-        }
+        catch { }
     }
 }

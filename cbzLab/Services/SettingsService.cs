@@ -2,11 +2,7 @@ using cbzLab.Models;
 
 namespace cbzLab.Services;
 
-/// <summary>
-/// Owns the platform config directory (%APPDATA%\cbzLab on Windows), loads and saves
-/// user preferences, and seeds user-editable copies of the bundled data assets on
-/// first run. Nothing is ever written next to the executable.
-/// </summary>
+/// <summary>Owns %APPDATA%\cbzLab, loads/saves preferences, and seeds bundled data assets on first run.</summary>
 public class SettingsService
 {
     //shared with LogService so both derive the same %appdata%\cbzLab folder
@@ -46,10 +42,6 @@ public class SettingsService
         Load();
     }
 
-    /// <summary>
-    /// Copies bundled schema.json, themes.json and the example theme files into the
-    /// config directory if the user does not already have their own copies.
-    /// </summary>
     private void SeedBundledAssets()
     {
         SeedFile("schema.json", SchemaPath);
@@ -81,9 +73,6 @@ public class SettingsService
 
     public void Save() => JsonFileStore.Save(SettingsPath, Settings, _log);
 
-    /// <summary>
-    /// Pushes a path to the front of the recent-files list, trimming to the configured maximum.
-    /// </summary>
     public void AddRecentFile(string path)
     {
         Settings.RecentFiles.RemoveAll(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase));
@@ -99,14 +88,7 @@ public class SettingsService
             Settings.RecentFiles.RemoveRange(max, Settings.RecentFiles.Count - max);
     }
 
-    /// <summary>
-    /// Resets every preference back to its default and persists immediately.
-    /// Scoped to cbzLab_settings.json only — schema_extra.json (auto-
-    /// discovered unofficial fields), recent_values.json (typed-value
-    /// history), and comicvine_cache.json (cached lookups) are separate
-    /// accumulated data, not "settings" in the sense this resets, and are
-    /// deliberately left untouched.
-    /// </summary>
+    //scoped to cbzLab_settings.json only — schema_extra/recent_values/comicvine_cache are untouched
     public void ResetToDefaults()
     {
         Settings = new AppSettings();

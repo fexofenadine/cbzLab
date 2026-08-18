@@ -8,14 +8,8 @@ using cbzLab.ViewModels;
 
 namespace cbzLab.Avalonia.Dialogs;
 
-/// <summary>
-/// Avalonia's replacement for AppDialogs.CopyFieldsAsync (cbzLab/Dialogs/
-/// AppDialogs.cs line 219) - see MessageDialog for why this is its own Window
-/// rather than a ContentDialog-style static method. Lets the user pick which
-/// of the source file's populated fields to copy onto the rest of a batch
-/// selection; Number/PageCount start unchecked since they're almost always
-/// issue-specific - copying them by default would be a predictable footgun.
-/// </summary>
+//Number/PageCount start unchecked - copying them by default across a batch
+//of different issues would be a predictable footgun
 public partial class CopyFieldsDialog : Window
 {
     private static readonly HashSet<string> PerFileDefaultOff = new() { "Number", "PageCount" };
@@ -63,11 +57,7 @@ public partial class CopyFieldsDialog : Window
         Close();
     }
 
-    /// <summary>
-    /// Returns the chosen tags, or null if the user cancelled or the source
-    /// file has nothing populated to offer (a MessageDialog explains why in
-    /// that case rather than opening an empty picker).
-    /// </summary>
+    //returns chosen tags, or null if cancelled or the source has nothing to offer
     public static async Task<List<string>?> ShowAsync(
         Window owner, ComicFileViewModel source, int targetCount, SchemaService schema)
     {

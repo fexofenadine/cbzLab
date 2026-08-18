@@ -19,9 +19,7 @@
             <ListBox.ItemTemplate>
                 <DataTemplate x:DataType="d:VolumeRow">
                     <Grid ColumnDefinitions="40,*" Margin="4">
-                        <!--placeholder slot always shows; the image simply sits on top
-                            once it finishes downloading - same pattern as the sidebar
-                            file list's cover slot (slice 1)-->
+                        <!--placeholder slot always shows; image sits on top once downloaded-->
                         <Border Grid.Column="0" Width="40" Height="54" CornerRadius="2" Background="{DynamicResource ThBg2}">
                             <Image Source="{Binding Cover}" Stretch="UniformToFill" IsVisible="{Binding HasCover}" />
                         </Border>

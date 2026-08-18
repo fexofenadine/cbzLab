@@ -2,14 +2,7 @@ using cbzLab.Models;
 
 namespace cbzLab.Services;
 
-/// <summary>
-/// Local, file-backed cache for ComicVine API responses, so re-searching a
-/// series or re-matching several issues from the same run doesn't re-hit the
-/// network for data already fetched — this session or a past one. ComicVine's
-/// own API terms explicitly recommend caching to avoid duplicate requests, so
-/// this isn't just a nice-to-have given how touchy their rate limiting is in
-/// practice. Persists to comicvine_cache.json in the config directory.
-/// </summary>
+/// <summary>File-backed cache for ComicVine API responses, in comicvine_cache.json.</summary>
 public class ComicVineCacheService
 {
     private readonly LogService _log;
@@ -25,12 +18,6 @@ public class ComicVineCacheService
 
     //---------------------------------------------------------------- series -> volume memory
 
-    /// <summary>
-    /// Remembers which volume a series-name search resolved to, so later
-    /// files from the same run (issues 2-12 of a Batman run, say) skip
-    /// straight to issue matching instead of re-searching and re-picking the
-    /// series each time.
-    /// </summary>
     public void RememberVolumeForSeries(string seriesName, ComicVineVolume volume)
     {
         var key = NormalizeKey(seriesName);
@@ -93,9 +80,6 @@ public class ComicVineCacheService
 
     //---------------------------------------------------------------- storage shape
 
-    //plain public records serialize/deserialize directly with System.Text.Json;
-    //no need for a separate shadow set of "raw" cache dtos on top of the ones
-    //already in Models/ComicVineModels.cs
     private class CacheData
     {
         public Dictionary<string, ComicVineVolume> SeriesToVolume { get; set; } = new();

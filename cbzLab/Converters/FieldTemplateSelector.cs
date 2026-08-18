@@ -4,11 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 
 namespace cbzLab.Converters;
 
-/// <summary>
-/// Picks the data template for a field based on its widget type: entry (single
-/// line), text (multi line) or combo (dropdown). Templates are assigned from the
-/// window resources in xaml.
-/// </summary>
+//picks a field's data template by widget type; templates assigned from window resources in xaml
 public class FieldTemplateSelector : DataTemplateSelector
 {
     public DataTemplate? EntryTemplate { get; set; }
@@ -22,10 +18,7 @@ public class FieldTemplateSelector : DataTemplateSelector
         if (item is not FieldViewModel field)
             return EntryTemplate;
 
-        //structural checks (companion-based) take priority over the plain
-        //widget-type dispatch below — Year has both a widget type ("date" in
-        //schema.json) and companions, but a numeric-group field is
-        //identified purely by having row companions, not by widget type
+        //companion-based checks take priority over plain widget-type dispatch
         if (field.MonthCompanion is not null)
             return DateTemplate;
         if (field.RowCompanions.Count > 0)

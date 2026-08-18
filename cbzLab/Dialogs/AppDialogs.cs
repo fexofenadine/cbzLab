@@ -13,11 +13,7 @@ namespace cbzLab.Dialogs;
 
 public enum UnsavedChoice { Save, Discard, Cancel }
 
-/// <summary>
-/// All application dialogs, built in code so the xaml surface stays small. Every
-/// dialog picks up the active theme's light/dark variant so fluent visual states
-/// stay legible against custom colours.
-/// </summary>
+//all application dialogs, built in code so the xaml surface stays small
 public static class AppDialogs
 {
     private static ElementTheme CurrentElementTheme =>
@@ -61,10 +57,7 @@ public static class AppDialogs
 
     //---------------------------------------------------------------- unsaved changes
 
-    /// <summary>
-    /// Shown on close/quit when files have unsaved changes; lists the files and
-    /// offers save all / discard / cancel.
-    /// </summary>
+    //shown on close/quit when files have unsaved changes
     public static async Task<UnsavedChoice> UnsavedPromptAsync(XamlRoot root, IEnumerable<string> fileNames)
     {
         var panel = new StackPanel { Spacing = 8, MaxWidth = 460 };
@@ -94,10 +87,7 @@ public static class AppDialogs
 
     //---------------------------------------------------------------- validation
 
-    /// <summary>
-    /// Lists validation problems with suggested fixes. Returns true for
-    /// "Save Anyway", false for "Fix" (return to the editor).
-    /// </summary>
+    //returns true for "Save Anyway", false for "Fix" (return to the editor)
     public static async Task<bool> ValidationAsync(XamlRoot root, IReadOnlyList<ValidationError> errors)
     {
         var panel = new StackPanel { Spacing = 10, MaxWidth = 520 };
@@ -141,10 +131,7 @@ public static class AppDialogs
 
     //---------------------------------------------------------------- multi-save
 
-    /// <summary>
-    /// Confirms a multi-file save, listing each file with a per-file format
-    /// selector. Returns the chosen (file, format) pairs, or null if cancelled.
-    /// </summary>
+    //returns the chosen (file, format) pairs, or null if cancelled
     public static async Task<List<(ComicFileViewModel File, ArchiveFormat Format)>?> MultiSaveAsync(
         XamlRoot root, IReadOnlyList<ComicFileViewModel> files)
     {
@@ -207,15 +194,8 @@ public static class AppDialogs
 
     //---------------------------------------------------------------- copy fields
 
-    /// <summary>
-    /// Lets the user pick which of the source file's populated fields to copy
-    /// onto the rest of a batch selection. Number and Page Count start
-    /// unchecked — those are almost always issue-specific, and copying them
-    /// by default would be a predictable footgun (every target ending up with
-    /// the source's own issue number). Everything else starts checked.
-    /// Returns the chosen tags, or null if the user cancelled or the source
-    /// file has nothing populated to offer.
-    /// </summary>
+    //Number/PageCount default unchecked - copying them across issues by
+    //default would be a footgun. Null if cancelled or nothing populated.
     public static async Task<List<string>?> CopyFieldsAsync(
         XamlRoot root, ComicFileViewModel source, int targetCount, SchemaService schema)
     {
@@ -274,16 +254,8 @@ public static class AppDialogs
 
     //---------------------------------------------------------------- grid view
 
-    /// <summary>
-    /// Field order for the column picker — deliberately not schema.json's own
-    /// section order, which clusters niche fields (Count, AlternateSeries,
-    /// AlternateNumber, AlternateCount) right alongside Series/Number just
-    /// because they happen to sit early in the Basic Info section. This is a
-    /// judgment call about what people most commonly want visible in a
-    /// library-wide table, not an authoritative ranking. Any schema field not
-    /// listed here (a future addition) falls to the end, in its original
-    /// schema order, rather than silently disappearing from the picker.
-    /// </summary>
+    //column-picker order, curated for what's most commonly wanted rather than
+    //schema.json's own section order; fields not listed fall to the end
     private static readonly string[] GridColumnPriorityOrder =
     {
         "Series", "Number", "Title", "Volume",
@@ -298,12 +270,8 @@ public static class AppDialogs
         "AlternateSeries", "AlternateNumber", "AlternateCount",
     };
 
-    /// <summary>
-    /// Lets the user pick which schema fields appear as grid-view columns.
-    /// Every field is offered, in schema order (which is preserved on the
-    /// returned list regardless of checkbox-click order, so column order
-    /// stays predictable). Returns the new column list, or null if cancelled.
-    /// </summary>
+    //returned list preserves schema order regardless of click order, so
+    //column order stays predictable; null if cancelled
     public static async Task<List<string>?> ChooseGridColumnsAsync(
         XamlRoot root, List<string> currentColumns, SchemaService schema)
     {
@@ -344,12 +312,8 @@ public static class AppDialogs
 
     //---------------------------------------------------------------- comicvine search & match
 
-    /// <summary>
-    /// Series search: a text box (pre-filled from the file's own Series field
-    /// or a filename guess) plus a results list with cover/publisher/year.
-    /// Runs the initial search automatically if a starting query is given.
-    /// Returns the chosen volume, or null if cancelled or nothing was found.
-    /// </summary>
+    //runs the initial search automatically if a starting query is given;
+    //returns the chosen volume, or null if cancelled or nothing found
     public static async Task<ComicVineVolume?> SearchComicVineAsync(
         XamlRoot root, ComicVineService comicVine, string initialQuery)
     {
@@ -431,8 +395,7 @@ public static class AppDialogs
         dlg.CloseButtonText = "Cancel";
         dlg.IsPrimaryButtonEnabled = false;
 
-        //fire the initial search without waiting for it — the dialog opens
-        //immediately and results populate once the call returns
+        //fire-and-forget: dialog opens immediately, results populate after
         if (initialQuery.Trim().Length > 0)
             _ = RunSearchAsync();
 
@@ -446,7 +409,7 @@ public static class AppDialogs
         if (!string.IsNullOrWhiteSpace(vol.ThumbImageUrl))
         {
             try { cover.Source = new BitmapImage(new Uri(vol.ThumbImageUrl)); }
-            catch { /*a bad thumbnail url just means no image, not a broken dialog*/ }
+            catch { /*bad url -> no image, not a broken dialog*/ }
         }
 
         var metaParts = new List<string>();
@@ -476,14 +439,7 @@ public static class AppDialogs
         return rowBorder;
     }
 
-    /// <summary>
-    /// Wires selection highlighting for a list of tappable Border rows —
-    /// tapping one resets every row's border to the separator colour,
-    /// highlights the tapped one with the accent colour, records the pick via
-    /// onSelected, and enables the dialog's primary button. Shared by the
-    /// ComicVine volume-search results list and the issue-browse list, which
-    /// both need this exact behaviour.
-    /// </summary>
+    //shared tap-to-select highlighting for the volume-search and issue-browse row lists
     private static void WireRowSelection<T>(
         List<(T Item, Border RowBorder)> rows, ContentDialog dlg, Action<T> onSelected)
     {
@@ -500,23 +456,9 @@ public static class AppDialogs
         }
     }
 
-    /// <summary>
-    /// Confirms which issue to use. If the file's own Number field cleanly
-    /// matches exactly one issue in the volume, shows it for confirmation
-    /// rather than applying it silently — issue-number matching is the least
-    /// reliable part of this whole flow (variant covers, facsimile editions
-    /// and reprints routinely share a number), so even a "confident" match
-    /// gets a human glance. Anything else (no match, or several) goes
-    /// straight to a browsable list. Returns the chosen issue id, or null if
-    /// cancelled.
-    ///
-    /// autoAcceptSingleMatch skips that confirmation for a clean match —
-    /// used by batch mode, where confirming every single-file match one at a
-    /// time across a whole run would be its own kind of tedious; the
-    /// aggregated review dialog that follows is the real checkpoint there.
-    /// contextLabel (also batch-only) names which file is being matched when
-    /// the browsable list has to be shown.
-    /// </summary>
+    //a clean single-number match still asks for confirmation (covers/reprints
+    //often share a number); autoAcceptSingleMatch skips that for batch mode,
+    //where the review dialog afterward is the real checkpoint.
     public static async Task<int?> MatchIssueAsync(
         XamlRoot root, ComicVineVolume volume, List<ComicVineIssueSummary> issues, string currentNumber,
         bool autoAcceptSingleMatch = false, string? contextLabel = null)
@@ -547,7 +489,6 @@ public static class AppDialogs
             return null;
         }
 
-        //no clean match (zero, or several sharing the same number) — browse
         return await BrowseIssuesAsync(root, volume, issues, contextLabel);
     }
 
@@ -640,13 +581,8 @@ public static class AppDialogs
         return rowBorder;
     }
 
-    /// <summary>
-    /// Finds issues whose number matches, after normalization — ComicVine
-    /// issue numbers are free-text strings, not guaranteed to format
-    /// identically to what's in the file's own Number field (leading zeros
-    /// in particular). Same normalization convention already used by
-    /// FilenameGuessService and RecentValuesService.
-    /// </summary>
+    //normalizes leading zeros before comparing - ComicVine's issue numbers
+    //are free text, not guaranteed to match the file's own Number format
     private static List<ComicVineIssueSummary> FindNumberMatches(List<ComicVineIssueSummary> issues, string number)
     {
         var normalized = NormalizeIssueNumber(number);
@@ -664,17 +600,8 @@ public static class AppDialogs
         return trimmed.Length == 0 ? "0" : trimmed;
     }
 
-    /// <summary>
-    /// Shows only the fields where ComicVine's proposed value actually
-    /// differs from what's already in the file — current value and proposed
-    /// value both shown side by side, so the choice is an informed
-    /// comparison rather than a blind checklist. All default to checked:
-    /// unlike CopyFieldsAsync (which shows no comparison, so a cautious
-    /// default matters), this dialog puts both values directly in front of
-    /// the user before they decide, so a blanket cautious default doesn't
-    /// pull its weight the same way. Returns the tags to actually apply, or
-    /// null if cancelled or nothing differs.
-    /// </summary>
+    //shows only fields that differ, current vs proposed side by side, all
+    //default checked. Null if cancelled or nothing differs.
     public static async Task<List<string>?> ReviewComicVineMatchAsync(
         XamlRoot root, ComicFileViewModel file, Dictionary<string, string> proposedValues, SchemaService schema)
     {
@@ -740,11 +667,8 @@ public static class AppDialogs
         return checks.Where(c => c.Box.IsChecked == true).Select(c => c.Tag).ToList();
     }
 
-    //fields where files sharing the same underlying issue-run genuinely
-    //ought to agree (creators, series-level facts, recurring narrative
-    //elements) — divergence here is worth flagging as a possible mismatch.
-    //everything else (Number, Title, Year/Month/Day, Summary, Web) is
-    //expected to vary per issue and isn't held to this check at all.
+    //fields expected to agree across a matched batch (creators, series-level
+    //facts) - divergence here is flagged. Everything else varies per issue.
     private static readonly HashSet<string> ComicVineSharedTags = new(StringComparer.Ordinal)
     {
         "Series", "Publisher", "Count",
@@ -752,21 +676,9 @@ public static class AppDialogs
         "Characters", "Teams", "Locations", "StoryArc",
     };
 
-    /// <summary>
-    /// The batch counterpart to ReviewComicVineMatchAsync: one field per row,
-    /// same as the single-file version, but now covering every matched file
-    /// at once. A field where every file's matched issue proposes the same
-    /// value shows as a single agreed line, checked by default. A field
-    /// where matched files disagree (e.g. different writers credited across
-    /// the run — could be a genuine mid-run creative change, or could be a
-    /// mismatch worth catching) is flagged and left unticked, with every
-    /// distinct value and how many files carry it. Per-issue fields (Number,
-    /// Title, dates, Summary, Web) aren't held to the agreement check at
-    /// all — of course those vary issue to issue — and just report how many
-    /// files they'd affect. Returns the tags to actually apply; the caller
-    /// still writes each file's own matched value, never a single value
-    /// forced onto the whole batch.
-    /// </summary>
+    //batch counterpart to ReviewComicVineMatchAsync: agreeing fields show as
+    //one checked line; disagreeing fields are flagged, unticked, and list
+    //every distinct value. Caller still writes each file's own matched value.
     public static async Task<List<string>?> ReviewComicVineBatchAsync(
         XamlRoot root, Dictionary<ComicFileViewModel, Dictionary<string, string>> perFileProposed, SchemaService schema)
     {
@@ -812,7 +724,6 @@ public static class AppDialogs
 
             if (isShared && distinctValues.Count > 1)
             {
-                //genuinely divergent — needs a conscious decision, not a default
                 box.IsChecked = false;
                 headerRow.Children.Add(new TextBlock
                 {
@@ -834,7 +745,6 @@ public static class AppDialogs
             }
             else if (isShared)
             {
-                //every file's matched issue agrees
                 box.IsChecked = true;
                 row.Children.Add(headerRow);
                 row.Children.Add(new TextBlock
@@ -846,7 +756,6 @@ public static class AppDialogs
             }
             else
             {
-                //per-issue field — expected to vary, not held to the agreement check
                 box.IsChecked = true;
                 row.Children.Add(headerRow);
                 row.Children.Add(new TextBlock
@@ -911,10 +820,8 @@ public static class AppDialogs
 
     //---------------------------------------------------------------- settings
 
-    /// <summary>
-    /// The preferences dialog. Writes directly into the settings object on Save
-    /// and returns true so the caller can apply theme/font/recents changes.
-    /// </summary>
+    //writes directly into the settings object on Save; returns true so the
+    //caller can apply theme/font/recents changes
     public static async Task<bool> SettingsAsync(XamlRoot root, Window owner,
         SettingsService settings, ThemeService themes, ArchiveService archive, ComicVineService comicVine)
     {
@@ -1003,7 +910,7 @@ public static class AppDialogs
             SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Inline, MinWidth = 140,
         };
 
-        //rar tool path with browse and reset-to-default (empty = PATH discovery)
+        //empty = discover from PATH
         var toolBox = new TextBox { Text = s.RarToolPath, MinWidth = 300, PlaceholderText = "(discover from PATH)" };
         var browseBtn = new Button { Content = "Browse…" };
         var resetBtn = new Button { Content = "Reset" };
@@ -1031,7 +938,6 @@ public static class AppDialogs
         };
         resetBtn.Click += (_, _) => toolBox.Text = "";
 
-        //storage paths as clickable links into the file manager
         var configLink = new HyperlinkButton { Content = "Open config folder" };
         configLink.Click += (_, _) => OpenInFileManager(settings.ConfigDir);
         var themesLink = new HyperlinkButton { Content = "Open themes folder" };
@@ -1039,7 +945,6 @@ public static class AppDialogs
         var logsLink = new HyperlinkButton { Content = "Open logs folder" };
         logsLink.Click += (_, _) => OpenInFileManager(App.Log.LogDir);
 
-        //assemble the form
         var panel = new StackPanel { Spacing = 12, MinWidth = 460 };
         panel.Children.Add(LabelledRow("Theme", themeCombo));
         panel.Children.Add(LabelledRow("Editor font size", fontBox));
@@ -1070,9 +975,7 @@ public static class AppDialogs
         panel.Children.Add(toolRow);
 
         //---------------------------------------------------------- online lookup (comicvine)
-        //off by default; everything below the checkbox is hidden until it's
-        //ticked, both live in this dialog and (once stage 2 adds them) every
-        //menu item and toolbar button elsewhere in the app
+        //off by default; everything below the checkbox stays hidden until it's ticked
 
         var comicVineHeader = new TextBlock
         {
@@ -1125,7 +1028,6 @@ public static class AppDialogs
         comicVineRevealPanel.Children.Add(testRow);
         comicVineRevealPanel.Children.Add(comicVineAlwaysReviewCheck);
 
-        //live show/hide as the checkbox is toggled, not just on next open
         comicVineEnabledCheck.Checked += (_, _) => comicVineRevealPanel.Visibility = Visibility.Visible;
         comicVineEnabledCheck.Unchecked += (_, _) => comicVineRevealPanel.Visibility = Visibility.Collapsed;
 
@@ -1173,10 +1075,8 @@ public static class AppDialogs
 
         if (result == ContentDialogResult.Secondary)
         {
-            //the settings dialog is already closed at this point (ContentDialogs
-            //close on any of their three buttons); confirming separately rather
-            //than trying to keep it open through a nested dialog, which winui
-            //doesn't support cleanly for stacked ContentDialogs anyway
+            //dialog is already closed here (any of the 3 buttons closes it) -
+            //confirm separately rather than nesting a second ContentDialog
             var confirmed = await ConfirmAsync(root, "Reset to defaults",
                 "This resets every preference — theme, fonts, toggles, and your ComicVine API "
                 + "key — back to default. Your open files, schema, and ComicVine cache/history "
@@ -1237,17 +1137,13 @@ public static class AppDialogs
         }
         catch (Exception ex)
         {
-            //nothing sensible to do in the ui if the shell refuses, but worth a trace
             App.Log.Warning($"Could not open folder '{dir}': {ex.Message}");
         }
     }
 }
 
-/// <summary>
-/// Modal progress dialog for multi-file open/save. Cancellation is cooperative:
-/// pressing Cancel keeps the dialog open, flags the token, and the worker loop
-/// finishes its current file before stopping.
-/// </summary>
+//modal progress dialog for multi-file open/save; cancellation is cooperative -
+//Cancel flags the token and the worker loop finishes its current file first
 public sealed class ProgressDialog : ContentDialog
 {
     private readonly ProgressBar _bar = new() { Minimum = 0, MinWidth = 380 };
@@ -1270,7 +1166,7 @@ public sealed class ProgressDialog : ContentDialog
         panel.Children.Add(_bar);
         Content = panel;
 
-        //intercept close so cancel is a request, not an abort
+        //cancel is a request, not an abort
         Closing += (_, args) =>
         {
             if (_done)

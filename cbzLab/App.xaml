@@ -6,8 +6,7 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <!--winui control styles; theme brushes and system-key overrides are
-                    registered on top of this in code by ThemeService.RegisterResources-->
+                <!--theme brushes/overrides added on top by ThemeService.RegisterResources-->
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>

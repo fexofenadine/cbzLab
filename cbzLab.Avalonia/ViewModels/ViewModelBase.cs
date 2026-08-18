@@ -13,7 +13,6 @@ public abstract class ViewModelBase : INotifyPropertyChanged
     protected void OnPropertyChanged([CallerMemberName] string? name = null) =>
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
-    //sets the backing field and raises change notification; returns true if the value changed
     protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? name = null)
     {
         if (EqualityComparer<T>.Default.Equals(field, value))

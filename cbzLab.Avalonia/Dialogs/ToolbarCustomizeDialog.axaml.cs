@@ -8,14 +8,7 @@ using cbzLab.Models;
 
 namespace cbzLab.Avalonia.Dialogs;
 
-/// <summary>
-/// Not a winui feature - this port's own addition (slice 26), so the toolbar's
-/// growing button count has somewhere to be trimmed/reordered without editing
-/// cbzLab_settings.json by hand. Same Window-per-dialog, built-in-code pattern
-/// as ChooseColumnsDialog: one row per catalog item (checkbox + Up/Down),
-/// rather than a full drag-and-drop reorder, since MainWindow.ToolbarCatalog
-/// only ever has a dozen or so entries.
-/// </summary>
+//one row per catalog item (checkbox + up/down) rather than drag-and-drop reorder
 public partial class ToolbarCustomizeDialog : Window
 {
     private sealed class RowState
@@ -38,10 +31,7 @@ public partial class ToolbarCustomizeDialog : Window
     {
         _catalog = catalog;
 
-        //enabled items keep the caller's current order; anything in the
-        //catalog but not currently on the toolbar is appended, unchecked,
-        //in catalog order - so a newly-added catalog item (if one is ever
-        //added later) still shows up here rather than being invisible
+        //keep current order; append any catalog items not currently on the toolbar
         var order = currentIds.Where(id => catalog.Any(c => c.Id == id)).ToList();
         foreach (var def in catalog)
             if (!order.Contains(def.Id))

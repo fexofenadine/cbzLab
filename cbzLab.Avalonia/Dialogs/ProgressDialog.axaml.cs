@@ -5,14 +5,7 @@ using Avalonia.Interactivity;
 
 namespace cbzLab.Avalonia.Dialogs;
 
-/// <summary>
-/// Modal progress window for multi-file save (slice 21) - ports AppDialogs.cs's
-/// ProgressDialog(ContentDialog) verbatim in spirit, as its own Window like
-/// every other dialog in this port. Cancellation is cooperative: pressing
-/// Cancel (or the titlebar close button) keeps the window open, flags the
-/// token, and the caller's save loop finishes its current file before
-/// stopping - it never force-closes mid-write.
-/// </summary>
+//cancellation is cooperative: the caller's save loop finishes its current file first
 public partial class ProgressDialog : Window
 {
     private readonly CancellationTokenSource _cts = new();
@@ -65,8 +58,6 @@ public partial class ProgressDialog : Window
         Close();
     }
 
-    //fire-and-forget by design - the caller keeps working (reporting
-    //progress, checking IsCancelled) while this window stays open, unlike
-    //every other dialog in this port which the caller awaits to completion
+    //fire-and-forget: the caller keeps working while this window stays open
     public void ShowNonBlocking(Window owner) => _ = ShowDialog(owner);
 }

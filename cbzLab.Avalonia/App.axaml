@@ -5,10 +5,7 @@
 
     <Application.Styles>
         <FluentTheme />
-        <!--Avalonia.Controls.DataGrid (grid view, slice 2) ships its own style
-            dictionary separately from FluentTheme - without this include the
-            control exists in the visual tree (found fine via UI Automation)
-            but renders with no headers/rows/borders at all-->
+        <!--DataGrid ships its own styles separately from FluentTheme - without this it renders with no headers/rows/borders-->
         <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
     </Application.Styles>
 

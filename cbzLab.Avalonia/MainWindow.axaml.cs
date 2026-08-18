@@ -21,19 +21,9 @@ using cbzLab.ViewModels;
 
 namespace cbzLab.Avalonia;
 
-/// <summary>
-/// View-layer slice 1+2 (see CLAUDE.md): open/view/edit/save a single file,
-/// plus a read-only grid view. Deliberately not ported yet: every dialog
-/// (including Choose Columns and the grid's own context menu), menu bar,
-/// drag-drop, batch save, validation-on-save, recent files, date/numeric-group
-/// field templates, ThemeService. See the plan for the full out-of-scope list.
-/// </summary>
 public partial class MainWindow : Window
 {
-    //bump the beta number (1.0 -> 1.1, 2.0, ...) after each significant
-    //improvement pass; becomes the real "2.0.0" once this port reaches
-    //parity with the winui original - see cbzLab.Avalonia.csproj's own
-    //comment on the matching Version/AssemblyVersion/FileVersion properties
+    //bump the beta number after each significant pass; see cbzLab.Avalonia.csproj's Version
     public const string DisplayVersion = "2.0.0 Beta 1.1";
 
     private readonly LogService _log;
@@ -73,10 +63,7 @@ public partial class MainWindow : Window
         RebuildToolbar();
         BuildRecentMenu();
 
-        //restores the remembered sort mode - SortCombo's xaml-default
-        //SelectedIndex="0" already fired SortCombo_SelectionChanged once,
-        //synchronously during InitializeComponent(), before _viewModel
-        //existed (guarded above); now that it does, seed the real value
+        //re-seed after the xaml-default SelectedIndex="0" already fired this handler once, before _viewModel existed
         SortCombo.SelectedIndex = _viewModel.SortMode switch
         {
             FileSortMode.SeriesNumber => 1,
@@ -84,10 +71,6 @@ public partial class MainWindow : Window
             _ => 0,
         };
 
-        //restores the remembered tab the same way (slice 24) - previously
-        //RememberLastTab's persisted index was read by MainViewModel's own
-        //constructor but never written back anywhere, and EditorTabs itself
-        //didn't exist as a real control to seed until this slice
         var tabIndex = _settings.Settings.RememberLastTab ? _settings.Settings.ActiveTab : 0;
         EditorTabs.SelectedIndex = tabIndex >= 0 && tabIndex < EditorTabs.ItemCount ? tabIndex : 0;
 
@@ -98,24 +81,14 @@ public partial class MainWindow : Window
         BuildThemeMenu();
     }
 
-    //---------------------------------------------------------------- theme (theme slice)
+    //---------------------------------------------------------------- theme
 
-    //theme switching flips fluent light/dark visual states to match the palette,
-    //mirroring RootGrid.RequestedTheme in the winui original - avalonia's
-    //equivalent is RequestedThemeVariant, settable per-window
     private void UpdateElementTheme() =>
         RequestedThemeVariant = _theme.CurrentThemeIsLight
             ? global::Avalonia.Styling.ThemeVariant.Light
             : global::Avalonia.Styling.ThemeVariant.Dark;
 
-    /// <summary>
-    /// Rebuilds the View → Theme submenu as radio-style items, one per available
-    /// theme - ports BuildThemeMenu from the winui original. Avalonia's MenuItem
-    /// ToggleType="Radio" + GroupName exist (unlike the bool?/TwoWay IsChecked
-    /// issue hit elsewhere in this port), so this binds the same one-way +
-    /// explicit-click pattern already established for every other checkable
-    /// menu item in this file rather than trusting TwoWay radio binding untested.
-    /// </summary>
+    //one-way binding + explicit click: TwoWay radio IsChecked didn't round-trip reliably
     private void BuildThemeMenu()
     {
         ThemeMenu.Items.Clear();
@@ -147,9 +120,6 @@ public partial class MainWindow : Window
         if (topLevel is null)
             return;
 
-        //remembers the last folder opened from, across launches - restored from
-        //cbzLab_settings.json below; neither the winui original nor this port
-        //had this until now (see "Behaviour changes queued for the rewrite")
         IStorageFolder? startLocation = null;
         var lastFolder = _settings.Settings.LastOpenFolder;
         if (!string.IsNullOrEmpty(lastFolder))
@@ -192,12 +162,7 @@ public partial class MainWindow : Window
         await OpenPathsAsync(picked.Select(f => f.Path.LocalPath).ToList());
     }
 
-    /// <summary>
-    /// Shared by the Open picker and drag-and-drop (slice 11) - matches the
-    /// winui original's own OpenPathsAsync factoring. Already-open files are
-    /// skipped; per-file failures are collected and shown together at the
-    /// end rather than one dialog per failure.
-    /// </summary>
+    //shared by the Open picker and drag-drop; already-open files are skipped, failures collected and shown together
     private async Task OpenPathsAsync(IReadOnlyList<string> paths)
     {
         var failures = new List<string>();
@@ -235,12 +200,7 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>
-    /// Rebuilds the File → Open Recent submenu from the persisted list
-    /// (slice 12). Ports BuildRecentMenu from the winui original: each item
-    /// double-checks the file still exists at click time (a recent entry can
-    /// go stale between sessions), removing it and rebuilding if not.
-    /// </summary>
+    //each item is checked for existence at click time - a recent entry can go stale between sessions
     private void BuildRecentMenu()
     {
         RecentMenu.Items.Clear();
@@ -272,28 +232,18 @@ public partial class MainWindow : Window
         }
     }
 
-    //extensions accepted by both the Open picker and drag-and-drop (slice 11)
     private static bool IsSupportedArchive(string path)
     {
         var ext = System.IO.Path.GetExtension(path).ToLowerInvariant();
         return ext is ".cbz" or ".cbr" or ".zip" or ".rar";
     }
 
-    //DragEventArgs.Data/DataFormats.Files from older Avalonia docs don't exist
-    //in 12.1.1 - confirmed the real shape by probing the assembly directly
-    //(DragEventArgs.DataTransfer, DataFormat.File, DataTransferExtensions.
-    //TryGetFiles) rather than guessing from stale API memory
     private void OnDragOver(object? sender, DragEventArgs e) =>
         e.DragEffects = e.DataTransfer.Contains(DataFormat.File) ? DragDropEffects.Copy : DragDropEffects.None;
 
     private void OnDragEnter(object? sender, DragEventArgs e) => DropOverlay.IsVisible = true;
     private void OnDragLeave(object? sender, DragEventArgs e) => DropOverlay.IsVisible = false;
 
-    /// <summary>
-    /// Files dragged in from Explorer are filtered to supported archive
-    /// extensions and fed into the same OpenPathsAsync pipeline the Open
-    /// button uses. Ports RootGrid_Drop from the winui original.
-    /// </summary>
     private async void OnDrop(object? sender, DragEventArgs e)
     {
         DropOverlay.IsVisible = false;
@@ -312,15 +262,7 @@ public partial class MainWindow : Window
 
     //---------------------------------------------------------------- saving
 
-    /// <summary>
-    /// Batch-mode-aware, same as the winui original's OnSave: a multi-selection
-    /// saves every dirty selected file (confirming formats per the
-    /// ConfirmBatchSave setting, same as Save All), otherwise just the current
-    /// file, silently, in its existing format. Both routes now go through the
-    /// shared SaveFilesAsync pipeline (slice 21) - previously this had its own
-    /// inline, non-format-confirming, non-progress-dialog save logic duplicated
-    /// from it.
-    /// </summary>
+    //batch mode saves every dirty selected file (confirming formats per ConfirmBatchSave); single-file mode saves silently
     private async void OnSave(object? sender, RoutedEventArgs e)
     {
         if (!_viewModel.HasSelection)
@@ -342,12 +284,7 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>
-    /// Saves every dirty open file - ports OnSaveAll from the winui original.
-    /// Save All always confirms the per-file format list, regardless of the
-    /// ConfirmBatchSave setting (that setting only affects the batch-mode
-    /// plain Save button above).
-    /// </summary>
+    //Save All always confirms formats, regardless of ConfirmBatchSave (that only affects the batch-mode Save button above)
     private async void OnSaveAll(object? sender, RoutedEventArgs e)
     {
         var targets = _viewModel.DirtyFiles();
@@ -360,17 +297,7 @@ public partial class MainWindow : Window
         await SaveFilesAsync(targets, confirmFormats: true);
     }
 
-    /// <summary>
-    /// The shared save pipeline (slice 21) - ports SaveFilesAsync from the
-    /// winui original in full: validation (fix/save-anyway), an optional
-    /// per-file format-confirmation dialog (MultiSaveDialog - shown whenever
-    /// the caller asks for it, or a batch of more than one file has
-    /// ConfirmBatchSave on), a cancellable progress dialog for multi-file
-    /// saves, and per-file writes that change extension when the chosen
-    /// format differs from the file's current one. Returns true only if
-    /// every file saved successfully, so callers that need to know it's
-    /// safe to proceed (closing the window) can check.
-    /// </summary>
+    //shared save pipeline: validate, optionally confirm per-file formats, progress dialog for multi-file saves
     private async Task<bool> SaveFilesAsync(List<ComicFileViewModel> files, bool confirmFormats)
     {
         if (files.Count == 0)
@@ -445,11 +372,7 @@ public partial class MainWindow : Window
         return true;
     }
 
-    /// <summary>
-    /// Saves the current file to a new path/format via a native save picker -
-    /// ports OnSaveAs from the winui original. Single-file only, same as the
-    /// winui original (doesn't make sense to interpret for a batch selection).
-    /// </summary>
+    //single file only - doesn't apply to a batch selection
     private async void OnSaveAs(object? sender, RoutedEventArgs e)
     {
         var file = _viewModel.CurrentFile;
@@ -463,8 +386,6 @@ public partial class MainWindow : Window
         if (topLevel is null)
             return;
 
-        //order the choices so the configured default format comes first, same
-        //as the winui original
         var cbzType = new FilePickerFileType("Comic ZIP archive") { Patterns = new[] { "*.cbz" } };
         var cbrType = new FilePickerFileType("Comic RAR archive") { Patterns = new[] { "*.cbr" } };
         var defaultIsCbr = _settings.Settings.DefaultSaveFormat.Equals("cbr", System.StringComparison.OrdinalIgnoreCase);
@@ -521,11 +442,6 @@ public partial class MainWindow : Window
 
     //---------------------------------------------------------------- file lifecycle (revert/remove/close)
 
-    /// <summary>
-    /// Reloads the current file from disk, discarding unsaved edits - ports
-    /// OnRevert from the winui original verbatim (ReloadFrom/LoadCoverAsync
-    /// already ported unchanged in the services/viewmodels pass).
-    /// </summary>
     private async void OnRevert(object? sender, RoutedEventArgs e)
     {
         var file = _viewModel.CurrentFile;
@@ -564,24 +480,14 @@ public partial class MainWindow : Window
     private async void OnCloseAll(object? sender, RoutedEventArgs e) =>
         await RemoveWithConfirmAsync(_viewModel.OpenFiles.ToList());
 
-    /// <summary>
-    /// Per-file close button (slice 26) - not a winui feature, a new
-    /// convenience so closing one file doesn't need File -> Close or
-    /// selecting it first. sender is the clicked Button; its DataContext is
-    /// the row's own ComicFileViewModel (set by the ListBox's ItemTemplate),
-    /// same lookup shape as every other per-row action in this codebase.
-    /// </summary>
+    //sender's DataContext is the row's own file, set by the ListBox's ItemTemplate
     private async void OnCloseFileRow(object? sender, RoutedEventArgs e)
     {
         if ((sender as Control)?.DataContext is ComicFileViewModel file)
             await RemoveWithConfirmAsync(new List<ComicFileViewModel> { file });
     }
 
-    /// <summary>
-    /// Removes files from the list (never from disk), confirming first when any
-    /// of them carry unsaved changes - ports RemoveWithConfirmAsync verbatim
-    /// from the winui original. Shared by Remove, Close, and Close All.
-    /// </summary>
+    //shared by Remove, Close and Close All - confirms first if any target has unsaved changes
     private async Task RemoveWithConfirmAsync(List<ComicFileViewModel> files)
     {
         if (files.Count == 0)
@@ -603,14 +509,7 @@ public partial class MainWindow : Window
     private void FileList_SelectionChanged(object? sender, SelectionChangedEventArgs e) =>
         _viewModel.SetSelection(FileList.SelectedItems!.Cast<ComicFileViewModel>());
 
-    /// <summary>
-    /// File-list filter/sort UI (slice 23) - previously missing entirely from
-    /// this port despite MainViewModel.FileFilterText/SortMode/DisplayedFiles
-    /// already being fully ported and working. SortCombo has SelectedIndex="0"
-    /// in the axaml, which fires this handler once synchronously during
-    /// InitializeComponent(), before _viewModel exists - same guard the winui
-    /// original uses for the same reason.
-    /// </summary>
+    //guards against firing before _viewModel exists (xaml-default SelectedIndex="0" fires this once during InitializeComponent)
     private void SortCombo_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (_viewModel is null)
@@ -623,16 +522,7 @@ public partial class MainWindow : Window
         };
     }
 
-    /// <summary>
-    /// EditorTabs (slice 24 - a real TabControl, replacing a row of plain
-    /// Buttons with no selected-state styling at all) is the single source
-    /// of truth for which tab is active - clicking a tab, and every keyboard
-    /// shortcut below, all just set EditorTabs.SelectedIndex, and this is the
-    /// one place that pushes the result into MainViewModel.ActiveTab. Fires
-    /// once synchronously during InitializeComponent() (TabControl defaults
-    /// to selecting its first item), before _viewModel exists - same guard
-    /// SortCombo_SelectionChanged already needed for the same reason.
-    /// </summary>
+    //EditorTabs.SelectedIndex is the source of truth for the active tab; same early-fire guard as SortCombo above
     private void OnEditorTabsSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (_viewModel is null || EditorTabs.SelectedIndex < 0)
@@ -640,25 +530,9 @@ public partial class MainWindow : Window
         _viewModel.ActiveTab = SchemaService.TabOrder[EditorTabs.SelectedIndex];
     }
 
-    //---------------------------------------------------------------- keyboard accelerators (slice 16)
+    //---------------------------------------------------------------- keyboard accelerators
 
-    /// <summary>
-    /// Ctrl+1..Ctrl+5 (jump to tab), Ctrl+Tab/Ctrl+Shift+Tab (cycle tabs), F6
-    /// (focus the file list), Shift+F6 (focus the search field, slice 23 - the
-    /// search box itself didn't exist in this port until now) - ports
-    /// TabNumberAccelerator_Invoked/CtrlTab_Invoked/CtrlShiftTab_Invoked/
-    /// F6_Invoked/ShiftF6_Invoked from the winui original. Attached to RootGrid
-    /// rather than individual MenuItem.HotKey since none of these are menu
-    /// items. Uses SchemaService.TabOrder rather than hardcoding the five tab
-    /// names, so this stays correct if the tab order ever changes.
-    ///
-    /// F6 needed FileList.Focusable="True" in the xaml too - confirmed by a
-    /// throwaway diagnostic that Avalonia's ListBox doesn't reliably focus via
-    /// a bare Focus() call otherwise (Focus() returned false, IsFocused stayed
-    /// false); NavigationMethod.Tab explicitly is also used rather than the
-    /// default Unspecified, since that's what actually produced a working,
-    /// verified Focus()=true/IsFocused=true result.
-    /// </summary>
+    //Ctrl+1..5 jump to a tab, Ctrl+Tab/Ctrl+Shift+Tab cycle, F6 focuses the file list, Shift+F6 focuses search
     private void OnRootGridKeyDown(object? sender, KeyEventArgs e)
     {
         var tabCount = EditorTabs.ItemCount;
@@ -692,12 +566,7 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>
-    /// Ctrl+A (select every open file) / Delete (remove the selection, reusing
-    /// the same unsaved-changes confirm as the Remove button) - ports
-    /// FileListSelectAll_Invoked/FileListDelete_Invoked, attached directly to
-    /// FileList so they don't fight with text selection/deletion in a field.
-    /// </summary>
+    //attached to FileList directly so it doesn't fight text selection/deletion in a field
     private async void OnFileListKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.KeyModifiers == KeyModifiers.Control && e.Key == Key.A)
@@ -712,12 +581,7 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>
-    /// Right-clicking a file outside the current selection replaces the
-    /// selection with just that file first, matching familiar file-manager
-    /// behaviour; right-clicking within an existing multi-selection leaves
-    /// it untouched - ports FileList_RightTapped from the winui original.
-    /// </summary>
+    //right-clicking outside the current selection replaces it first
     private void OnFileListContextRequested(object? sender, ContextRequestedEventArgs e)
     {
         if ((e.Source as StyledElement)?.DataContext is ComicFileViewModel file)
@@ -728,11 +592,7 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>
-    /// Greys out context menu items that wouldn't do anything given the
-    /// current selection, rather than letting them silently no-op - ports
-    /// FileContextFlyout_Opening from the winui original.
-    /// </summary>
+    //disables menu items that wouldn't apply to the current selection, rather than letting them silently no-op
     private void FileContextMenu_Opening(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         if (sender is not ContextMenu menu)
@@ -751,10 +611,6 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>
-    /// Opens Explorer with the current file pre-selected. Single-file only -
-    /// doesn't make sense to interpret for a multi-selection.
-    /// </summary>
     private void OnOpenContainingFolder(object? sender, RoutedEventArgs e)
     {
         var file = _viewModel.CurrentFile;
@@ -775,13 +631,7 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>
-    /// The right-clicked file (captured by OnFileListContextRequested)
-    /// becomes the source; every other currently-selected file is a target.
-    /// Lets the user pick which populated fields to copy rather than blindly
-    /// copying everything - ports OnCopyFieldsToSelection from the winui
-    /// original.
-    /// </summary>
+    //the right-clicked file is the source; every other selected file is a target
     private async void OnCopyFieldsToSelection(object? sender, RoutedEventArgs e)
     {
         var source = _lastRightTappedFile;
@@ -805,17 +655,9 @@ public partial class MainWindow : Window
             + $"from '{source.FileName}' to {targets.Count} file{(targets.Count == 1 ? "" : "s")}";
     }
 
-    //---------------------------------------------------------------- toolbar (slice 25/26)
+    //---------------------------------------------------------------- toolbar
 
-    /// <summary>
-    /// Every button the toolbar can show, in the port's own fixed reference
-    /// order - not a winui feature, this port's own Customize Toolbar
-    /// addition (slice 26). AppSettings.ToolbarButtons is the ordered subset
-    /// actually enabled; Group drives where a separator gets inserted (a new
-    /// separator appears whenever two adjacent enabled items belong to
-    /// different groups, mirroring the fixed groupings the old static xaml
-    /// toolbar used).
-    /// </summary>
+    //every toolbar button in a fixed order; AppSettings.ToolbarButtons is the enabled subset; Group drives separator placement
     internal static readonly (string Id, string Label, int Group)[] ToolbarCatalog =
     {
         ("Open", "Open…", 0),
@@ -832,18 +674,7 @@ public partial class MainWindow : Window
         ("GridView", "Grid View", 6),
     };
 
-    /// <summary>
-    /// Builds ToolbarPanel's children from AppSettings.ToolbarButtons - same
-    /// RebuildX() shape as RebuildGridColumns. Unknown ids (e.g. a stale
-    /// settings file from before an id was renamed) are skipped rather than
-    /// throwing. A group-boundary separator is inserted between adjacent
-    /// enabled items whose ToolbarCatalog Group differs - SearchComicVine's
-    /// own IsVisible binding on OnlineLookupEnabled can still leave a
-    /// separator with nothing visible after it if it's enabled here but
-    /// ComicVine itself is off; a minor, known cosmetic edge case, not worth
-    /// the extra complexity of a fully dynamic separator-visibility binding
-    /// for one optional button.
-    /// </summary>
+    //unknown ids (e.g. a stale settings file) are skipped rather than throwing
     private void RebuildToolbar()
     {
         ToolbarPanel.Children.Clear();
@@ -909,7 +740,6 @@ public partial class MainWindow : Window
         return toggle;
     }
 
-    //dirty-count badge (slice 23), pulled out of the old static xaml as-is
     private Button BuildSaveAllButton()
     {
         var button = new Button();
@@ -947,8 +777,6 @@ public partial class MainWindow : Window
         return button;
     }
 
-    //only visible when OnlineLookupEnabled (ComicVine is configured/on) -
-    //matches the old static xaml button's own IsVisible binding
     private Button BuildSearchComicVineButton()
     {
         var button = new Button { Content = "Search ComicVine…" };
@@ -959,23 +787,13 @@ public partial class MainWindow : Window
         return button;
     }
 
-    /// <summary>
-    /// Looks up a live theme brush by resource key, same pattern GetErrorBrush
-    /// already uses - the brush object itself is a mutable, shared
-    /// SolidColorBrush that ThemeService repaints in place on theme change, so
-    /// a plain assignment (not a DynamicResource binding) still stays live.
-    /// </summary>
+    //the brush is a shared mutable instance ThemeService repaints in place, so a plain assignment (not a binding) stays live
     private IBrush GetThemeBrush(string key)
     {
         this.TryFindResource(key, out var res);
         return res as IBrush ?? Brushes.Gray;
     }
 
-    /// <summary>
-    /// Customize Toolbar (slice 26) - not a winui feature. Persists the new
-    /// button set/order to AppSettings.ToolbarButtons and rebuilds the live
-    /// toolbar immediately, same save-then-refresh shape as OnChooseColumns.
-    /// </summary>
     private async void OnCustomizeToolbar(object? sender, RoutedEventArgs e)
     {
         var chosen = await ToolbarCustomizeDialog.ShowAsync(this, _settings.Settings.ToolbarButtons, ToolbarCatalog);
@@ -988,15 +806,7 @@ public partial class MainWindow : Window
 
     private const double ToolbarScrollStep = 200;
 
-    /// <summary>
-    /// Ports OnToolbarScrollLeft/Right from the winui original - always
-    /// enabled rather than hidden/disabled when there's nothing to scroll,
-    /// so clicking either with the toolbar fully visible is a harmless
-    /// no-op (Offset just clamps to 0 or the max). Avalonia's ScrollViewer
-    /// doesn't have the winui ChangeView/HorizontalOffset/ScrollableWidth
-    /// API - Offset (a Vector) and Extent/Viewport (Sizes) are the
-    /// equivalent here, confirmed via reflection on Avalonia.Controls.dll.
-    /// </summary>
+    //always enabled rather than hidden when there's nothing to scroll - Offset just clamps
     private void OnToolbarScrollLeft(object? sender, RoutedEventArgs e)
     {
         var offset = ToolbarScroll.Offset;
@@ -1010,22 +820,11 @@ public partial class MainWindow : Window
         ToolbarScroll.Offset = offset.WithX(System.Math.Min(maxX, offset.X + ToolbarScrollStep));
     }
 
-    //---------------------------------------------------------------- menu bar (slice 4)
+    //---------------------------------------------------------------- menu bar
 
     private void OnQuit(object? sender, RoutedEventArgs e) => Close();
 
-    /// <summary>
-    /// Unsaved-changes guard on close (slice 24) - ports OnAppWindowClosing
-    /// from the winui original. Previously missing entirely: Ctrl+Q and the
-    /// window's own titlebar close button both discarded unsaved work with
-    /// no prompt at all. Fires for both, since Close() (used by OnQuit) and
-    /// the titlebar button both raise this same event - one interception
-    /// point covers both paths, same as the winui original's single
-    /// AppWindowClosing handler. Cancel synchronously, then resolve
-    /// asynchronously with the user and force-close only if appropriate -
-    /// Avalonia's Closing handler can't simply be awaited in place, same
-    /// constraint the winui original documents for AppWindowClosingEventArgs.
-    /// </summary>
+    //Closing can't be awaited directly: cancel synchronously, then resolve async and force-close if appropriate
     private async void OnMainWindowClosing(object? sender, WindowClosingEventArgs e)
     {
         if (_forceClose)
@@ -1059,25 +858,14 @@ public partial class MainWindow : Window
         Close();
     }
 
-    /// <summary>
-    /// Remembered-tab persistence (slice 24) - the setting itself
-    /// (RememberLastTab) already existed and was read at startup, but
-    /// nothing ever wrote ActiveTab back; EditorTabs is now a real
-    /// TabControl worth remembering the index of. Only called right before
-    /// an actual close (or when there's nothing to confirm), not on every
-    /// close attempt - matches the winui original's PersistUiState, which
-    /// skips saving on a cancelled close too.
-    /// </summary>
+    //only called right before an actual close, not a cancelled one
     private void PersistUiState()
     {
         _settings.Settings.ActiveTab = EditorTabs.SelectedIndex;
         _settings.Save();
     }
 
-    //same one-way + explicit-toggle pattern as OnToggleGridView below, for the
-    //same reason: MenuItem's ToggleType="CheckBox" IsChecked is bool?, and a
-    //TwoWay bool?/bool binding didn't round-trip reliably when this was first
-    //hit with ToggleButton in slice 2
+    //one-way binding + explicit toggle: bool?/bool TwoWay binding wasn't reliable
     private void OnToggleShowAllFields(object? sender, RoutedEventArgs e) =>
         _viewModel.ShowAllFields = !_viewModel.ShowAllFields;
 
@@ -1088,14 +876,9 @@ public partial class MainWindow : Window
         await MessageDialog.ShowAsync(this, "About cbzLab",
             $"cbzLab {DisplayVersion}\nComicInfo.xml metadata editor for CBZ/CBR archives.");
 
-    //---------------------------------------------------------------- tools (slice 15)
+    //---------------------------------------------------------------- tools
 
-    /// <summary>
-    /// Fills empty Series/Number/Volume/Year fields by parsing each selected
-    /// file's own filename and parent folder - ports OnGuessFromFilename/
-    /// ApplyGuess verbatim from the winui original. Never overwrites a field
-    /// that already has a value.
-    /// </summary>
+    //never overwrites a field that already has a value
     private void OnGuessFromFilename(object? sender, RoutedEventArgs e)
     {
         if (!_viewModel.HasSelection)
@@ -1129,10 +912,6 @@ public partial class MainWindow : Window
         return filled;
     }
 
-    /// <summary>
-    /// Re-counts pages from the archive on disk and writes it to PageCount -
-    /// ports OnAutoPageCount verbatim from the winui original.
-    /// </summary>
     private async void OnAutoPageCount(object? sender, RoutedEventArgs e)
     {
         var file = _viewModel.CurrentFile;
@@ -1159,16 +938,7 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>
-    /// Copies the current file's full ComicInfo.xml to the clipboard - ports
-    /// OnCopyXml, swapping winui's Clipboard/DataPackage for Avalonia's
-    /// TopLevel.Clipboard - confirmed by reflecting on the built Avalonia.Base
-    /// assembly (same "don't trust stale API memory" lesson as slice 11's
-    /// drag-drop find) that IClipboard itself only exposes SetDataAsync/
-    /// TryGetDataAsync around IAsyncDataTransfer now; SetTextAsync/
-    /// TryGetTextAsync are ClipboardExtensions extension methods instead
-    /// (Avalonia.Input.Platform namespace).
-    /// </summary>
+    //Avalonia's clipboard: SetTextAsync/TryGetTextAsync are ClipboardExtensions methods, not IClipboard members directly
     private async void OnCopyXml(object? sender, RoutedEventArgs e)
     {
         var file = _viewModel.CurrentFile;
@@ -1181,11 +951,6 @@ public partial class MainWindow : Window
         _viewModel.StatusText = "ComicInfo.xml copied to clipboard";
     }
 
-    /// <summary>
-    /// Replaces the current file's metadata from clipboard XML text - ports
-    /// OnPasteXml, swapping winui's Clipboard/DataPackage for Avalonia's
-    /// TopLevel.Clipboard (ClipboardExtensions.TryGetTextAsync - see OnCopyXml).
-    /// </summary>
     private async void OnPasteXml(object? sender, RoutedEventArgs e)
     {
         var file = _viewModel.CurrentFile;
@@ -1213,15 +978,8 @@ public partial class MainWindow : Window
         _viewModel.StatusText = $"Metadata replaced from clipboard ({values.Count} fields)";
     }
 
-    //---------------------------------------------------------------- settings (slice 5/6)
+    //---------------------------------------------------------------- settings
 
-    /// <summary>
-    /// Mirrors what the winui OnSettings does for the fields that exist in
-    /// this port: reflect font size/family, OnlineLookupEnabled, and (slice
-    /// 24) theme onto the live app immediately, no re-select/restart needed.
-    /// Reset to Defaults takes the same refresh path as a normal Save, since
-    /// ResetToDefaults() already wrote every field directly into Settings.
-    /// </summary>
     private async void OnSettings(object? sender, RoutedEventArgs e)
     {
         var (saved, resetToDefaults) = await SettingsDialog.ShowAsync(this, _settings, _archive, _comicVine, _theme);
@@ -1233,23 +991,13 @@ public partial class MainWindow : Window
         _viewModel.EditorFontSize = _settings.Settings.EditorFontSize;
         _viewModel.OnlineLookupEnabled = _settings.Settings.ComicVineEnabled;
         _viewModel.EditorFontFamily = _settings.Settings.EditorFontFamily;
-
-        //closes a real, previously-flagged gap (CLAUDE.md slice 5): these two
-        //were only ever read once, at MainViewModel construction, so toggling
-        //them in Settings had no visible effect until the app was restarted
         _viewModel.EditorFieldsMaxWidth = _settings.Settings.EditorFieldsFillWidth ? double.PositiveInfinity : 780;
         _viewModel.ApplyDensitySetting(_settings.Settings.CompactDensity);
     }
 
-    //---------------------------------------------------------------- comicvine search (slice 7/8)
+    //---------------------------------------------------------------- comicvine search
 
-    /// <summary>
-    /// Ports MainWindow.xaml.cs's OnSearchComicVine from the winui original,
-    /// with the search/match dialogs simplified per CLAUDE.md slice 7 notes
-    /// (no cover thumbnails, match always shows the full list rather than a
-    /// separate confirm step). Branches to the batch flow (slice 8) when
-    /// multiple files are selected, same as the winui original.
-    /// </summary>
+    //branches to the batch flow when multiple files are selected
     private async void OnSearchComicVine(object? sender, RoutedEventArgs e)
     {
         if (_viewModel.IsBatchMode)
@@ -1315,17 +1063,7 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>
-    /// Batch ComicVine (slice 8): one series search shared across the whole
-    /// selection, then per-file issue matching (clean single-number matches
-    /// auto-accept without a popup), then one aggregated review covering
-    /// every matched file at once. Every field, for every file, always
-    /// applies that file's own matched value - the shared-vs-divergent
-    /// distinction in ReviewComicVineBatchDialog only changes what's ticked
-    /// by default and whether a warning shows, never which value gets
-    /// written to which file. Ports RunBatchComicVineSearchAsync verbatim
-    /// from the winui original.
-    /// </summary>
+    //one series search shared across the selection, then per-file issue matching; every file always gets its own matched value
     private async Task RunBatchComicVineSearchAsync()
     {
         var files = _viewModel.SelectedFiles.ToList();
@@ -1428,12 +1166,7 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>
-    /// Shared by single-file and batch: a remembered volume for this exact
-    /// series name skips straight to issue matching (ComicVineCacheService's
-    /// whole point); otherwise shows the search dialog and remembers the
-    /// pick. Ports ResolveVolumeAndIssuesAsync verbatim from the winui original.
-    /// </summary>
+    //a remembered volume for this exact series name skips straight to issue matching
     private async Task<(ComicVineVolume Volume, List<ComicVineIssueSummary> Issues)?>
         ResolveVolumeAndIssuesAsync(string seriesGuess)
     {
@@ -1470,17 +1203,11 @@ public partial class MainWindow : Window
         return series.Length > 0 ? series : FilenameGuessService.FromPath(file.Path).Series ?? "";
     }
 
-    //---------------------------------------------------------------- grid view (slice 2)
+    //---------------------------------------------------------------- grid view
 
     private void OnToggleGridView(object? sender, RoutedEventArgs e) =>
         _viewModel.IsGridViewActive = !_viewModel.IsGridViewActive;
 
-    /// <summary>
-    /// Choose Columns (slice 3): shows the real dialog, seeded from and saved
-    /// back to the same AppSettings.GridColumns the shared config already
-    /// carries, then rebuilds the grid to match - mirrors OnChooseGridColumns
-    /// in the winui original.
-    /// </summary>
     private async void OnChooseColumns(object? sender, RoutedEventArgs e)
     {
         var chosen = await ChooseColumnsDialog.ShowAsync(this, _settings.Settings.GridColumns, _schema);
@@ -1491,13 +1218,7 @@ public partial class MainWindow : Window
         RebuildGridColumns();
     }
 
-    /// <summary>
-    /// Builds ComicsGrid's dynamic columns from AppSettings.GridColumns - same
-    /// converter shape as the winui original's RebuildGridColumns (bind the
-    /// whole row, resolve via FieldValueConverter keyed by the column's own
-    /// tag). Called at startup and again whenever Choose Columns applies a
-    /// new selection.
-    /// </summary>
+    //binds the whole row; resolves each column's value via FieldValueConverter keyed by that column's tag
     private void RebuildGridColumns()
     {
         while (ComicsGrid.Columns.Count > 1)
@@ -1514,22 +1235,12 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>
-    /// Double-click switches back to the sidebar+editor view with that row
-    /// selected.
-    /// </summary>
     private void OnGridDoubleTapped(object? sender, TappedEventArgs e)
     {
         if (ComicsGrid.SelectedItem is ComicFileViewModel file)
             SwitchToEditorForSelection(new[] { file });
     }
 
-    /// <summary>
-    /// Grid context menu (Edit/Choose Columns…) - mirrors GridContextFlyout_Opening
-    /// in the winui original: labels the Edit item by selection count and
-    /// disables it when nothing is selected (e.g. a right-click on empty
-    /// space below the last row).
-    /// </summary>
     private void GridContextMenu_Opening(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         var count = ComicsGrid.SelectedItems.Count;
@@ -1544,11 +1255,6 @@ public partial class MainWindow : Window
             SwitchToEditorForSelection(files);
     }
 
-    /// <summary>
-    /// Shared by double-click (always one file) and the context menu's Edit
-    /// item (one or many) - mirrors SwitchToEditorForSelection in the winui
-    /// original.
-    /// </summary>
     private void SwitchToEditorForSelection(IEnumerable<ComicFileViewModel> files)
     {
         _viewModel.IsGridViewActive = false;
@@ -1558,11 +1264,7 @@ public partial class MainWindow : Window
     }
 
     //---------------------------------------------------------------- field templates
-    //
-    //built entirely in code rather than as xaml DataTemplate resources wired
-    //through a selector's markup properties - simpler and more robust for a
-    //first slice than fragile resource-lookup wiring. see FieldTemplateSelector
-    //for the widget-type dispatch this mirrors from the winui original.
+    //built in code rather than as xaml DataTemplate resources - see FieldTemplateSelector for the widget-type dispatch
 
     private IDataTemplate BuildFieldTemplateSelector() => new FieldTemplateSelector
     {
@@ -1573,15 +1275,7 @@ public partial class MainWindow : Window
         NumericGroupTemplate = new FuncDataTemplate<FieldViewModel>((f, _) => BuildNumericGroupRow(f), true),
     };
 
-    /// <summary>
-    /// Year's composite date row (slice 17) - a single free-text TextBox bound
-    /// to DateDisplayValue rather than a calendar-picker widget. DateFieldHelper
-    /// already parses full dates, year-only, and "MM/yyyy" from plain text, so
-    /// this gives fully working read/write date editing with none of the winui
-    /// CalendarView suppression-flag complexity (see CLAUDE.md's calendar-picker
-    /// notes) - a picker convenience UI can be layered on later without
-    /// changing how the value itself is stored or parsed.
-    /// </summary>
+    //free-text entry, not a calendar picker - DateFieldHelper parses full dates, year-only, and "MM/yyyy"
     private Control BuildDateRow(FieldViewModel field)
     {
         var box = new TextBox();
@@ -1589,13 +1283,7 @@ public partial class MainWindow : Window
         return BuildRow(field, box, WrapWithErrorBorder(box, field));
     }
 
-    /// <summary>
-    /// Row-shared numeric fields (slice 17) - Number/Count/Volume or
-    /// AlternateNumber/AlternateCount side by side, each with its own label,
-    /// rather than three separate full-width rows. Each companion gets its own
-    /// DataContext (they're independent FieldViewModel instances, not reachable
-    /// through the primary field's own bindings).
-    /// </summary>
+    //Number/Count/Volume or AlternateNumber/AlternateCount side by side; each companion has its own FieldViewModel/DataContext
     private Control BuildNumericGroupRow(FieldViewModel field)
     {
         var row = new StackPanel
@@ -1610,14 +1298,6 @@ public partial class MainWindow : Window
         return row;
     }
 
-    /// <summary>
-    /// Batch mode (slice 22) - matches the winui original's NumericGroupTemplate:
-    /// the mixed-value placeholder text is bound (so a differing Number/Count/
-    /// Volume across the selection reads as "multiple values", not blank), but
-    /// there's deliberately no picker button here, unlike entry/text/combo
-    /// fields - the winui original doesn't have one for numeric-group items
-    /// either, and a detected-values list is a poor fit for fields this narrow.
-    /// </summary>
     private Control BuildNumericGroupItem(FieldViewModel field)
     {
         var label = new TextBlock { FontSize = 12, Opacity = 0.7 };
@@ -1636,15 +1316,7 @@ public partial class MainWindow : Window
         return item;
     }
 
-    /// <summary>
-    /// Batch mode (slice 22) - entry field row is a Grid rather than the plain
-    /// StackPanel every other row uses: the textbox column is star-sized so it
-    /// actually stretches when the fields-fill-width setting is on, mirroring
-    /// the winui original's own reason for using a Grid here. The picker
-    /// button sits beside it, visible whenever ShowPicker is true (batch mode
-    /// always offers it; single-file mode only when there's recent-value
-    /// history for this tag).
-    /// </summary>
+    //Grid, not StackPanel, so the textbox column stretches when the fields-fill-width setting is on
     private Control BuildEntryRow(FieldViewModel field)
     {
         var box = new TextBox();
@@ -1662,13 +1334,6 @@ public partial class MainWindow : Window
         return BuildRow(field, box, grid);
     }
 
-    /// <summary>
-    /// Batch mode (slice 22) - the picker sits next to the label instead of
-    /// beside the textbox, since the textbox itself is already full width;
-    /// mirrors the winui original's TextFieldTemplate layout. Only shown in
-    /// batch mode (IsBatch), unlike the entry-field picker which also offers
-    /// single-file recent-value history.
-    /// </summary>
     private Control BuildTextRow(FieldViewModel field)
     {
         var box = new TextBox { AcceptsReturn = true, Height = 80, TextWrapping = TextWrapping.Wrap };
@@ -1690,14 +1355,7 @@ public partial class MainWindow : Window
         return panel;
     }
 
-    /// <summary>
-    /// Batch mode (slice 22) - a plain ComboBox can't represent "N distinct
-    /// values across the selection" as one of its own items, so batch mode
-    /// swaps it for a button showing BatchButtonText with the same picker
-    /// flyout every other field uses, mirroring the winui original's
-    /// ComboFieldTemplate (ComboBox visible when !IsBatch, DropDownButton
-    /// visible when IsBatch).
-    /// </summary>
+    //batch mode swaps the combo for a button+picker, since a plain combo can't show "N distinct values"
     private Control BuildComboRow(FieldViewModel field)
     {
         var combo = new ComboBox { ItemsSource = field.Options, MinWidth = 280 };
@@ -1716,15 +1374,7 @@ public partial class MainWindow : Window
         return BuildRow(field, combo, stack, showErrorFeedback: false);
     }
 
-    /// <summary>
-    /// Detected-values-across-the-selection (or recent-values, single-file)
-    /// picker (slice 22) - one Flyout+ListBox shape shared by every field
-    /// widget type, mirroring the winui original's three copies of the same
-    /// DropDownButton/Flyout/ListView markup. Selecting an item sets the
-    /// field's Value directly (same as typing it) and closes the flyout;
-    /// SelectedItem is reset afterward so the same value can be picked again
-    /// without a no-op SelectionChanged.
-    /// </summary>
+    //shared flyout+listbox for detected/recent values, reused by every field widget type
     private FlyoutBase BuildValuePickerFlyout(FieldViewModel field)
     {
         var listBox = new ListBox { MinWidth = 300, MaxHeight = 260 };
@@ -1750,19 +1400,8 @@ public partial class MainWindow : Window
         return button;
     }
 
-    /// <summary>
-    /// display defaults to input, but entry/combo rows (slice 22) pass a
-    /// separate wrapping Grid/StackPanel that also holds the batch picker -
-    /// the context menu still attaches to the actual editable control
-    /// (input), not the wrapper, so right-click only reverts on the field
-    /// itself rather than anywhere in its row.
-    /// </summary>
-    /// <summary>
-    /// showErrorFeedback is false for combo rows - the winui original's
-    /// ComboFieldTemplate has no error border/message at all (a constrained
-    /// option list doesn't have the same free-text format problems live
-    /// validation catches), unlike entry/date/numeric-group, which all do.
-    /// </summary>
+    //display defaults to input, but entry/combo rows pass a separate wrapper that also holds the batch picker; the context
+    //menu still attaches to the actual editable control. showErrorFeedback is false for combo rows (no free-text format issues)
     private Control BuildRow(FieldViewModel field, Control input, Control? display = null, bool showErrorFeedback = true)
     {
         var label = new TextBlock { FontSize = 12, Opacity = 0.7 };
@@ -1779,16 +1418,6 @@ public partial class MainWindow : Window
         return panel;
     }
 
-    /// <summary>
-    /// Live-validation feedback (slice 23) - ports the winui original's
-    /// ErrorBorder-converter Border + ErrorMessage TextBlock pair, previously
-    /// missing everywhere in this port despite FieldViewModel.HasError/
-    /// ErrorMessage already being fully populated by MainViewModel.ValidateLive.
-    /// ThErrorLbl is looked up once per row build via TryFindResource (the
-    /// same pattern ValidationDialog already uses) - safe to call before a
-    /// file is ever opened since RegisterResources() runs in the constructor
-    /// before any row is actually materialized.
-    /// </summary>
     private Border WrapWithErrorBorder(Control input, FieldViewModel field)
     {
         var errorBrush = GetErrorBrush();
@@ -1822,18 +1451,6 @@ public partial class MainWindow : Window
         return res as IBrush ?? Brushes.OrangeRed;
     }
 
-    /// <summary>
-    /// Per-field "Revert to Saved" (slice 21) - ports the RevertField_Click
-    /// context-menu item from every winui field template (entry/text/combo/
-    /// date/numeric-group-item all had their own copy) into one shared
-    /// attach point, since every widget type in this port funnels through
-    /// either BuildRow or BuildNumericGroupItem. Calls the already-ported,
-    /// already-correct MainViewModel.RevertFieldToSaved directly - no manual
-    /// UI refresh needed, since SetValueSilent still raises the normal Value
-    /// PropertyChanged that the TwoWay binding (and, for Year, the
-    /// DateDisplayValue refresh wiring already set up in EnsureFieldViewModels)
-    /// picks up on its own.
-    /// </summary>
     private void AttachRevertContextMenu(Control input, FieldViewModel field)
     {
         var item = new MenuItem { Header = "Revert to Saved" };

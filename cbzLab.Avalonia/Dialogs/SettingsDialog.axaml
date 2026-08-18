@@ -68,9 +68,7 @@
                     <NumericUpDown x:Name="RecentValuesBox" Minimum="1" Maximum="50" Increment="1" FormatString="0" HorizontalAlignment="Left" Width="140" />
                 </StackPanel>
 
-                <!--rar tool path (slice 10): status line is computed once on
-                    open from ArchiveService.FindRarTool(), same as the winui
-                    original - it doesn't live-update after Browse/Reset/typing-->
+                <!--status line is computed once on open, doesn't live-update-->
                 <StackPanel Spacing="6">
                     <TextBlock Text="RAR write tool path" />
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -81,12 +79,6 @@
                     <TextBlock x:Name="RarToolStatus" FontSize="12" Opacity="0.7" TextWrapping="Wrap" />
                 </StackPanel>
 
-                <!--comicvine section (slice 6): reveal panel's IsVisible is
-                    bound one-way to a code-behind bool property flipped by
-                    ComicVineEnabledCheck's own Click handler - the same
-                    one-way + explicit-toggle pattern forced by slice 2's
-                    bool?/bool CheckBox binding finding, applied here too
-                    rather than trusting a fresh TwoWay binding to round-trip-->
                 <TextBlock Text="ONLINE LOOKUP" FontSize="11" FontWeight="SemiBold" Opacity="0.6" Margin="0,6,0,0" />
                 <CheckBox x:Name="ComicVineEnabledCheck" Content="Enable online metadata lookup (ComicVine)" Click="OnToggleComicVineEnabled" />
                 <TextBlock Text="Off by default. Turning this on sends series and issue names you search for to comicvine.gamespot.com over the network."

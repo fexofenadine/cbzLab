@@ -6,31 +6,13 @@ using Avalonia.Media;
 namespace cbzLab.Services;
 
 /// <summary>
-/// Avalonia port of the winui ThemeService (see CLAUDE.md "theme slice"). The
-/// themes.json loading logic and the mutable-brush live-repaint pattern carry
-/// over structurally unchanged - Application.Current.Resources is, like
-/// WinUI's, a plain keyed dictionary, and the assumption is that mutating a
-/// shared brush's .Color repaints every DynamicResource-bound control
-/// immediately the same way it does in WinUI. That assumption is verified by
-/// actually running the app and switching themes live before this slice is
-/// considered done - see CLAUDE.md for the result, not assumed to hold just
-/// because it compiles.
-///
-/// System-control overrides (the FillSystemOverrides equivalent) were built
-/// from real, empirically-confirmed Avalonia FluentTheme resource keys, not
-/// carried over from the winui key list blind - probed via TryFindResource
-/// against a running instance first (see git history for the throwaway
-/// diagnostic used). Most winui-named keys (TextControl*, ComboBox*, Button*,
-/// ToggleButton*, MenuFlyout*, ToolTip*, HyperlinkButton*) turned out to
-/// genuinely exist under the same names in Avalonia's Fluent theme too -
-/// confirmed, not assumed. A few winui keys have no Avalonia equivalent
-/// (ListViewItem*, ContentDialog*, TabView* - not used by this port anyway)
-/// and were dropped. SystemAccentColor and its Light1-3/Dark1-3 variants also
-/// resolved for real; overriding them is how selection highlights (ListBox,
-/// DataGrid) and other accent-driven chrome that has no separately-named
-/// override resource get themed, since Avalonia's Fluent theme leans on the
-/// accent chain for those rather than exposing ListBoxItem/DataGridRow-
-/// specific brush keys the way winui's ListView does.
+/// Mutates a fixed set of shared SolidColorBrush instances that both the
+/// app's own DynamicResource-bound styles and a curated set of overridden
+/// Avalonia FluentTheme resource keys point at, so changing a theme repaints
+/// everything live with no dictionary replace needed. ListBox/DataGrid
+/// selection highlight has no separately-named FluentTheme override (unlike
+/// WinUI's ListViewItem*), so that's themed by overriding the accent colour
+/// itself instead, which those controls' templates reference directly.
 /// </summary>
 public class ThemeService
 {
@@ -158,13 +140,7 @@ public class ThemeService
             _brushes[key] = new SolidColorBrush(ParseColour(HardFallback[key]));
     }
 
-    /// <summary>
-    /// Registers every theme brush into application resources (as ThBg, ThAccent,
-    /// ThEntryBg, ...) for DynamicResource binding, and overrides a curated set
-    /// of real Avalonia FluentTheme resource keys so native controls (TextBox,
-    /// ComboBox, Button, ToggleButton, Menu, ToolTip, ScrollBar, HyperlinkButton)
-    /// follow the theme too. Must run once before the main window is shown.
-    /// </summary>
+    //registers ThBg/ThAccent/etc for DynamicResource binding, plus FluentTheme overrides. Call before the window shows.
     public void RegisterResources()
     {
         var res = Application.Current!.Resources;
@@ -178,7 +154,6 @@ public class ThemeService
     {
         void Map(string systemKey, string themeKey) => d[systemKey] = _brushes[themeKey];
 
-        //text boxes - all 4 states confirmed present under these exact names
         Map("TextControlBackground", "entry_bg");
         Map("TextControlBackgroundPointerOver", "entry_bg");
         Map("TextControlBackgroundFocused", "entry_bg");
@@ -194,8 +169,7 @@ public class ThemeService
         Map("TextControlPlaceholderForeground", "disabled_fg");
         Map("TextControlSelectionHighlightColor", "entry_sel");
 
-        //combo boxes - ComboBoxForegroundPointerOver/Pressed have no avalonia
-        //equivalent (confirmed missing, unlike winui) so only base + disabled map
+        //no ComboBoxForegroundPointerOver/Pressed equivalent in Avalonia; only base + disabled map
         Map("ComboBoxBackground", "entry_bg");
         Map("ComboBoxBackgroundPointerOver", "entry_bg");
         Map("ComboBoxBackgroundPressed", "entry_bg");
@@ -210,9 +184,6 @@ public class ThemeService
         Map("ComboBoxItemForegroundSelected", "list_sel_fg");
         Map("ComboBoxItemBackgroundSelected", "list_sel");
 
-        //menus - unlike winui (where MenuFlyoutItemForeground was reverted because
-        //MenuBarItem/submenu/toggle/radio items didn't honour it consistently),
-        //avalonia's MenuFlyoutItemForeground resolved for real and is safe to map
         Map("MenuFlyoutPresenterBackground", "bg2");
         Map("MenuFlyoutItemForeground", "fg");
 
@@ -226,8 +197,7 @@ public class ThemeService
         Map("ButtonBorderBrush", "sep");
         Map("ButtonBorderBrushPointerOver", "accent");
 
-        //toggle buttons (toolbar grid-view toggle) - only the checked states exist
-        //in avalonia's fluent theme, same as winui
+        //only the checked states exist in Avalonia's fluent theme
         Map("ToggleButtonBackgroundChecked", "accent");
         Map("ToggleButtonBackgroundCheckedPointerOver", "accent");
         Map("ToggleButtonForegroundChecked", "bg");
@@ -238,9 +208,7 @@ public class ThemeService
         Map("ToolTipForeground", "tooltip_fg");
         Map("ToolTipBorderBrush", "sep");
 
-        //scrollbars - base ScrollBarThumbFill (idle state) has no avalonia
-        //equivalent (confirmed missing), only hover/pressed do; idle thumb stays
-        //fluent's default colour, a minor known cosmetic gap
+        //no ScrollBarThumbFill (idle state) equivalent - idle thumb stays fluent's default colour
         Map("ScrollBarThumbFillPointerOver", "thumb");
         Map("ScrollBarThumbFillPressed", "thumb");
         Map("ScrollBarTrackFill", "scrollbar");
@@ -250,14 +218,7 @@ public class ThemeService
         Map("HyperlinkButtonForeground", "accent");
         Map("HyperlinkButtonForegroundPointerOver", "fg_bright");
 
-        //accent chain: avalonia's fluent theme has no separately-named override
-        //for listbox/datagrid selection highlight (confirmed - ListBoxItem* and
-        //DataGridRow* aren't real resource keys here, unlike winui's ListViewItem*)
-        //so selection/checked/focus chrome across the app is themed by overriding
-        //the accent colour itself, which is what those controls' templates
-        //actually reference. light/dark variants are set as simple lighten/darken
-        //steps rather than a true HSL-accurate fluent palette generator, since
-        //this is chrome tinting, not a colour-critical surface
+        //simple lighten/darken steps, not a real fluent palette generator - this is chrome tinting
         var accent = _brushes["accent"].Color;
         d["SystemAccentColor"] = accent;
         d["SystemAccentColorLight1"] = Lighten(accent, 0.15);
@@ -280,10 +241,7 @@ public class ThemeService
 
     //---------------------------------------------------------------- applying
 
-    /// <summary>
-    /// Applies a theme by name, mutating the shared brush instances so the whole ui
-    /// updates immediately. Unknown names fall back to the default theme.
-    /// </summary>
+    //unknown names fall back to the default theme
     public void Apply(string name)
     {
         if (!_themes.ContainsKey(name))
@@ -300,9 +258,7 @@ public class ThemeService
             _brushes[key].Color = ParseColour(hex);
         }
 
-        //the accent-chain overrides are computed from the brush, not bound to it,
-        //so they need re-registering on every apply (brush.Color mutation alone
-        //doesn't recompute these derived shades)
+        //accent-chain overrides are computed, not bound - must re-register every apply
         FillSystemOverrides(Application.Current!.Resources);
 
         CurrentThemeName = name;

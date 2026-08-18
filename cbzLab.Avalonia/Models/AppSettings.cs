@@ -2,9 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace cbzLab.Models;
 
-/// <summary>
-/// User preferences persisted to cbzLab_settings.json in the config directory.
-/// </summary>
+/// <summary>User preferences persisted to cbzLab_settings.json.</summary>
 public class AppSettings
 {
     [JsonPropertyName("theme")]
@@ -88,8 +86,7 @@ public class AppSettings
     [JsonPropertyName("editor_font_family")]
     public string EditorFontFamily { get; set; } = "Segoe UI";
 
-    //master switch: off by default. When off, no ComicVine ui exists anywhere
-    //in the app (not greyed out, not present) — see MainViewModel.OnlineLookupEnabled
+    //off by default; when off, no ComicVine ui exists anywhere in the app, not just greyed out
     [JsonPropertyName("comicvine_enabled")]
     public bool ComicVineEnabled { get; set; }
 
@@ -111,11 +108,7 @@ public class AppSettings
     [JsonPropertyName("last_open_folder")]
     public string LastOpenFolder { get; set; } = "";
 
-    //ordered list of enabled toolbar item ids (MainWindow.ToolbarCatalog has
-    //the full set) - not a winui feature, this port's own Customize Toolbar
-    //addition. GuessFromFilename/SearchComicVine start disabled since the
-    //Tools menu already covers them and the toolbar was getting crowded;
-    //still in the catalog so they can be re-added via Customize Toolbar.
+    //ordered list of enabled toolbar item ids; full catalog is in MainWindow
     [JsonPropertyName("toolbar_buttons")]
     public List<string> ToolbarButtons { get; set; } = new()
     {

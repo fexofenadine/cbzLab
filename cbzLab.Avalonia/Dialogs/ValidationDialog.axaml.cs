@@ -8,13 +8,7 @@ using cbzLab.Models;
 
 namespace cbzLab.Avalonia.Dialogs;
 
-/// <summary>
-/// Avalonia's replacement for AppDialogs.ValidationAsync (cbzLab/Dialogs/
-/// AppDialogs.cs line 101) - see MessageDialog for why this is its own Window
-/// rather than a ContentDialog-style static method. Lists validation problems
-/// with suggested fixes; "Save Anyway" writes the file with the bad values
-/// intact, "Fix" returns to the editor without saving.
-/// </summary>
+//"Save Anyway" writes the file with bad values intact; "Fix" returns without saving
 public partial class ValidationDialog : Window
 {
     private bool _result;
@@ -26,9 +20,6 @@ public partial class ValidationDialog : Window
 
     private void Populate(IReadOnlyList<ValidationError> errors)
     {
-        //TryFindResource rather than a hardcoded colour, matching every other
-        //dialog's DynamicResource usage, so this stays correct across themes -
-        //same lookup pattern already proven working in the theme slice
         this.TryFindResource("ThErrorLbl", out var errorBrush);
 
         foreach (var err in errors)

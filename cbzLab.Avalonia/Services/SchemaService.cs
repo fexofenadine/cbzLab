@@ -3,11 +3,7 @@ using cbzLab.Models;
 
 namespace cbzLab.Services;
 
-/// <summary>
-/// Loads the field schema from the user-editable schema.json copy, merges in any
-/// accumulated unofficial fields from schema_extra.json, and assigns every field
-/// to one of the five editor tabs.
-/// </summary>
+/// <summary>Loads the field schema, merges in accumulated unofficial fields from schema_extra.json, assigns tabs.</summary>
 public class SchemaService
 {
     public const string TabBasicInfo = "Basic Info";
@@ -67,17 +63,12 @@ public class SchemaService
 
     public FieldDefinition? GetField(string tag) => _byTag.TryGetValue(tag, out var f) ? f : null;
 
-    /// <summary>
-    /// Returns the editor tab a field belongs to.
-    /// </summary>
     public string TabFor(FieldDefinition field) =>
         field.IsExtra ? TabExtras : (TabMap.TryGetValue(field.Tag, out var tab) ? tab : TabExtras);
 
     private void LoadOfficialSchema()
     {
-        //deliberately NOT via JsonFileStore.Load: a missing or broken
-        //schema.json means the app has no fields to edit at all, so unlike
-        //every other json file this one should fail loudly, not fall back
+        //not via JsonFileStore.Load - a missing/broken schema.json should fail loudly, not fall back
         var json = File.ReadAllText(_settings.SchemaPath);
         var doc = JsonSerializer.Deserialize<SchemaDocument>(json, JsonFileStore.JsonOpts)
                   ?? throw new InvalidDataException("schema.json could not be parsed");
@@ -108,11 +99,7 @@ public class SchemaService
         }
     }
 
-    /// <summary>
-    /// Registers a tag found in an opened archive that is not part of the official
-    /// schema, persisting it so it appears as an editable Extras field in all future
-    /// sessions. Returns true if the tag was newly registered.
-    /// </summary>
+    //persists a discovered non-schema tag as an editable Extras field; returns true if newly registered
     public bool RegisterExtraTag(string tag)
     {
         if (_byTag.ContainsKey(tag))

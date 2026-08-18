@@ -7,14 +7,7 @@
         Width="900" Height="640">
 
     <Window.Styles>
-        <!--flat toolbar buttons (slice 25) - matches the winui original's own
-            ToolButtonStyle/ToolToggleStyle exactly (Background/BorderBrush
-            Transparent, Padding 10,6): no visible button "box" at rest, just
-            the toolbar's own background showing through. A ToggleButton's own
-            :checked pseudo-class style (part of FluentTheme, not overridden
-            here) still applies its accent-colored background on top of this,
-            confirmed live - so Grid View/All Fields/Extras still show clearly
-            pressed/active despite the base Background being Transparent.-->
+        <!--flat toolbar buttons, no visible box at rest - ToggleButton's own :checked style still shows pressed/active-->
         <Style Selector="Button.toolflat">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
@@ -25,9 +18,6 @@
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="Padding" Value="10,6" />
         </Style>
-        <!--per-file close button (slice 26) - small and flat by default so it
-            doesn't visually compete with the cover thumbnail/filename, same
-            transparent-until-interacted-with idea as the toolbar buttons above-->
         <Style Selector="Button.rowclose">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
@@ -47,22 +37,14 @@
           DragDrop.DragLeave="OnDragLeave" DragDrop.Drop="OnDrop"
           KeyDown="OnRootGridKeyDown">
 
-        <!--menu bar (slice 4): scoped to items that wire to functionality
-            already built in earlier slices, plus About - see plan for the
-            full list of deferred items (Theme submenu, Save As/All,
-            Revert/Remove/Close, keyboard accelerators)-->
         <Menu Grid.Row="0">
             <MenuItem Header="_File">
                 <MenuItem Header="Open…" Click="OnOpen" HotKey="Ctrl+O" />
-                <!--slice 12: items populated/cleared via RecentMenu.Items in
-                    code (BuildRecentMenu), same pattern as RebuildGridColumns-->
+                <!--populated via RecentMenu.Items in code, see BuildRecentMenu-->
                 <MenuItem x:Name="RecentMenu" Header="Open Recent" />
                 <Separator />
                 <MenuItem Header="Save" Click="OnSave" HotKey="Ctrl+S" />
                 <MenuItem Header="Save As…" Click="OnSaveAs" HotKey="Ctrl+Shift+S" />
-                <!--slice 19: per-file format picker (MultiSaveAsync) and a
-                    cancellable progress dialog for large batches stay deferred -
-                    Save All uses each file's existing format, no progress UI-->
                 <MenuItem Header="Save All" Click="OnSaveAll" HotKey="Ctrl+Alt+S" />
                 <Separator />
                 <MenuItem Header="Revert" Click="OnRevert" />
@@ -73,9 +55,7 @@
                 <MenuItem Header="Quit" Click="OnQuit" HotKey="Ctrl+Q" />
             </MenuItem>
             <MenuItem Header="_View">
-                <!--same one-way + explicit-toggle pattern as GridViewToggle
-                    below, and for the same reason: ToggleType="CheckBox"'s
-                    IsChecked is bool? and didn't round-trip TwoWay in slice 2-->
+                <!--one-way binding + explicit click: TwoWay CheckBox IsChecked didn't round-trip reliably-->
                 <MenuItem Header="Show All Fields" ToggleType="CheckBox"
                           IsChecked="{Binding ShowAllFields, Mode=OneWay}" Click="OnToggleShowAllFields" />
                 <MenuItem Header="Show Extra Fields" ToggleType="CheckBox"
@@ -83,24 +63,19 @@
                 <Separator />
                 <MenuItem Header="Choose Grid Columns…" Click="OnChooseColumns" />
                 <Separator />
-                <!--theme slice: populated/cleared via ThemeMenu.Items in code
-                    (BuildThemeMenu), same pattern as RecentMenu/RebuildGridColumns-->
+                <!--populated via ThemeMenu.Items in code, see BuildThemeMenu-->
                 <MenuItem x:Name="ThemeMenu" Header="Theme" />
             </MenuItem>
             <MenuItem Header="_Tools">
                 <MenuItem Header="Search ComicVine…" Click="OnSearchComicVine"
                           IsVisible="{Binding OnlineLookupEnabled}" />
                 <Separator IsVisible="{Binding OnlineLookupEnabled}" />
-                <!--slice 15: Guess from Filename/Auto Page Count/Copy/Paste XML-->
                 <MenuItem Header="Guess from Filename" Click="OnGuessFromFilename" />
                 <MenuItem Header="Auto Page Count" Click="OnAutoPageCount" />
                 <Separator />
                 <MenuItem Header="Copy ComicInfo.xml" Click="OnCopyXml" />
                 <MenuItem Header="Paste ComicInfo.xml" Click="OnPasteXml" />
                 <Separator />
-                <!--slice 26: not a winui feature - this port's own addition,
-                    since the toolbar has no drag-to-rearrange affordance of
-                    its own-->
                 <MenuItem Header="Customize Toolbar…" Click="OnCustomizeToolbar" />
                 <MenuItem Header="Settings…" Click="OnSettings" />
             </MenuItem>
@@ -109,20 +84,8 @@
             </MenuItem>
         </Menu>
 
-        <!--toolbar (slice 25/26): matches the winui original's real structure -
-            flat buttons (no visible "box" at rest, see Window.Styles above),
-            thin vertical separators between logical groups instead of
-            uniform button borders, and a scroll-left/right overflow (matches
-            the winui original's own OnToolbarScrollLeft/Right - always
-            shown rather than hidden-when-not-needed, so clicking with
-            nothing to scroll is just a harmless no-op) instead of wrapping
-            to a second row. "Choose Columns…" removed - it was never a
-            toolbar button in the winui original either, only reachable via
-            the View menu and the grid's own right-click menu, both already
-            wired in this port. The button list itself isn't static XAML
-            anymore (slice 26, Customize Toolbar) - ToolbarPanel is built and
-            rebuilt in code from AppSettings.ToolbarButtons, same
-            RebuildX() pattern already used for RebuildGridColumns.-->
+        <!--flat buttons, thin separators between groups, scroll-left/right overflow instead of wrapping.
+            ToolbarPanel is built in code from AppSettings.ToolbarButtons - see RebuildToolbar.-->
         <Border Grid.Row="1" Background="{DynamicResource ThBg2}"
                 BorderBrush="{DynamicResource ThSep}" BorderThickness="0,0,0,1">
             <Grid ColumnDefinitions="Auto,*,Auto">
@@ -139,25 +102,14 @@
             </Grid>
         </Border>
 
-        <!--sidebar+editor: slice 1 view, hidden while the grid view is active-->
         <Grid Grid.Row="2" ColumnDefinitions="260,Auto,*" IsVisible="{Binding !IsGridViewActive}">
 
-            <!--sidebar: open files. Background was missing entirely here and on
-                FileList below - the winui original explicitly paints both with
-                ThListBg (a real, separate theme key from ThBg - confirmed via
-                themes.json, e.g. VS Code Dark+'s list_bg #252526 vs bg #1e1e1e -
-                not just a duplicate). Without it, this pane fell through to
-                FluentTheme's own built-in ListBox background, which tracks
-                light/dark but not any of this app's actual theme colours -
-                reported live as "brown"/"grey" on dark themes and a plain white
-                that should have been the theme's own panel colour on light ones.-->
+            <!--ThListBg is a real, separate theme key from ThBg, not just a duplicate-->
             <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*,Auto" Background="{DynamicResource ThListBg}">
                 <TextBlock Grid.Row="0" Text="OPEN FILES" FontSize="11" FontWeight="SemiBold"
                            Opacity="0.6" Margin="4,8,4,4" />
 
-                <!--filter is a separate, always-live text filter over the file list
-                    itself; distinct from the field-search box (SearchBox, in the
-                    editor column), which only searches within one open file-->
+                <!--separate from the field-search box below, which only searches the currently open file(s)-->
                 <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Margin="4,0,4,6">
                     <TextBox x:Name="FileFilterBox" Width="130" PlaceholderText="Filter files…"
                              Text="{Binding FileFilterText, Mode=TwoWay}" />
@@ -170,8 +122,6 @@
                     </ComboBox>
                 </StackPanel>
 
-                <!--Ctrl+A/Delete attached to the list itself, not the window, so
-                    they don't fight with text selection/deletion in a field-->
                 <ListBox x:Name="FileList" Grid.Row="2"
                          ItemsSource="{Binding DisplayedFiles}"
                          SelectionMode="Multiple"
@@ -191,12 +141,7 @@
                             <MenuItem Header="Open Containing Folder" Click="OnOpenContainingFolder" />
                         </ContextMenu>
                     </ListBox.ContextMenu>
-                    <!--closes the "sidebar ListBoxItems report their accessible Name
-                        as ComicFileViewModel's ToString()" gap flagged since slice 1
-                        (CLAUDE.md) - AutomationProperties.Name has to be set on the
-                        generated ListBoxItem container itself, not on anything inside
-                        the DataTemplate (that only names the inner element UIA sees as
-                        a separate node) - confirmed by testing both ways live.-->
+                    <!--AutomationProperties.Name must be set on the generated ListBoxItem container, not the DataTemplate content-->
                     <ListBox.Styles>
                         <Style Selector="ListBoxItem" x:DataType="vm:ComicFileViewModel">
                             <Setter Property="AutomationProperties.Name" Value="{Binding FileName}" />
@@ -217,11 +162,6 @@
                                     <TextBlock Text="{Binding Subtitle}" FontSize="12" Opacity="{Binding SubtitleOpacity}"
                                                TextTrimming="CharacterEllipsis" />
                                 </StackPanel>
-                                <!--per-row close (slice 26, not a winui feature - a new
-                                    convenience so closing one file doesn't need File menu ->
-                                    Close or selecting it first. Reuses RemoveWithConfirmAsync
-                                    with a single-file list, same unsaved-changes guard as
-                                    every other close/remove path in this port.-->
                                 <Button Grid.Column="2" Classes="rowclose" Content="✕"
                                         VerticalAlignment="Top" Click="OnCloseFileRow"
                                         ToolTip.Tip="Close this file" />
@@ -230,9 +170,6 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
 
-                <!--batch selection summary (slice 23) - previously missing entirely;
-                    MainViewModel.BatchHeader/BatchFileNames were already fully wired
-                    and populated, just never surfaced anywhere in this port-->
                 <Border Grid.Row="3" Background="{DynamicResource ThBatchBg}"
                         BorderBrush="{DynamicResource ThSep}" BorderThickness="0,1,0,0"
                         IsVisible="{Binding IsBatchMode}">
@@ -258,9 +195,6 @@
 
             <!--editor: one shared field list, filtered by ActiveTab-->
             <Grid Grid.Column="2" RowDefinitions="Auto,Auto,Auto,*">
-                <!--cover + filename banner (slice 23) - single-file only, previously
-                    missing entirely; matches the winui original's own placement
-                    (top of the editor column, above search/tabs/fields)-->
                 <Border Grid.Row="0" Padding="16,12" BorderBrush="{DynamicResource ThSep}"
                         BorderThickness="0,0,0,1" IsVisible="{Binding IsSingleFileMode}">
                     <StackPanel Orientation="Horizontal" Spacing="12">
@@ -278,45 +212,15 @@
                     </StackPanel>
                 </Border>
 
-                <!--filters VisibleFields by label/tag text within the currently open
-                    file; distinct from FileFilterBox, which filters the sidebar's own
-                    file list - disabled in batch mode (IsSearchEnabled), same as the
-                    winui original. Padding/Height explicit and tighter than the
-                    FluentTheme TextBox default - this is touched rarely, so it
-                    shouldn't claim as much vertical weight as a field the user
-                    edits constantly.-->
+                <!--filters VisibleFields within the current file; distinct from FileFilterBox, which filters the sidebar list-->
                 <TextBox Grid.Row="1" x:Name="SearchBox" Margin="16,8,16,0" Padding="10,4" Height="32"
                          PlaceholderText="Search fields…"
                          Text="{Binding SearchText, Mode=TwoWay}"
                          IsEnabled="{Binding IsSearchEnabled}" />
 
-                <!--tab strip (slice 23/24) - moved here from a global row below the
-                    toolbar, which was wrong: tabs filter this file's fields and
-                    only make sense once a file is selected, matching the winui
-                    original's TabView, which lives inside this same editor
-                    column. A real TabControl now, not a row of plain Buttons -
-                    the buttons had no selected-state styling at all, so there
-                    was no visual way to tell which tab was active. Height fixed
-                    at 44 (matching the winui TabView's own Height="44") so the
-                    control's normally-expanding content-presenter area (empty
-                    here - the shared field list below is the real content,
-                    same architecture as the winui original) doesn't push the
-                    field list down or fight the Grid's own row sizing.-->
-                <!--left-aligned, auto-width tabs rather than stretching evenly
-                    across the width like the winui original's TabView - tried a
-                    UniformGrid ItemsPanel to match that, but with 5 tabs of
-                    uneven label length ("Basic Info" vs "Publication") equal-
-                    width columns clipped the longer labels ("Publicatio...").
-                    Correct tab identity/selected-state styling (the actual ask)
-                    matters more than exact width parity, so left as auto-width.-->
-                <!--FontSize="14" on the TabControl itself only fixed the unselected
-                    tabs - FluentTheme's TabItem:selected style sets its own FontSize
-                    (a style-selector match beats plain inheritance in Avalonia's
-                    property precedence), so the active tab stayed oversized. The
-                    explicit TabItem/TabItem:selected style rules below target the
-                    items directly, which does win over the theme's own selected-state
-                    style (not related to EditorFontSize, which only reaches FieldList
-                    below, a sibling, not an ancestor, of this)-->
+                <!--auto-width tabs, not stretching evenly: a UniformGrid ItemsPanel clipped longer labels at 5 uneven widths.
+                    TabItem:selected sets its own FontSize in FluentTheme (a style beats inheritance), so both states below need
+                    an explicit override, not just one on the TabControl itself.-->
                 <TabControl Grid.Row="2" x:Name="EditorTabs" Height="44" Margin="16,10,16,0" FontSize="14"
                             SelectionChanged="OnEditorTabsSelectionChanged"
                             IsVisible="{Binding HasSelection}">
@@ -336,10 +240,6 @@
                 </TabControl>
 
                 <ScrollViewer Grid.Row="3" Padding="16,10">
-                    <!--FontSize/FontFamily bound here (not wired until slice 5, when
-                        the Settings dialog first made this setting visibly testable) -
-                        inherits down to every field row's TextBox/TextBlock built in
-                        BuildFieldTemplateSelector below, same as the winui original-->
                     <ItemsControl x:Name="FieldList" ItemsSource="{Binding VisibleFields}"
                                   FontSize="{Binding EditorFontSize}" FontFamily="{Binding EditorFontFamily}"
                                   MaxWidth="{Binding EditorFieldsMaxWidth}" HorizontalAlignment="Left" />
@@ -349,11 +249,7 @@
             </Grid>
         </Grid>
 
-        <!--grid view (slice 2): dirty-indicator column is fixed/declared here like
-            the winui original; the rest come from AppSettings.GridColumns, built
-            in code (RebuildGridColumns). Right-click context menu (Edit/Choose
-            Columns…) added in a later slice, mirroring OnGridRightTapped/
-            GridContextFlyout_Opening from the winui original-->
+        <!--dirty-indicator column is fixed; the rest come from AppSettings.GridColumns, built in RebuildGridColumns-->
         <DataGrid Grid.Row="2" x:Name="ComicsGrid"
                   ItemsSource="{Binding DisplayedFiles}"
                   IsReadOnly="True"
@@ -381,17 +277,12 @@
             </DataGrid.ContextMenu>
         </DataGrid>
 
-        <!--status bar (slice 23): previously StatusText sat inline in the
-            toolbar row; matches the winui original's dedicated full-width
-            row at the bottom of the window instead-->
         <Border Grid.Row="3" Background="{DynamicResource ThBg2}"
                 BorderBrush="{DynamicResource ThSep}" BorderThickness="0,1,0,0">
             <TextBlock Text="{Binding StatusText}" Margin="12,6" Opacity="0.7" />
         </Border>
 
-        <!--drag-and-drop overlay (slice 11): shown only while a file is being
-            dragged over the window; IsHitTestVisible="False" so drag events
-            keep landing on RootGrid itself rather than being swallowed here-->
+        <!--IsHitTestVisible=False so drag events keep landing on RootGrid, not this overlay-->
         <Border x:Name="DropOverlay" Grid.Row="0" Grid.RowSpan="4"
                 Background="#B0000000" BorderBrush="DodgerBlue" BorderThickness="3"
                 IsVisible="False" IsHitTestVisible="False">

@@ -11,13 +11,7 @@ using cbzLab.ViewModels;
 
 namespace cbzLab.Avalonia.Dialogs;
 
-/// <summary>
-/// Avalonia's replacement for AppDialogs.ReviewComicVineMatchAsync (cbzLab/
-/// Dialogs/AppDialogs.cs line 678). Only shows fields where ComicVine's
-/// proposed value actually differs from the file's current value, same as
-/// the winui original - current/proposed shown side by side so the choice is
-/// an informed comparison, not a blind checklist.
-/// </summary>
+//only shows fields where ComicVine's proposed value differs from the current one
 public partial class ReviewComicVineMatchDialog : Window
 {
     private readonly List<(string Tag, CheckBox Box)> _checks = new();
@@ -72,11 +66,7 @@ public partial class ReviewComicVineMatchDialog : Window
         Close();
     }
 
-    /// <summary>
-    /// Returns the tags to actually apply, or null if nothing differs (no
-    /// dialog shown at all - matches the winui original's "Nothing to apply"
-    /// short-circuit) or the user cancels.
-    /// </summary>
+    //returns tags to apply, or null if nothing differs or the user cancels
     public static async Task<List<string>?> ShowAsync(
         Window owner, ComicFileViewModel file, Dictionary<string, string> proposedValues, SchemaService schema)
     {

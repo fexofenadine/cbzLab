@@ -7,18 +7,9 @@ using cbzLab.Services;
 
 namespace cbzLab.Avalonia.Dialogs;
 
-/// <summary>
-/// Avalonia's replacement for AppDialogs.ChooseGridColumnsAsync (cbzLab/Dialogs/
-/// AppDialogs.cs line 307) - see MessageDialog for why this is its own Window
-/// rather than a ContentDialog-style static method. One CheckBox per schema
-/// field, built in code (the field set is only known at runtime), ordered the
-/// same way as the winui original.
-/// </summary>
 public partial class ChooseColumnsDialog : Window
 {
-    //same priority order as the winui original's GridColumnPriorityOrder -
-    //most useful-at-a-glance fields first, everything else falls back to
-    //schema declaration order (Array.IndexOf returns -1 -> int.MaxValue)
+    //most useful-at-a-glance fields first; unlisted fields fall back to schema order
     private static readonly string[] GridColumnPriorityOrder =
     {
         "Series", "Number", "Title", "Volume",
