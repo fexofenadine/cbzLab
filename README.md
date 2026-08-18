@@ -10,12 +10,14 @@ self-contained executable — no MSIX, no installer, no store.
 
 ---
 
-## 1. Environment setup
+## Building from source
+
+### Environment setup
 
 You need two things: the **.NET 8 SDK** and **Visual Studio 2022** with the right
 workload. Total download is a few GB; allow half an hour on a fresh machine.
 
-### 1.1 Install Visual Studio 2022
+#### Install Visual Studio 2022
 
 1. Download **Visual Studio 2022 Community** (free) from
    <https://visualstudio.microsoft.com/downloads/>. Version 17.10 or later.
@@ -26,18 +28,18 @@ workload. Total download is a few GB; allow half an hour on a fresh machine.
      **.NET desktop development**, then switch to the **Individual components** tab
      and add **Windows App SDK C# Templates** and a **Windows 11 SDK** (10.0.22621
      or newer).
-3. Let it install. The .NET 8 SDK comes bundled with current VS 2022 releases — you
-   can confirm afterwards by opening a terminal and running `dotnet --list-sdks`;
-   you want an `8.0.x` entry. If it's missing, grab it from
+3. Let it install. The .NET 8 SDK comes bundled with current VS 2022 releases —
+   confirm afterwards by opening a terminal and running `dotnet --list-sdks`; you
+   want an `8.0.x` entry. If it's missing, grab it from
    <https://dotnet.microsoft.com/download/dotnet/8.0>.
 
-### 1.2 First-time Visual Studio orientation
+#### First-time Visual Studio orientation
 
-Since you're new to VS but not to coding, the short version:
+If Visual Studio itself is new to you:
 
-- **Solution Explorer** (right-hand panel) is your file tree. The `.sln` is the
-  workspace; the `.csproj` is the project (roughly equivalent to a `pyproject.toml`
-  plus build config in one).
+- **Solution Explorer** (right-hand panel) is the file tree. The `.sln` is the
+  workspace; the `.csproj` is the project (roughly a `pyproject.toml` plus build
+  config in one).
 - The toolbar dropdowns near the Run button select **configuration** (Debug/Release),
   **platform** (x64/ARM64) and the **launch profile**.
 - **F5** = build and run with debugger. **Ctrl+F5** = run without debugger.
@@ -46,31 +48,20 @@ Since you're new to VS but not to coding, the short version:
   first build. If anything looks unresolved, right-click the solution →
   **Restore NuGet Packages**.
 
-### 1.3 Opening the project
+#### Opening the project
 
-1. Unzip the source anywhere sensible (avoid deeply nested paths; Windows path
-   length limits are less painful than they used to be but still exist).
+1. Unzip the source anywhere sensible (avoid deeply nested paths).
 2. Double-click `cbzLab.sln`, or in VS use **File → Open → Project/Solution**.
 3. In the toolbar, set platform to **x64** (or **ARM64** on an ARM machine) and the
    launch profile to **cbzLab (Unpackaged)**.
 4. Press **F5**. First build takes a while (NuGet restore + XAML compile); after
    that it's quick.
 
----
+### Building a distributable executable
 
-## 2. Building a distributable executable
-
-Debug builds run from `bin\x64\Debug\...` and are fine for development. For a
-build you can copy to another machine:
-
-### From Visual Studio
-
-Right-click the **cbzLab** project → **Publish** is overkill for unpackaged apps;
-the simpler route is the command line below.
-
-### From the command line (recommended)
-
-Open a terminal in the solution folder and run:
+Debug builds run from `bin\x64\Debug\...` and are fine for development. For a build
+you can copy to another machine, use the command line rather than Visual Studio's
+Publish dialog (overkill for an unpackaged app):
 
 ```powershell
 dotnet publish cbzLab\cbzLab.csproj -c Release -r win-x64 --self-contained true
@@ -83,31 +74,46 @@ dotnet publish cbzLab\cbzLab.csproj -c Release -r win-arm64 --self-contained tru
 ```
 
 The output lands in `cbzLab\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\publish\`
-(adjust for platform). Managed dependencies (including SharpCompress) are
-collapsed into `cbzLab.exe` itself via `PublishSingleFile`. A number of
-native Windows App SDK files (`Microsoft.ui.xaml.dll`, `DWriteCore.dll`, the
-WindowsAppRuntime bootstrapper, `resources.pri`) still sit alongside it —
-the OS loads these directly rather than through .NET, so they can't be
-folded into the exe; this is true of every unpackaged WinUI 3 app, not
-something specific to this project. `SatelliteResourceLanguages` is set to
-`en` so the dozens of per-culture localization folders .NET and WindowsAppSDK
-ship by default aren't copied — this app has no localized UI of its own.
-Copy the whole folder wherever you like and run `cbzLab.exe`; nothing needs
-installing on the target machine.
+(adjust for platform). Managed dependencies are collapsed into `cbzLab.exe` via
+`PublishSingleFile`. A handful of native Windows App SDK files
+(`Microsoft.ui.xaml.dll`, `DWriteCore.dll`, the WindowsAppRuntime bootstrapper,
+`resources.pri`) still sit alongside it — the OS loads these directly rather than
+through .NET, so they can't be folded into the exe. This is true of any unpackaged
+WinUI 3 app, not specific to this project. Copy the whole folder wherever you like
+and run `cbzLab.exe`; nothing needs installing on the target machine.
 
-An earlier version of this project reverted `PublishSingleFile`, having
-initially (and incorrectly) blamed it for a launch crash. The crash turned
-out to be an unrelated WindowsAppSDK/OS version mismatch — see the
-changelog around 0.1.23–0.1.27 for the full story if you're curious.
-`PublishSingleFile` is officially supported for unpackaged, self-contained
-WinUI 3 apps as of WindowsAppSDK 1.5+, which this project now exceeds.
+### Project layout
 
-Note: the publish folder must stay together — the exe depends on every
-native file beside it.
+```
+cbzLab.sln
+cbzLab/
+  cbzLab.csproj            project config: unpackaged WinUI 3, self-contained
+  app.manifest             dpi awareness
+  App.xaml / App.xaml.cs   service wiring, theme bootstrap, cli handling
+  MainWindow.xaml / .cs    full ui + orchestration of i/o and dialogs
+  Assets/                  icons, bundled schema.json, themes (seeded to %APPDATA%)
+  Models/                  schema, settings and validation data classes
+  Services/                settings, schema, themes, xml, archives, validation
+  ViewModels/              main/file/field view models (data flow, dirty tracking)
+  Dialogs/                 settings, multi-save, progress, validation, about
+  Converters/              xaml value converters and the field template selector
+```
+
+A few things worth knowing before changing this code:
+
+- Archive writes always go temp-file-then-atomic-replace. Don't "optimise" that away.
+- The theme system mutates a fixed set of `SolidColorBrush` instances that both the
+  app's own styles and a set of overridden system control resources point at. Adding
+  a themed control usually just means binding to an existing `Th*` brush.
+- `ComicInfoXml.Build` layers edits on top of the original raw XML bytes so complex
+  elements (`<Pages>`) survive untouched. Parsing and writing are DTD-disabled —
+  archive contents are untrusted input.
+- The five editor tabs are filters over one shared field list. Tab assignment is
+  the `TabMap` in `SchemaService`; unknown fields land on Extras.
 
 ---
 
-## 3. Using cbzLab
+## Using cbzLab
 
 ### Opening files
 
@@ -316,35 +322,3 @@ To make your own theme, copy one of the files in `themes\` (e.g.
 change the colour values. Keys you omit fall back to Solarized Dark. Themes are
 picked up at launch and apply instantly when selected, no restart needed. Keys
 beginning with `_` are treated as comments.
-
----
-
-## 4. Project layout
-
-```
-cbzLab.sln
-cbzLab/
-  cbzLab.csproj            project config: unpackaged WinUI 3, self-contained
-  app.manifest             dpi awareness
-  App.xaml / App.xaml.cs   service wiring, theme bootstrap, cli handling
-  MainWindow.xaml / .cs    full ui + orchestration of i/o and dialogs
-  Assets/                  icons, bundled schema.json, themes (seeded to %APPDATA%)
-  Models/                  schema, settings and validation data classes
-  Services/                settings, schema, themes, xml, archives, validation
-  ViewModels/              main/file/field view models (data flow, dirty tracking)
-  Dialogs/                 settings, multi-save, progress, validation, about
-  Converters/              xaml value converters and the field template selector
-```
-
-Design notes for future maintenance:
-
-- Archive writes always go temp-file-then-atomic-replace. Don't "optimise" that away.
-- The theme system works by mutating a fixed set of `SolidColorBrush` instances
-  that both the app's own styles and a set of overridden system control resources
-  point at. Adding a themed control usually just means binding to an existing
-  `Th*` brush.
-- `ComicInfoXml.Build` layers edits on top of the original raw XML bytes so
-  complex elements (`<Pages>`) survive untouched. Parsing and writing are
-  DTD-disabled — archive contents are untrusted input.
-- The five editor tabs are filters over one shared field list. Tab assignment is
-  the `TabMap` in `SchemaService`; unknown fields land on Extras.
