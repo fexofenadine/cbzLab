@@ -1,4 +1,11 @@
+<img src="../cbzLab.Avalonia/Assets/logo.png" width="120" alt="cbzLab logo">
+
 # Using cbzLab
+
+> Written for the archived WinUI 3 version (`cbzLab/`, see
+> [`cbzLab/ARCHIVED.md`](../cbzLab/ARCHIVED.md)). The workflow below is the same
+> in the current Avalonia version (`cbzLab.Avalonia/`); menu wording matches
+> unless noted elsewhere in this guide.
 
 ## Opening files
 

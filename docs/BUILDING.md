@@ -1,4 +1,13 @@
+<img src="../cbzLab.Avalonia/Assets/logo.png" width="120" alt="cbzLab logo">
+
 # Building cbzLab from source
+
+> Written for the archived WinUI 3 version (`cbzLab/`, see
+> [`cbzLab/ARCHIVED.md`](../cbzLab/ARCHIVED.md)) — Visual Studio, the WinUI
+> workload, and the `cbzLab.csproj` commands below are all specific to that
+> project. To build the current Avalonia version instead, see the root
+> [`README.md`](../README.md)'s Quick start section — it only needs the .NET 8
+> SDK, no Visual Studio or platform-specific workload required.
 
 ## Environment setup
 

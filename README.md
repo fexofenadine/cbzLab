@@ -1,4 +1,8 @@
+<img src="cbzLab.Avalonia/Assets/logo.png" width="120" alt="cbzLab logo">
+
 # cbzLab
+
+[![build](https://github.com/fexofenadine/cbzLab/actions/workflows/build.yml/badge.svg)](https://github.com/fexofenadine/cbzLab/actions/workflows/build.yml)
 
 A metadata editor for comic book archives. cbzLab opens CBZ and CBR files, lets you
 view and edit the `ComicInfo.xml` metadata inside them (single files or whole
