@@ -1,0 +1,76 @@
+name: release
+
+#triggered by pushing a version tag (e.g. `git tag v2.0.1 && git push origin v2.0.1`),
+#not by every push to a branch - deliberate: a release is a cut point you choose,
+#not something that should fire on every commit. Bump cbzLab.Avalonia.csproj's
+#<Version> and MainWindow.axaml.cs's DisplayVersion together first, commit, then tag.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Derive version from tag (strips the leading "v")
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      #fails the release rather than shipping a build that doesn't pass its own suite -
+      #self-contained rather than relying on the separate build workflow, since a tag
+      #push triggers both workflows independently with no ordering guarantee between them
+      - name: Restore and test
+        run: |
+          dotnet restore cbzLab.sln
+          dotnet build cbzLab.sln -c Release --no-restore
+          dotnet test cbzLab.Avalonia.Tests/cbzLab.Avalonia.Tests.csproj -c Release --no-build
+
+      #self-contained publish doesn't need the target OS - both run fine from this
+      #ubuntu runner, and doing so here means the linux-x64 binary gets a real,
+      #natively-set executable bit rather than one that has to be forced afterward
+      - name: Publish win-x64
+        run: >
+          dotnet publish cbzLab.Avalonia/cbzLab.Avalonia.csproj
+          -c Release -r win-x64 --self-contained true
+          -o publish/win-x64
+
+      - name: Publish linux-x64
+        run: >
+          dotnet publish cbzLab.Avalonia/cbzLab.Avalonia.csproj
+          -c Release -r linux-x64 --self-contained true
+          -o publish/linux-x64
+
+      - name: Make the Linux binary executable
+        run: chmod +x publish/linux-x64/cbzLab.Avalonia
+
+      - name: Package Windows build
+        run: |
+          cd publish/win-x64
+          zip -r "../../cbzLab-${{ steps.version.outputs.version }}-win-x64.zip" .
+
+      - name: Package Linux build
+        run: |
+          cd publish/linux-x64
+          tar -czf "../../cbzLab-${{ steps.version.outputs.version }}-linux-x64.tar.gz" .
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            "cbzLab-${{ steps.version.outputs.version }}-win-x64.zip" \
+            "cbzLab-${{ steps.version.outputs.version }}-linux-x64.tar.gz" \
+            --title "cbzLab ${{ steps.version.outputs.version }}" \
+            --generate-notes
