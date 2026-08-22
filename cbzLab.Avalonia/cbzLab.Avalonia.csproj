@@ -64,7 +64,7 @@
         core packages at 12.1.1) - add back once a compatible version ships-->
     <!--matches the version pinned in cbzLab.csproj; needed by the ported
         ArchiveService.cs for cbr (rar) reading-->
-    <PackageReference Include="SharpCompress" Version="0.48.0" />
+    <PackageReference Include="SharpCompress" Version="0.50.4" />
     <!--grid view (slice 2): one patch ahead of the 12.1.1 core packages above -
         same avaloniaui-owned package family, no lower version published-->
     <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.1.2" />
