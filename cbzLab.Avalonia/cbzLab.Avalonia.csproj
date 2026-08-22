@@ -21,14 +21,11 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-    <!--2.0.0 Beta 1.0: first tracked beta of the avalonia port. Bump the beta
-        number (1.0 -> 1.1, 2.0, ...) after each significant improvement pass;
-        stays 2.0.0-beta until parity with the winui original is reached, at
-        which point this becomes the real 2.0.0 and the winui project retires.
-        AssemblyVersion/FileVersion must be strictly numeric (no "beta" text
-        allowed there) - MainWindow.axaml.cs's DisplayVersion constant carries
-        the human-readable "2.0.0 Beta 1.0" string shown in the title bar/About.-->
-    <Version>2.0.0-beta1.1</Version>
+    <!--2.0.0: parity with the winui original reached, beta tag dropped, winui project
+        archived (see cbzLab/ARCHIVED.md). This is now the primary and only actively
+        developed version. MainWindow.axaml.cs's DisplayVersion constant carries the
+        human-readable "2.0.0" string shown in the title bar/About.-->
+    <Version>2.0.0</Version>
     <AssemblyVersion>2.0.0.0</AssemblyVersion>
     <FileVersion>2.0.0.0</FileVersion>
   </PropertyGroup>

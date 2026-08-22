@@ -15,8 +15,10 @@ public partial class SettingsDialog : Window
         { "Segoe UI", "Segoe UI Variable", "Consolas", "Cascadia Code", "Georgia", "Comic Sans MS" };
 
     private ComicVineService? _comicVine;
+    private ComicVineCacheService? _comicVineCache;
     private ThemeService? _theme;
     private SettingsService? _settings;
+    private LogService? _log;
     private bool _saved;
     private bool _resetToDefaults;
 
@@ -111,6 +113,93 @@ public partial class SettingsDialog : Window
     private void OnToggleComicVineEnabled(object? sender, RoutedEventArgs e) =>
         ComicVineRevealPanel.IsVisible = ComicVineEnabledCheck.IsChecked == true;
 
+    private static void OpenInFileManager(string dir, LogService? log)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
+        }
+        catch (System.Exception ex)
+        {
+            log?.Warning($"Could not open folder '{dir}': {ex.Message}");
+        }
+    }
+
+    private async void OnClearComicVineCache(object? sender, RoutedEventArgs e)
+    {
+        var confirmed = await ConfirmDialog.ShowAsync(this, "Clear ComicVine cache",
+            "This clears every cached search result, issue list, and issue detail ComicVine has returned so far. "
+            + "Future lookups will hit the network again instead of the cache. This can't be undone.", "Clear");
+        if (!confirmed)
+            return;
+
+        _comicVineCache!.ClearAll();
+        CacheStatus.Text = "ComicVine cache cleared.";
+    }
+
+    private void OnOpenConfigFolder(object? sender, RoutedEventArgs e) => OpenInFileManager(_settings!.ConfigDir, _log);
+    private void OnOpenThemesFolder(object? sender, RoutedEventArgs e) => OpenInFileManager(_settings!.ThemesDir, _log);
+    private void OnOpenLogsFolder(object? sender, RoutedEventArgs e) => OpenInFileManager(_log!.LogDir, _log);
+
+    private async void OnExportBackup(object? sender, RoutedEventArgs e)
+    {
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel is null)
+            return;
+
+        var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Export settings & customizations",
+            SuggestedFileName = $"{System.DateTime.Now:yyyyMMdd}_backup.cbzlab",
+            FileTypeChoices = new List<FilePickerFileType> { new("cbzLab Backup") { Patterns = new[] { "*.cbzlab" } } },
+        });
+        if (file is null)
+            return;
+
+        try
+        {
+            _settings!.ExportBackup(file.Path.LocalPath);
+            BackupStatus.Text = $"Exported to {file.Path.LocalPath}";
+        }
+        catch (System.Exception ex)
+        {
+            BackupStatus.Text = $"Export failed: {ex.Message}";
+        }
+    }
+
+    private async void OnImportBackup(object? sender, RoutedEventArgs e)
+    {
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel is null)
+            return;
+
+        var picked = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Import settings & customizations",
+            AllowMultiple = false,
+            FileTypeFilter = new List<FilePickerFileType> { new("cbzLab Backup") { Patterns = new[] { "*.cbzlab" } } },
+        });
+        if (picked.Count == 0)
+            return;
+
+        var confirmed = await ConfirmDialog.ShowAsync(this, "Import settings",
+            "This overwrites your current preferences, theme customizations, and cached ComicVine/recent-value "
+            + "history with the contents of this backup. Open files aren't touched. This can't be undone.", "Import");
+        if (!confirmed)
+            return;
+
+        try
+        {
+            _settings!.ImportBackup(picked[0].Path.LocalPath);
+            Populate(new AppSettingsSnapshot(_settings.Settings));
+            BackupStatus.Text = "Imported - restart cbzLab for theme and schema changes to fully take effect.";
+        }
+        catch (System.Exception ex)
+        {
+            BackupStatus.Text = $"Import failed: {ex.Message}";
+        }
+    }
+
     private void OnOpenGetKeyLink(object? sender, RoutedEventArgs e)
     {
         try
@@ -151,9 +240,13 @@ public partial class SettingsDialog : Window
 
     //ResetToDefaults writes every field directly, bypassing the writeback below
     public static async Task<(bool Saved, bool ResetToDefaults)> ShowAsync(
-        Window owner, SettingsService settings, ArchiveService archive, ComicVineService comicVine, ThemeService theme)
+        Window owner, SettingsService settings, ArchiveService archive, ComicVineService comicVine,
+        ComicVineCacheService comicVineCache, ThemeService theme, LogService log)
     {
-        var dlg = new SettingsDialog { _comicVine = comicVine, _theme = theme, _settings = settings };
+        var dlg = new SettingsDialog
+        {
+            _comicVine = comicVine, _comicVineCache = comicVineCache, _theme = theme, _settings = settings, _log = log,
+        };
         var s = settings.Settings;
         dlg.Populate(new AppSettingsSnapshot(s));
 

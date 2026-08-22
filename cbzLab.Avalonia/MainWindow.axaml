@@ -3,7 +3,7 @@
         xmlns:vm="using:cbzLab.ViewModels"
         x:Class="cbzLab.Avalonia.MainWindow"
         x:DataType="vm:MainViewModel"
-        Title="cbzLab 2.0.0 Beta 1.1"
+        Title="cbzLab 2.0.0"
         Width="900" Height="640">
 
     <Window.Styles>
@@ -51,6 +51,7 @@
                 <MenuItem Header="Remove from List" Click="OnRemove" />
                 <MenuItem Header="Close" Click="OnCloseFile" HotKey="Ctrl+W" />
                 <MenuItem Header="Close All" Click="OnCloseAll" />
+                <MenuItem Header="Reopen Last Closed File" Click="OnReopenLastClosed" HotKey="Ctrl+Shift+T" />
                 <Separator />
                 <MenuItem Header="Quit" Click="OnQuit" HotKey="Ctrl+Q" />
             </MenuItem>
@@ -76,10 +77,15 @@
                 <MenuItem Header="Copy ComicInfo.xml" Click="OnCopyXml" />
                 <MenuItem Header="Paste ComicInfo.xml" Click="OnPasteXml" />
                 <Separator />
+                <MenuItem Header="Find &amp; Replace…" Click="OnFindReplace" />
+                <MenuItem Header="Validate All Open Files…" Click="OnValidateAll" />
+                <Separator />
                 <MenuItem Header="Customize Toolbar…" Click="OnCustomizeToolbar" />
                 <MenuItem Header="Settings…" Click="OnSettings" />
             </MenuItem>
             <MenuItem Header="_Help">
+                <MenuItem Header="Check for Updates…" Click="OnCheckForUpdates" />
+                <Separator />
                 <MenuItem Header="About cbzLab" Click="OnAbout" />
             </MenuItem>
         </Menu>
@@ -249,13 +255,14 @@
             </Grid>
         </Grid>
 
-        <!--dirty-indicator column is fixed; the rest come from AppSettings.GridColumns, built in RebuildGridColumns-->
+        <!--dirty-indicator/Size/Modified columns are fixed (see FixedGridColumnCount); the rest come from AppSettings.GridColumns, built in RebuildGridColumns-->
         <DataGrid Grid.Row="2" x:Name="ComicsGrid"
                   ItemsSource="{Binding DisplayedFiles}"
                   IsReadOnly="True"
                   AutoGenerateColumns="False"
                   IsVisible="{Binding IsGridViewActive}"
                   DoubleTapped="OnGridDoubleTapped"
+                  ContextRequested="OnGridContextRequested"
                   Margin="16,10,16,16">
             <DataGrid.Columns>
                 <DataGridTemplateColumn Header="" Width="32" CanUserSort="False">
@@ -267,6 +274,8 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Size" Binding="{Binding FileSizeDisplay}" />
+                <DataGridTextColumn Header="Modified" Binding="{Binding ModifiedDisplay}" />
             </DataGrid.Columns>
             <DataGrid.ContextMenu>
                 <ContextMenu Opening="GridContextMenu_Opening">

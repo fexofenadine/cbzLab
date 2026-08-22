@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using cbzLab.Models;
 
 namespace cbzLab.Services;
@@ -72,6 +73,49 @@ public class SettingsService
         Settings = JsonFileStore.Load(SettingsPath, _log, () => new AppSettings());
 
     public void Save() => JsonFileStore.Save(SettingsPath, Settings, _log);
+
+    //zips everything under ConfigDir except logs/ (diagnostic output, not a setting or
+    //customization) - covers preferences, schema_extra.json, recent_values.json,
+    //comicvine_cache.json and the user's own themes/ folder in one file
+    public void ExportBackup(string zipPath)
+    {
+        if (File.Exists(zipPath))
+            File.Delete(zipPath);
+        using var zip = ZipFile.Open(zipPath, ZipArchiveMode.Create);
+        AddDirectoryToZip(zip, ConfigDir, "");
+    }
+
+    private static void AddDirectoryToZip(ZipArchive zip, string dir, string entryPrefix)
+    {
+        foreach (var file in Directory.GetFiles(dir))
+            zip.CreateEntryFromFile(file, entryPrefix + Path.GetFileName(file));
+
+        foreach (var sub in Directory.GetDirectories(dir))
+        {
+            var name = Path.GetFileName(sub);
+            if (name.Equals("logs", StringComparison.OrdinalIgnoreCase))
+                continue;
+            AddDirectoryToZip(zip, sub, entryPrefix + name + "/");
+        }
+    }
+
+    //overwrites matching files under ConfigDir from the zip, then reloads Settings so the
+    //in-memory copy reflects the imported cbzLab_settings.json immediately
+    public void ImportBackup(string zipPath)
+    {
+        using var zip = ZipFile.OpenRead(zipPath);
+        foreach (var entry in zip.Entries)
+        {
+            if (string.IsNullOrEmpty(entry.Name))
+                continue; //directory entry
+            var destPath = Path.Combine(ConfigDir, entry.FullName.Replace('/', Path.DirectorySeparatorChar));
+            var destDir = Path.GetDirectoryName(destPath);
+            if (destDir is not null)
+                Directory.CreateDirectory(destDir);
+            entry.ExtractToFile(destPath, overwrite: true);
+        }
+        Load();
+    }
 
     public void AddRecentFile(string path)
     {

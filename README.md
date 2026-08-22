@@ -1,27 +1,37 @@
 # cbzLab
 
-A native Windows metadata editor for comic book archives. cbzLab opens CBZ and CBR
-files, lets you view and edit the `ComicInfo.xml` metadata inside them (single files
-or whole batches at once), and writes changes back safely without ever touching the
-page images.
+A metadata editor for comic book archives. cbzLab opens CBZ and CBR files, lets you
+view and edit the `ComicInfo.xml` metadata inside them (single files or whole
+batches at once), and writes changes back safely without ever touching the page
+images.
 
-Built with C# / .NET 8 and WinUI 3 (Windows App SDK 1.6), deployed as an unpackaged
-self-contained executable — no MSIX, no installer, no store.
+Built with C# / .NET 8 and **Avalonia UI**, cross-platform (Windows + Linux),
+deployed as an unpackaged self-contained executable — no installer, no store.
+
+> **Note:** an earlier WinUI 3 / Windows-only version of cbzLab lives under
+> `cbzLab/` and is now archived — see [`cbzLab/ARCHIVED.md`](cbzLab/ARCHIVED.md).
+> All active development is in `cbzLab.Avalonia/`.
 
 ## Documentation
 
 - **[Building from source](docs/BUILDING.md)** — environment setup, publishing a
-  distributable executable, and the project layout.
+  distributable executable, and the project layout. (Written for the archived
+  WinUI version — the build commands below are current for `cbzLab.Avalonia`.)
 - **[User guide](docs/USER_GUIDE.md)** — opening files, the editor, batch editing,
-  grid view, saving, ComicVine lookup, settings and themes.
-- **[Changelog](CHANGELOG.md)** — release history.
+  grid view, saving, ComicVine lookup, settings and themes. The workflow is the
+  same in the Avalonia version; menu/dialog wording matches unless noted.
+- **[Changelog](CHANGELOG.md)** — release history for the archived WinUI version.
 
 ## Quick start
 
-Grab a published build, or see [Building from source](docs/BUILDING.md):
+Grab a [published release](../../releases), or build from source:
 
 ```powershell
-dotnet publish cbzLab\cbzLab.csproj -c Release -r win-x64 --self-contained true
+# Windows
+dotnet publish cbzLab.Avalonia\cbzLab.Avalonia.csproj -c Release -r win-x64 --self-contained true
+
+# Linux
+dotnet publish cbzLab.Avalonia/cbzLab.Avalonia.csproj -c Release -r linux-x64 --self-contained true
 ```
 
-Then run `cbzLab.exe` — nothing needs installing.
+Then run the published `cbzLab.Avalonia` executable — nothing needs installing.

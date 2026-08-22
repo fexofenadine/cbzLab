@@ -72,6 +72,17 @@ public class ComicVineCacheService
         Save();
     }
 
+    //---------------------------------------------------------------- clearing
+
+    public void ClearAll()
+    {
+        _data.SeriesToVolume.Clear();
+        _data.SearchResults.Clear();
+        _data.VolumeIssues.Clear();
+        _data.IssueDetails.Clear();
+        Save();
+    }
+
     //---------------------------------------------------------------- persistence
 
     private static string NormalizeKey(string s) => s.Trim().ToLowerInvariant();

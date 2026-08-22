@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -15,6 +17,8 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
 using cbzLab.Avalonia.Converters;
 using cbzLab.Avalonia.Dialogs;
 using cbzLab.Models;
@@ -25,8 +29,8 @@ namespace cbzLab.Avalonia;
 
 public partial class MainWindow : Window
 {
-    //bump the beta number after each significant pass; see cbzLab.Avalonia.csproj's Version
-    public const string DisplayVersion = "2.0.0 Beta 1.1";
+    //keep in sync with cbzLab.Avalonia.csproj's Version
+    public const string DisplayVersion = "2.0.0";
 
     private readonly LogService _log;
     private readonly SettingsService _settings;
@@ -37,10 +41,16 @@ public partial class MainWindow : Window
     private readonly RecentValuesService _recentValues;
     private readonly ComicVineCacheService _comicVineCache;
     private readonly ComicVineService _comicVine;
+    private readonly AutosaveService _autosave;
+    private readonly DispatcherTimer _autosaveTimer;
     private readonly MainViewModel _viewModel;
     private readonly FieldValueConverter _fieldValueConverter = new();
     private ComicFileViewModel? _lastRightTappedFile;
     private bool _forceClose;
+
+    //most-recently-closed first; capped in PushRecentlyClosed, not tied to RecentFiles
+    //(which tracks opens and keeps an entry even while the file is still open)
+    private readonly List<string> _recentlyClosedPaths = new();
 
     public MainWindow()
     {
@@ -58,7 +68,15 @@ public partial class MainWindow : Window
         _recentValues = new RecentValuesService(_settings, _log);
         _comicVineCache = new ComicVineCacheService(_settings, _log);
         _comicVine = new ComicVineService(_settings, _comicVineCache, _log);
+        _autosave = new AutosaveService(_settings, _log);
         _viewModel = new MainViewModel(_schema, _settings, _validation, _recentValues);
+
+        RestoreWindowGeometry();
+        Opened += OnMainWindowOpened;
+
+        _autosaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
+        _autosaveTimer.Tick += (_, _) => SnapshotDirtyFiles();
+        _autosaveTimer.Start();
 
         DataContext = _viewModel;
         FieldList.ItemTemplate = BuildFieldTemplateSelector();
@@ -82,6 +100,80 @@ public partial class MainWindow : Window
         _theme.Apply(_settings.Settings.Theme);
         UpdateElementTheme();
         BuildThemeMenu();
+    }
+
+    //loose sanity bounds, not real multi-monitor awareness - same thresholds as the winui original
+    private void RestoreWindowGeometry()
+    {
+        var s = _settings.Settings;
+        var validSize = s.WindowWidth is >= 400 and <= 8000 && s.WindowHeight is >= 300 and <= 8000;
+        if (validSize)
+        {
+            Width = s.WindowWidth;
+            Height = s.WindowHeight;
+        }
+
+        var validPos = s.WindowX != int.MinValue && s.WindowY != int.MinValue
+            && s.WindowX is >= -2000 and <= 8000 && s.WindowY is >= -2000 and <= 8000;
+        if (validPos)
+        {
+            WindowStartupLocation = WindowStartupLocation.Manual;
+            Position = new PixelPoint(s.WindowX, s.WindowY);
+        }
+    }
+
+    //command-line paths, opened once the window is actually shown so dialogs have a valid owner
+    private List<string>? _pendingStartupPaths;
+
+    public void QueueStartupPaths(List<string> paths) => _pendingStartupPaths = paths;
+
+    private async void OnMainWindowOpened(object? sender, EventArgs e)
+    {
+        Opened -= OnMainWindowOpened;
+        if (_pendingStartupPaths is { Count: > 0 } paths)
+        {
+            _pendingStartupPaths = null;
+            await OpenPathsAsync(paths);
+        }
+
+        await OfferAutosaveRecoveryAsync();
+    }
+
+    private void SnapshotDirtyFiles()
+    {
+        foreach (var file in _viewModel.OpenFiles.Where(f => f.IsDirty))
+            _autosave.Save(file.Path, file.CurrentValues);
+    }
+
+    //leftover drafts mean the last session ended uncleanly (crash, force-kill, power loss) -
+    //PersistUiState clears the whole autosave folder on every clean exit, so anything still
+    //here was never cleanly resolved one way or the other
+    private async Task OfferAutosaveRecoveryAsync()
+    {
+        var drafts = _autosave.LoadAll().Where(d => File.Exists(d.OriginalPath)).ToList();
+        if (drafts.Count == 0)
+            return;
+
+        var names = drafts.Select(d => System.IO.Path.GetFileName(d.OriginalPath));
+        var restore = await ConfirmDialog.ShowAsync(this, "Restore unsaved changes",
+            "cbzLab didn't close cleanly last time. Unsaved changes were found for:\n\n"
+            + string.Join("\n", names) + "\n\nRestore them?", "Restore");
+
+        if (restore)
+        {
+            await OpenPathsAsync(drafts.Select(d => d.OriginalPath).ToList());
+            foreach (var draft in drafts)
+            {
+                var file = _viewModel.OpenFiles.FirstOrDefault(
+                    f => string.Equals(f.Path, draft.OriginalPath, StringComparison.OrdinalIgnoreCase));
+                file?.ReplaceCurrentValues(draft.Values);
+            }
+            _viewModel.RefreshEditor();
+            _viewModel.StatusText = $"Restored unsaved changes for {drafts.Count} file(s)";
+        }
+
+        foreach (var draft in drafts)
+            _autosave.Clear(draft.OriginalPath);
     }
 
     private void LoadWindowIcon()
@@ -366,6 +458,7 @@ public partial class MainWindow : Window
             try
             {
                 await Task.Run(() => _archive.Save(file.Path, dest, format, xml));
+                _autosave.Clear(file.Path);
                 file.MarkSaved(xml, dest, format);
                 saved++;
             }
@@ -444,6 +537,7 @@ public partial class MainWindow : Window
         try
         {
             await Task.Run(() => _archive.Save(file.Path, path, format, xml));
+            _autosave.Clear(file.Path);
             file.MarkSaved(xml, path, format);
             _settings.AddRecentFile(path);
             BuildRecentMenu();
@@ -518,7 +612,36 @@ public partial class MainWindow : Window
             if (!ok)
                 return;
         }
+        foreach (var file in files)
+        {
+            PushRecentlyClosed(file.Path);
+            _autosave.Clear(file.Path);
+        }
         _viewModel.RemoveFiles(files);
+    }
+
+    private const int MaxRecentlyClosed = 10;
+
+    private void PushRecentlyClosed(string path)
+    {
+        _recentlyClosedPaths.RemoveAll(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase));
+        _recentlyClosedPaths.Insert(0, path);
+        if (_recentlyClosedPaths.Count > MaxRecentlyClosed)
+            _recentlyClosedPaths.RemoveRange(MaxRecentlyClosed, _recentlyClosedPaths.Count - MaxRecentlyClosed);
+    }
+
+    private async void OnReopenLastClosed(object? sender, RoutedEventArgs e)
+    {
+        while (_recentlyClosedPaths.Count > 0)
+        {
+            var path = _recentlyClosedPaths[0];
+            _recentlyClosedPaths.RemoveAt(0);
+            if (!File.Exists(path))
+                continue;
+            await OpenPathsAsync(new List<string> { path });
+            return;
+        }
+        _viewModel.StatusText = "No recently closed file to reopen.";
     }
 
     //---------------------------------------------------------------- selection / tabs
@@ -879,7 +1002,15 @@ public partial class MainWindow : Window
     private void PersistUiState()
     {
         _settings.Settings.ActiveTab = EditorTabs.SelectedIndex;
+        _settings.Settings.WindowWidth = Width;
+        _settings.Settings.WindowHeight = Height;
+        _settings.Settings.WindowX = Position.X;
+        _settings.Settings.WindowY = Position.Y;
         _settings.Save();
+
+        //everything remaining is either saved or a deliberately-discarded edit by this point -
+        //nothing left over needs offering back as crash recovery on the next launch
+        _autosave.ClearAll();
     }
 
     //one-way binding + explicit toggle: bool?/bool TwoWay binding wasn't reliable
@@ -891,6 +1022,48 @@ public partial class MainWindow : Window
 
     private async void OnAbout(object? sender, RoutedEventArgs e) =>
         await AboutDialog.ShowAsync(this);
+
+    private async void OnCheckForUpdates(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            http.DefaultRequestHeaders.UserAgent.ParseAdd($"cbzLab.Avalonia/{DisplayVersion.Replace(" ", "")}");
+            var response = await http.GetAsync("https://api.github.com/repos/fexofenadine/cbzLab/releases/latest");
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                await MessageDialog.ShowAsync(this, "Check for Updates", "No releases have been published yet.");
+                return;
+            }
+            response.EnsureSuccessStatusCode();
+
+            using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            var tag = doc.RootElement.GetProperty("tag_name").GetString() ?? "";
+            var htmlUrl = doc.RootElement.TryGetProperty("html_url", out var urlProp) ? urlProp.GetString() : null;
+
+            //compares plain numeric versions only - a "-beta"/"-rc" suffix on the tag is stripped
+            //before parsing, so a same-numbered prerelease doesn't falsely read as "up to date"
+            var tagVersionText = tag.TrimStart('v', 'V');
+            var dashIndex = tagVersionText.IndexOf('-');
+            if (dashIndex >= 0)
+                tagVersionText = tagVersionText[..dashIndex];
+
+            var currentVersion = typeof(MainWindow).Assembly.GetName().Version ?? new Version(0, 0, 0);
+            if (Version.TryParse(tagVersionText, out var latestVersion) && latestVersion > currentVersion)
+            {
+                await MessageDialog.ShowAsync(this, "Check for Updates",
+                    $"A newer version is available: {tag} (you have {DisplayVersion}).\n\n{htmlUrl}");
+            }
+            else
+            {
+                await MessageDialog.ShowAsync(this, "Check for Updates", $"You're up to date ({DisplayVersion}).");
+            }
+        }
+        catch (Exception ex)
+        {
+            await MessageDialog.ShowAsync(this, "Check for Updates", $"Couldn't check for updates: {ex.Message}");
+        }
+    }
 
     //---------------------------------------------------------------- tools
 
@@ -994,11 +1167,47 @@ public partial class MainWindow : Window
         _viewModel.StatusText = $"Metadata replaced from clipboard ({values.Count} fields)";
     }
 
+    private async void OnFindReplace(object? sender, RoutedEventArgs e)
+    {
+        if (_viewModel.OpenFiles.Count == 0)
+            return;
+
+        var changed = await FindReplaceDialog.ShowAsync(
+            this, _schema, _viewModel.SelectedFiles.ToList(), _viewModel.OpenFiles.ToList());
+        if (changed == 0)
+            return;
+
+        _viewModel.RefreshEditor();
+        _viewModel.StatusText = $"Replaced text in {changed} file(s)";
+    }
+
+    private async void OnValidateAll(object? sender, RoutedEventArgs e)
+    {
+        if (_viewModel.OpenFiles.Count == 0)
+            return;
+
+        var allErrors = _viewModel.OpenFiles
+            .SelectMany(f => _validation.Validate(f.FileName, f.CurrentValues))
+            .ToList();
+
+        if (allErrors.Count == 0)
+        {
+            await MessageDialog.ShowAsync(this, "Validate All Open Files",
+                $"No problems found across {_viewModel.OpenFiles.Count} open file(s).");
+            return;
+        }
+
+        var summary = string.Join("\n\n", allErrors.Select(err =>
+            $"{err.FileName} — {err.Label}\n{err.Problem}\nFix: {err.Suggestion}"));
+        await MessageDialog.ShowAsync(this, "Validate All Open Files",
+            $"{allErrors.Count} problem(s) across {_viewModel.OpenFiles.Count} open file(s):\n\n{summary}");
+    }
+
     //---------------------------------------------------------------- settings
 
     private async void OnSettings(object? sender, RoutedEventArgs e)
     {
-        var (saved, resetToDefaults) = await SettingsDialog.ShowAsync(this, _settings, _archive, _comicVine, _theme);
+        var (saved, resetToDefaults) = await SettingsDialog.ShowAsync(this, _settings, _archive, _comicVine, _comicVineCache, _theme, _log);
         if (!saved && !resetToDefaults)
             return;
 
@@ -1235,9 +1444,12 @@ public partial class MainWindow : Window
     }
 
     //binds the whole row; resolves each column's value via FieldValueConverter keyed by that column's tag
+    //dirty-indicator, Size, Modified - see the matching fixed columns declared in MainWindow.axaml
+    private const int FixedGridColumnCount = 3;
+
     private void RebuildGridColumns()
     {
-        while (ComicsGrid.Columns.Count > 1)
+        while (ComicsGrid.Columns.Count > FixedGridColumnCount)
             ComicsGrid.Columns.RemoveAt(ComicsGrid.Columns.Count - 1);
 
         foreach (var tag in _settings.Settings.GridColumns)
@@ -1262,6 +1474,26 @@ public partial class MainWindow : Window
         var count = ComicsGrid.SelectedItems.Count;
         GridEditMenuItem.Header = count > 1 ? $"Edit {count} Books in Batch Editor" : "Edit This Book";
         GridEditMenuItem.IsEnabled = count > 0;
+    }
+
+    //without this, right-clicking a column header shows our row Edit/Choose-Columns menu
+    //instead of falling through to the header's own sort/filter options - same bug the
+    //winui original hit and fixed (IsWithinColumnHeader)
+    private void OnGridContextRequested(object? sender, ContextRequestedEventArgs e)
+    {
+        if (IsWithinColumnHeader(e.Source as Visual))
+            e.Handled = true;
+    }
+
+    private static bool IsWithinColumnHeader(Visual? element)
+    {
+        while (element is not null)
+        {
+            if (element is DataGridColumnHeader)
+                return true;
+            element = element.GetVisualParent();
+        }
+        return false;
     }
 
     private void OnGridEditSelection(object? sender, RoutedEventArgs e)

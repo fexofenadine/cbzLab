@@ -12,6 +12,44 @@ public class ComicFileViewModel : ViewModelBase
     public string Path { get; private set; }
     public string FileName => System.IO.Path.GetFileName(Path);
 
+    //read straight from disk on each access rather than cached, so a save (which rewrites
+    //the archive) is reflected immediately without needing its own invalidation path
+    public string FileSizeDisplay
+    {
+        get
+        {
+            try
+            {
+                var bytes = new System.IO.FileInfo(Path).Length;
+                return bytes switch
+                {
+                    < 1024 => $"{bytes} B",
+                    < 1024 * 1024 => $"{bytes / 1024.0:0.#} KB",
+                    _ => $"{bytes / (1024.0 * 1024):0.#} MB",
+                };
+            }
+            catch
+            {
+                return "";
+            }
+        }
+    }
+
+    public string ModifiedDisplay
+    {
+        get
+        {
+            try
+            {
+                return new System.IO.FileInfo(Path).LastWriteTime.ToString("g");
+            }
+            catch
+            {
+                return "";
+            }
+        }
+    }
+
     //format of the archive as it exists on disk
     public ArchiveFormat Format { get; set; }
 
@@ -162,6 +200,10 @@ public class ComicFileViewModel : ViewModelBase
         if (newFormat is not null)
             Format = newFormat.Value;
         RecomputeDirty();
+
+        //a save rewrites the archive on disk, so both always change
+        OnPropertyChanged(nameof(FileSizeDisplay));
+        OnPropertyChanged(nameof(ModifiedDisplay));
     }
 
     //used by Revert
