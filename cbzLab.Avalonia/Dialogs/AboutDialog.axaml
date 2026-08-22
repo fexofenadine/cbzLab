@@ -1,0 +1,52 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="cbzLab.Avalonia.Dialogs.AboutDialog"
+        Title="About cbzLab"
+        Width="460" Height="380"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="#0D0221">
+
+    <!--fixed Synthwave Dark palette always, regardless of the app's active theme (by
+        request) - branding chrome, not an editing surface, so it deliberately does not
+        use the Th* DynamicResource brushes ThemeService drives-->
+    <Window.Styles>
+        <Style Selector="Border.aboutBtn:pointerover">
+            <Setter Property="BorderBrush" Value="#FF2D9B" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="*,Auto">
+        <Grid Grid.Row="0" ClipToBounds="True">
+            <Image x:Name="HeroImage" Stretch="Uniform" Width="320"
+                   HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,-6,0,0" Opacity="0.32" />
+            <Border>
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Color="#CC0D0221" Offset="0" />
+                        <GradientStop Color="#330D0221" Offset="0.30" />
+                        <GradientStop Color="#660D0221" Offset="0.58" />
+                        <GradientStop Color="#F20D0221" Offset="1" />
+                    </LinearGradientBrush>
+                </Border.Background>
+            </Border>
+            <StackPanel VerticalAlignment="Bottom" Margin="24,0,24,18" Spacing="4">
+                <TextBlock Text="cbzLab" FontSize="24" FontWeight="SemiBold" Foreground="#F0D6FF" />
+                <Border Background="#BF261255" BorderBrush="#FF2D9B" BorderThickness="1" CornerRadius="10"
+                        Padding="9,2" HorizontalAlignment="Left" Margin="0,2,0,6">
+                    <TextBlock x:Name="VersionText" FontSize="11" FontWeight="SemiBold" Foreground="#FF2D9B" />
+                </Border>
+                <TextBlock Text="ComicInfo.xml metadata editor for CBZ/CBR comic archives." TextWrapping="Wrap"
+                           FontSize="12.5" Foreground="#E8D9FF" />
+                <TextBlock Text="© 2026 fexofenadine · .NET 8 · Avalonia UI" FontSize="11" Foreground="#C49DFF" Margin="0,4,0,0" />
+            </StackPanel>
+        </Grid>
+        <Border Grid.Row="1" Background="#0D0221" BorderBrush="#4A1F7A" BorderThickness="0,1,0,0">
+            <Border Classes="aboutBtn" HorizontalAlignment="Right" Margin="20,12"
+                    Background="#261255" BorderBrush="#4A1F7A" BorderThickness="1" CornerRadius="4"
+                    Padding="20,6" Cursor="Hand" PointerPressed="OnOk">
+                <TextBlock Text="OK" Foreground="#F0D6FF" FontSize="13" />
+            </Border>
+        </Border>
+    </Grid>
+</Window>

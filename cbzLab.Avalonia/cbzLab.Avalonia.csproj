@@ -14,6 +14,10 @@
     <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>cbzLab.Avalonia</RootNamespace>
     <AssemblyName>cbzLab.Avalonia</AssemblyName>
+    <!--Win32 PE resource icon (Explorer/taskbar) - Windows-only concept, harmless no-op on Linux.
+        Window/titlebar icon is set separately in code (MainWindow.LoadWindowIcon) since Avalonia
+        windows don't inherit this automatically the way WinUI 3 windows do.-->
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>

@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
@@ -43,6 +45,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        LoadWindowIcon();
         Closing += OnMainWindowClosing;
 
         //same construction order as App.xaml.cs in the winui project
@@ -79,6 +82,20 @@ public partial class MainWindow : Window
         _theme.Apply(_settings.Settings.Theme);
         UpdateElementTheme();
         BuildThemeMenu();
+    }
+
+    private void LoadWindowIcon()
+    {
+        try
+        {
+            var path = Path.Combine(AppContext.BaseDirectory, "Assets", "icon.ico");
+            using var stream = File.OpenRead(path);
+            Icon = new WindowIcon(stream);
+        }
+        catch
+        {
+            //no shipped icon asset - falls back to Avalonia's default window icon, not fatal
+        }
     }
 
     //---------------------------------------------------------------- theme
@@ -873,8 +890,7 @@ public partial class MainWindow : Window
         _viewModel.ShowExtraFields = !_viewModel.ShowExtraFields;
 
     private async void OnAbout(object? sender, RoutedEventArgs e) =>
-        await MessageDialog.ShowAsync(this, "About cbzLab",
-            $"cbzLab {DisplayVersion}\nComicInfo.xml metadata editor for CBZ/CBR archives.");
+        await AboutDialog.ShowAsync(this);
 
     //---------------------------------------------------------------- tools
 
