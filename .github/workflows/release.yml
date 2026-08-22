@@ -28,6 +28,17 @@ jobs:
         id: version
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
+      #catches the tag and cbzLab.Avalonia.csproj's <Version> drifting apart - e.g.
+      #tagging v2.1.0 while the csproj (and MainWindow.axaml.cs's DisplayVersion,
+      #kept in sync with it by convention, not checked here) still says 2.0.0
+      - name: Verify tag matches the project version
+        run: |
+          PROJECT_VERSION=$(grep -oP '(?<=<Version>)[^<]+' cbzLab.Avalonia/cbzLab.Avalonia.csproj)
+          if [ "$PROJECT_VERSION" != "${{ steps.version.outputs.version }}" ]; then
+            echo "::error::Tag ${{ github.ref_name }} implies version ${{ steps.version.outputs.version }}, but cbzLab.Avalonia.csproj's <Version> is $PROJECT_VERSION - bump the csproj (and MainWindow.axaml.cs's DisplayVersion) first."
+            exit 1
+          fi
+
       #fails the release rather than shipping a build that doesn't pass its own suite -
       #self-contained rather than relying on the separate build workflow, since a tag
       #push triggers both workflows independently with no ordering guarantee between
@@ -55,8 +66,27 @@ jobs:
           -c Release -r linux-x64 --self-contained true
           -o publish/linux-x64
 
-      - name: Make the Linux binary executable
-        run: chmod +x publish/linux-x64/cbzLab.Avalonia
+      #both mac architectures are worth shipping: osx-x64 for older Intel Macs,
+      #osx-arm64 for current Apple Silicon ones - neither is a substitute for the
+      #other. Unsigned/unnotarized like the other two builds, so Gatekeeper will
+      #warn on first launch; no Apple Developer account is set up to fix that yet.
+      - name: Publish osx-x64
+        run: >
+          dotnet publish cbzLab.Avalonia/cbzLab.Avalonia.csproj
+          -c Release -r osx-x64 --self-contained true
+          -o publish/osx-x64
+
+      - name: Publish osx-arm64
+        run: >
+          dotnet publish cbzLab.Avalonia/cbzLab.Avalonia.csproj
+          -c Release -r osx-arm64 --self-contained true
+          -o publish/osx-arm64
+
+      - name: Make the Linux/macOS binaries executable
+        run: |
+          chmod +x publish/linux-x64/cbzLab.Avalonia
+          chmod +x publish/osx-x64/cbzLab.Avalonia
+          chmod +x publish/osx-arm64/cbzLab.Avalonia
 
       - name: Package Windows build
         run: |
@@ -68,6 +98,13 @@ jobs:
           cd publish/linux-x64
           tar -czf "../../cbzLab-${{ steps.version.outputs.version }}-linux-x64.tar.gz" .
 
+      - name: Package macOS builds
+        run: |
+          cd publish/osx-x64
+          tar -czf "../../cbzLab-${{ steps.version.outputs.version }}-osx-x64.tar.gz" .
+          cd ../osx-arm64
+          tar -czf "../../cbzLab-${{ steps.version.outputs.version }}-osx-arm64.tar.gz" .
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -75,5 +112,7 @@ jobs:
           gh release create "${{ github.ref_name }}" \
             "cbzLab-${{ steps.version.outputs.version }}-win-x64.zip" \
             "cbzLab-${{ steps.version.outputs.version }}-linux-x64.tar.gz" \
+            "cbzLab-${{ steps.version.outputs.version }}-osx-x64.tar.gz" \
+            "cbzLab-${{ steps.version.outputs.version }}-osx-arm64.tar.gz" \
             --title "cbzLab ${{ steps.version.outputs.version }}" \
             --generate-notes

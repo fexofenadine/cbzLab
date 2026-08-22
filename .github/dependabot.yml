@@ -1,0 +1,14 @@
+version: 2
+updates:
+  #covers every .csproj under the repo root in one entry - cbzLab.Avalonia,
+  #cbzLab.Avalonia.Tests, and the archived cbzLab/cbzLab.csproj alike
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  #keeps actions/checkout, actions/setup-dotnet etc. current in both workflows
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
