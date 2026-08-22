@@ -30,12 +30,15 @@ jobs:
 
       #fails the release rather than shipping a build that doesn't pass its own suite -
       #self-contained rather than relying on the separate build workflow, since a tag
-      #push triggers both workflows independently with no ordering guarantee between them
-      - name: Restore and test
+      #push triggers both workflows independently with no ordering guarantee between
+      #them. Each command restores for itself rather than splitting into a separate
+      #restore + --no-restore/--no-build steps: a plain `dotnet restore` with no
+      #-c Release doesn't know to fetch the RID-specific packages SelfContained
+      #(conditional on Release) needs, and a later --no-restore build then fails.
+      - name: Build and test
         run: |
-          dotnet restore cbzLab.sln
-          dotnet build cbzLab.sln -c Release --no-restore
-          dotnet test cbzLab.Avalonia.Tests/cbzLab.Avalonia.Tests.csproj -c Release --no-build
+          dotnet build cbzLab.sln -c Release
+          dotnet test cbzLab.Avalonia.Tests/cbzLab.Avalonia.Tests.csproj -c Release
 
       #self-contained publish doesn't need the target OS - both run fine from this
       #ubuntu runner, and doing so here means the linux-x64 binary gets a real,

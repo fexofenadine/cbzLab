@@ -27,11 +27,13 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Restore
-        run: dotnet restore cbzLab.sln
-
+      #restore and build/test run as one command each, not split with --no-restore/
+      #--no-build: a plain `dotnet restore` with no -c Release doesn't know to fetch
+      #the RID-specific packages cbzLab.Avalonia.csproj's SelfContained (conditional
+      #on Release) needs, and a later --no-restore build then fails looking for a
+      #target project.assets.json never restored - bit every CI run for weeks
       - name: Build (Release)
-        run: dotnet build cbzLab.sln -c Release --no-restore
+        run: dotnet build cbzLab.sln -c Release
 
       - name: Test
-        run: dotnet test cbzLab.Avalonia.Tests/cbzLab.Avalonia.Tests.csproj -c Release --no-build
+        run: dotnet test cbzLab.Avalonia.Tests/cbzLab.Avalonia.Tests.csproj -c Release
