@@ -123,6 +123,12 @@
                     <Button Content="Import…" Click="OnImportBackup" />
                 </StackPanel>
                 <TextBlock x:Name="BackupStatus" FontSize="12" Opacity="0.85" TextWrapping="Wrap" />
+
+                <TextBlock Text="UPDATES" FontSize="11" FontWeight="SemiBold" Opacity="0.6" Margin="0,6,0,0" />
+                <CheckBox x:Name="CheckForUpdatesOnStartupCheck" Content="Check for updates on startup" />
+                <CheckBox x:Name="AutoUpdateEnabledCheck" Content="Enable automatic updates" />
+                <TextBlock Text="When on, an available update offers to download and install itself (with your confirmation first) instead of just linking the release."
+                           FontSize="12" Opacity="0.7" TextWrapping="Wrap" Margin="24,0,0,0" />
             </StackPanel>
         </ScrollViewer>
 

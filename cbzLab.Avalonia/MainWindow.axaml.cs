@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
-using System.Text.Json;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -42,11 +40,17 @@ public partial class MainWindow : Window
     private readonly ComicVineCacheService _comicVineCache;
     private readonly ComicVineService _comicVine;
     private readonly AutosaveService _autosave;
+    private readonly UpdateService _updateService;
     private readonly DispatcherTimer _autosaveTimer;
     private readonly MainViewModel _viewModel;
     private readonly FieldValueConverter _fieldValueConverter = new();
     private ComicFileViewModel? _lastRightTappedFile;
     private bool _forceClose;
+
+    //set by HandleUpdateCheckResultAsync once an update has been downloaded and is
+    //ready to install; launched from PersistUiState right before the app actually
+    //exits, never before - see UpdateService's own doc comment for why
+    private string? _pendingUpdateSwapScript;
 
     //most-recently-closed first; capped in PushRecentlyClosed, not tied to RecentFiles
     //(which tracks opens and keeps an entry even while the file is still open)
@@ -69,6 +73,7 @@ public partial class MainWindow : Window
         _comicVineCache = new ComicVineCacheService(_settings, _log);
         _comicVine = new ComicVineService(_settings, _comicVineCache, _log);
         _autosave = new AutosaveService(_settings, _log);
+        _updateService = new UpdateService(_log, DisplayVersion);
         _viewModel = new MainViewModel(_schema, _settings, _validation, _recentValues);
 
         RestoreWindowGeometry();
@@ -137,6 +142,12 @@ public partial class MainWindow : Window
         }
 
         await OfferAutosaveRecoveryAsync();
+
+        if (_settings.Settings.CheckForUpdatesOnStartup)
+        {
+            var result = await _updateService.CheckAsync();
+            await HandleUpdateCheckResultAsync(result, silentIfUpToDate: true);
+        }
     }
 
     private void SnapshotDirtyFiles()
@@ -1011,6 +1022,11 @@ public partial class MainWindow : Window
         //everything remaining is either saved or a deliberately-discarded edit by this point -
         //nothing left over needs offering back as crash recovery on the next launch
         _autosave.ClearAll();
+
+        //only launched here, right before an actual close - never earlier, so a
+        //cancelled close (unsaved changes, user hits Cancel) never triggers the swap
+        if (_pendingUpdateSwapScript is not null)
+            UpdateService.LaunchSwapScript(_pendingUpdateSwapScript);
     }
 
     //one-way binding + explicit toggle: bool?/bool TwoWay binding wasn't reliable
@@ -1025,44 +1041,58 @@ public partial class MainWindow : Window
 
     private async void OnCheckForUpdates(object? sender, RoutedEventArgs e)
     {
-        try
+        _viewModel.StatusText = "Checking for updates…";
+        var result = await _updateService.CheckAsync();
+        await HandleUpdateCheckResultAsync(result, silentIfUpToDate: false);
+    }
+
+    //shared by the manual Help > Check for Updates action and the optional startup
+    //check - silentIfUpToDate suppresses the "you're up to date"/error dialogs for the
+    //startup path, since popping a dialog on every single launch would be obnoxious;
+    //an actual available update is never silent either way, since installing one
+    //needs explicit confirmation regardless of how the check was triggered
+    private async Task HandleUpdateCheckResultAsync(UpdateCheckResult result, bool silentIfUpToDate)
+    {
+        if (result.ErrorMessage is not null)
         {
-            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-            http.DefaultRequestHeaders.UserAgent.ParseAdd($"cbzLab.Avalonia/{DisplayVersion.Replace(" ", "")}");
-            var response = await http.GetAsync("https://api.github.com/repos/fexofenadine/cbzLab/releases/latest");
-            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-            {
-                await MessageDialog.ShowAsync(this, "Check for Updates", "No releases have been published yet.");
-                return;
-            }
-            response.EnsureSuccessStatusCode();
+            if (!silentIfUpToDate)
+                await MessageDialog.ShowAsync(this, "Check for Updates", result.ErrorMessage);
+            return;
+        }
 
-            using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-            var tag = doc.RootElement.GetProperty("tag_name").GetString() ?? "";
-            var htmlUrl = doc.RootElement.TryGetProperty("html_url", out var urlProp) ? urlProp.GetString() : null;
-
-            //compares plain numeric versions only - a "-beta"/"-rc" suffix on the tag is stripped
-            //before parsing, so a same-numbered prerelease doesn't falsely read as "up to date"
-            var tagVersionText = tag.TrimStart('v', 'V');
-            var dashIndex = tagVersionText.IndexOf('-');
-            if (dashIndex >= 0)
-                tagVersionText = tagVersionText[..dashIndex];
-
-            var currentVersion = typeof(MainWindow).Assembly.GetName().Version ?? new Version(0, 0, 0);
-            if (Version.TryParse(tagVersionText, out var latestVersion) && latestVersion > currentVersion)
-            {
-                await MessageDialog.ShowAsync(this, "Check for Updates",
-                    $"A newer version is available: {tag} (you have {DisplayVersion}).\n\n{htmlUrl}");
-            }
-            else
-            {
+        if (!result.UpdateAvailable)
+        {
+            if (!silentIfUpToDate)
                 await MessageDialog.ShowAsync(this, "Check for Updates", $"You're up to date ({DisplayVersion}).");
-            }
+            return;
         }
-        catch (Exception ex)
+
+        if (!_settings.Settings.AutoUpdateEnabled || result.AssetDownloadUrl is null)
         {
-            await MessageDialog.ShowAsync(this, "Check for Updates", $"Couldn't check for updates: {ex.Message}");
+            await MessageDialog.ShowAsync(this, "Check for Updates",
+                $"A newer version is available: {result.LatestVersionTag} (you have {DisplayVersion}).\n\n{result.ReleaseUrl}");
+            return;
         }
+
+        var install = await ConfirmDialog.ShowAsync(this, "Update available",
+            $"Version {result.LatestVersionTag} is available (you have {DisplayVersion}). Download and install it now? "
+            + "cbzLab will close and reopen once the update is ready.", "Download and Install");
+        if (!install)
+            return;
+
+        _viewModel.StatusText = "Downloading update…";
+        var scriptPath = await _updateService.PrepareUpdateAsync(result);
+        if (scriptPath is null)
+        {
+            await MessageDialog.ShowAsync(this, "Update failed",
+                "Couldn't download or prepare the update. Check the logs for details, or download it manually from "
+                + result.ReleaseUrl);
+            return;
+        }
+
+        _pendingUpdateSwapScript = scriptPath;
+        _viewModel.StatusText = "Update ready — closing to install…";
+        Close();
     }
 
     //---------------------------------------------------------------- tools

@@ -115,4 +115,17 @@ public class AppSettings
         "Open", "Save", "SaveAll", "Remove", "Revert", "CopyXml", "PasteXml",
         "AllFields", "Extras", "GridView",
     };
+
+    //off by default, matching ComicVineEnabled's own "no background network calls
+    //unless you opt in" convention - a startup check is still just a GitHub API
+    //read, not itself an update
+    [JsonPropertyName("check_for_updates_on_startup")]
+    public bool CheckForUpdatesOnStartup { get; set; }
+
+    //gates whether Help > Check for Updates (or the startup check) offers to
+    //actually download and install a newer version - off by default; either way
+    //it always requires an explicit confirm before doing anything, this only
+    //controls whether that offer appears at all instead of just linking the release
+    [JsonPropertyName("auto_update_enabled")]
+    public bool AutoUpdateEnabled { get; set; }
 }

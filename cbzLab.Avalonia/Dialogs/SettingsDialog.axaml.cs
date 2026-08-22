@@ -58,6 +58,9 @@ public partial class SettingsDialog : Window
         ApiKeyBox.Text = s.ComicVineApiKey;
         AlwaysReviewCheck.IsChecked = s.ComicVineAlwaysReview;
         ComicVineRevealPanel.IsVisible = s.ComicVineEnabled;
+
+        CheckForUpdatesOnStartupCheck.IsChecked = s.CheckForUpdatesOnStartup;
+        AutoUpdateEnabledCheck.IsChecked = s.AutoUpdateEnabled;
     }
 
     private void OnSave(object? sender, RoutedEventArgs e)
@@ -283,6 +286,8 @@ public partial class SettingsDialog : Window
         s.ComicVineEnabled = dlg.ComicVineEnabledCheck.IsChecked == true;
         s.ComicVineApiKey = (dlg.ApiKeyBox.Text ?? "").Trim();
         s.ComicVineAlwaysReview = dlg.AlwaysReviewCheck.IsChecked == true;
+        s.CheckForUpdatesOnStartup = dlg.CheckForUpdatesOnStartupCheck.IsChecked == true;
+        s.AutoUpdateEnabled = dlg.AutoUpdateEnabledCheck.IsChecked == true;
 
         settings.Save();
         return (true, false);
@@ -295,14 +300,16 @@ internal readonly record struct AppSettingsSnapshot(
     bool RememberLastTab, bool CompactDensity, bool ShowAllFieldsDefault, bool ShowExtraFieldsDefault,
     string DefaultSaveFormat, bool ConfirmBatchSave, bool AutoPageCount, int MaxRecentFiles,
     bool AutoSelectFirstOnOpen, bool ClearFilterOnOpen, string LiveValidationMode, int MaxRecentValues,
-    string RarToolPath, bool ComicVineEnabled, string ComicVineApiKey, bool ComicVineAlwaysReview)
+    string RarToolPath, bool ComicVineEnabled, string ComicVineApiKey, bool ComicVineAlwaysReview,
+    bool CheckForUpdatesOnStartup, bool AutoUpdateEnabled)
 {
     public AppSettingsSnapshot(Models.AppSettings s) : this(
         s.Theme, s.EditorFontSize, s.EditorFontFamily, s.CoverSource, s.EditorFieldsFillWidth,
         s.RememberLastTab, s.CompactDensity, s.ShowAllFieldsDefault, s.ShowExtraFieldsDefault,
         s.DefaultSaveFormat, s.ConfirmBatchSave, s.AutoPageCount, s.MaxRecentFiles,
         s.AutoSelectFirstOnOpen, s.ClearFilterOnOpen, s.LiveValidationMode, s.MaxRecentValues,
-        s.RarToolPath, s.ComicVineEnabled, s.ComicVineApiKey, s.ComicVineAlwaysReview)
+        s.RarToolPath, s.ComicVineEnabled, s.ComicVineApiKey, s.ComicVineAlwaysReview,
+        s.CheckForUpdatesOnStartup, s.AutoUpdateEnabled)
     {
     }
 }
