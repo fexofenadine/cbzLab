@@ -2,9 +2,6 @@ using System.Text.Json.Serialization;
 
 namespace cbzLab.Models;
 
-/// <summary>
-/// A single editable metadata field as defined in schema.json (or schema_extra.json).
-/// </summary>
 public class FieldDefinition
 {
     [JsonPropertyName("tag")]
@@ -28,9 +25,6 @@ public class FieldDefinition
     public bool IsExtra { get; set; }
 }
 
-/// <summary>
-/// A named group of fields from schema.json, e.g. "Creators".
-/// </summary>
 public class SchemaSection
 {
     [JsonPropertyName("header")]
@@ -43,9 +37,6 @@ public class SchemaSection
     public List<FieldDefinition> Fields { get; set; } = new();
 }
 
-/// <summary>
-/// Type-validation constraints from schema.json.
-/// </summary>
 public class SchemaConstraints
 {
     [JsonPropertyName("int_fields")]
@@ -64,9 +55,6 @@ public class SchemaConstraints
     public Dictionary<string, string> IntHints { get; set; } = new();
 }
 
-/// <summary>
-/// Root object of schema.json.
-/// </summary>
 public class SchemaDocument
 {
     [JsonPropertyName("sections")]
@@ -76,7 +64,4 @@ public class SchemaDocument
     public SchemaConstraints Constraints { get; set; } = new();
 }
 
-/// <summary>
-/// A single save-time validation problem, with a human-readable fix suggestion.
-/// </summary>
 public record ValidationError(string FileName, string Tag, string Label, string Problem, string Suggestion);

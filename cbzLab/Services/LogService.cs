@@ -18,7 +18,10 @@ public class LogService
         {
             Directory.CreateDirectory(_logDir);
         }
-        catch { }
+        catch
+        {
+            //logging must never be the thing that crashes the app
+        }
     }
 
     private string CurrentLogPath => Path.Combine(_logDir, $"cbzLab-{DateTime.Now:yyyyMMdd}.log");
@@ -41,6 +44,9 @@ public class LogService
                 File.AppendAllText(CurrentLogPath, line);
             }
         }
-        catch { }
+        catch
+        {
+            //a failing logger must never crash the app it's meant to help debug
+        }
     }
 }

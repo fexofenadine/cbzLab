@@ -1,0 +1,144 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="cbzLab.Dialogs.SettingsDialog"
+        Title="Settings"
+        Width="480" Height="640"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource ThBg}">
+
+    <Window.Styles>
+        <Style Selector="Button.hyperlink">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Foreground" Value="{DynamicResource ThAccent}" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="*,Auto" Margin="20">
+        <ScrollViewer Grid.Row="0">
+            <StackPanel Spacing="12">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Theme" />
+                    <ComboBox x:Name="ThemeCombo" Width="200" HorizontalAlignment="Left" />
+                </StackPanel>
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Editor font size" />
+                    <NumericUpDown x:Name="FontSizeBox" Minimum="10" Maximum="28" Increment="1" FormatString="0" HorizontalAlignment="Left" Width="140" />
+                </StackPanel>
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Editor font" />
+                    <ComboBox x:Name="FontFamilyCombo" Width="200" HorizontalAlignment="Left" />
+                </StackPanel>
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Cover image source" />
+                    <ComboBox x:Name="CoverSourceCombo" Width="160" HorizontalAlignment="Left">
+                        <ComboBoxItem Content="First page" />
+                        <ComboBoxItem Content="Last page" />
+                    </ComboBox>
+                </StackPanel>
+
+                <CheckBox x:Name="FillWidthCheck" Content="Let fields fill the available editor width" />
+                <CheckBox x:Name="RememberTabCheck" Content="Remember the last active tab between sessions" />
+                <CheckBox x:Name="CompactCheck" Content="Compact spacing (fits more on screen)" />
+                <CheckBox x:Name="ShowAllCheck" Content="Show all fields by default" />
+                <CheckBox x:Name="ShowExtraCheck" Content="Show extra fields by default" />
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Default save format" />
+                    <ComboBox x:Name="FormatCombo" Width="140" HorizontalAlignment="Left">
+                        <ComboBoxItem Content="CBZ" />
+                        <ComboBoxItem Content="CBR" />
+                    </ComboBox>
+                </StackPanel>
+
+                <CheckBox x:Name="ConfirmBatchCheck" Content="Confirm before batch save operations" />
+                <CheckBox x:Name="AutoPageCheck" Content="Auto-detect page count on open" />
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Max recent files" />
+                    <NumericUpDown x:Name="RecentFilesBox" Minimum="0" Maximum="30" Increment="1" FormatString="0" HorizontalAlignment="Left" Width="140" />
+                </StackPanel>
+
+                <CheckBox x:Name="AutoSelectCheck" Content="Select the first file automatically after opening" />
+                <CheckBox x:Name="ClearFilterCheck" Content="Clear the file filter when new files are opened" />
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Live field validation" />
+                    <ComboBox x:Name="LiveValidationCombo" Width="200" HorizontalAlignment="Left">
+                        <ComboBoxItem Content="As you type" />
+                        <ComboBoxItem Content="When you leave the field" />
+                        <ComboBoxItem Content="Off" />
+                    </ComboBox>
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Recently typed values remembered per field" />
+                    <NumericUpDown x:Name="RecentValuesBox" Minimum="1" Maximum="50" Increment="1" FormatString="0" HorizontalAlignment="Left" Width="140" />
+                </StackPanel>
+
+                <!--status line is computed once on open, doesn't live-update-->
+                <StackPanel Spacing="6">
+                    <TextBlock Text="RAR write tool path" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBox x:Name="RarToolBox" Width="300" PlaceholderText="(discover from PATH)" />
+                        <Button x:Name="BrowseButton" Content="Browse…" Click="OnBrowseRarTool" />
+                        <Button x:Name="ResetButton" Content="Reset" Click="OnResetRarTool" />
+                    </StackPanel>
+                    <TextBlock x:Name="RarToolStatus" FontSize="12" Opacity="0.7" TextWrapping="Wrap" />
+                </StackPanel>
+
+                <TextBlock Text="ONLINE LOOKUP" FontSize="11" FontWeight="SemiBold" Opacity="0.6" Margin="0,6,0,0" />
+                <CheckBox x:Name="ComicVineEnabledCheck" Content="Enable online metadata lookup (ComicVine)" Click="OnToggleComicVineEnabled" />
+                <TextBlock Text="Off by default. Turning this on sends series and issue names you search for to comicvine.gamespot.com over the network."
+                           FontSize="12" Opacity="0.7" TextWrapping="Wrap" Margin="24,0,0,0" />
+
+                <StackPanel x:Name="ComicVineRevealPanel" Spacing="8" Margin="24,4,0,0">
+                    <TextBlock Text="ComicVine API key" />
+                    <TextBox x:Name="ApiKeyBox" PasswordChar="•" Width="300" HorizontalAlignment="Left" />
+                    <Button x:Name="GetKeyLinkButton" Content="Get a free key at comicvine.gamespot.com/api" Click="OnOpenGetKeyLink" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button x:Name="TestConnectionButton" Content="Test Connection" Click="OnTestConnection" />
+                        <TextBlock x:Name="TestConnectionStatus" FontSize="12" Opacity="0.85" TextWrapping="Wrap" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <CheckBox x:Name="AlwaysReviewCheck" Content="Always review matches before applying" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Clear Cache…" Click="OnClearComicVineCache" />
+                        <TextBlock x:Name="CacheStatus" FontSize="12" Opacity="0.85" TextWrapping="Wrap" VerticalAlignment="Center" />
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,6,0,0">
+                    <Button Classes="hyperlink" Content="Open config folder" Click="OnOpenConfigFolder" />
+                    <Button Classes="hyperlink" Content="Open themes folder" Click="OnOpenThemesFolder" />
+                    <Button Classes="hyperlink" Content="Open logs folder" Click="OnOpenLogsFolder" />
+                </StackPanel>
+
+                <TextBlock Text="BACKUP" FontSize="11" FontWeight="SemiBold" Opacity="0.6" Margin="0,6,0,0" />
+                <TextBlock Text="Saves every preference, theme customization, and cached ComicVine/recent-value history into one file, or restores them from one."
+                           FontSize="12" Opacity="0.7" TextWrapping="Wrap" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Content="Export…" Click="OnExportBackup" />
+                    <Button Content="Import…" Click="OnImportBackup" />
+                </StackPanel>
+                <TextBlock x:Name="BackupStatus" FontSize="12" Opacity="0.85" TextWrapping="Wrap" />
+
+                <TextBlock Text="UPDATES" FontSize="11" FontWeight="SemiBold" Opacity="0.6" Margin="0,6,0,0" />
+                <CheckBox x:Name="CheckForUpdatesOnStartupCheck" Content="Check for updates on startup" />
+                <CheckBox x:Name="AutoUpdateEnabledCheck" Content="Enable automatic updates" />
+                <TextBlock Text="When on, an available update offers to download and install itself (with your confirmation first) instead of just linking the release."
+                           FontSize="12" Opacity="0.7" TextWrapping="Wrap" Margin="24,0,0,0" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" Margin="0,14,0,0">
+            <Button Grid.Column="0" x:Name="ResetToDefaultsButton" Content="Reset to Defaults…" Click="OnResetToDefaults" />
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                <Button x:Name="CancelButton" Content="Cancel" Click="OnCancel" />
+                <Button x:Name="SaveButton" Content="Save" Click="OnSave" IsDefault="True" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+
+</Window>

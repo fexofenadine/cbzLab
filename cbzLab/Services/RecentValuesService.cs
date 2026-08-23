@@ -1,13 +1,12 @@
 namespace cbzLab.Services;
 
-/// <summary>Persists a per-tag "recently typed" history to recent_values.json, most-recent-first, capped per tag.</summary>
+/// <summary>Per-field-tag "recently typed" history, persisted to recent_values.json. Most-recent-first, capped per tag.</summary>
 public class RecentValuesService
 {
     private readonly SettingsService _settings;
     private readonly LogService _log;
     private readonly string _path;
 
-    //tag -> most-recent-first list of distinct values typed for that tag
     private Dictionary<string, List<string>> _values;
 
     public RecentValuesService(SettingsService settings, LogService log)
@@ -15,13 +14,12 @@ public class RecentValuesService
         _settings = settings;
         _log = log;
         _path = Path.Combine(settings.ConfigDir, "recent_values.json");
-        //rebuilt with Ordinal comparer — deserialization produces a default-comparer dictionary
+        //rebuilt with Ordinal - deserialization otherwise produces a default-comparer dictionary
         _values = new Dictionary<string, List<string>>(
             JsonFileStore.Load(_path, _log, () => new Dictionary<string, List<string>>()),
             StringComparer.Ordinal);
     }
 
-    //trims to the current cap even if the stored list is longer (cap may have just been lowered)
     public List<string> GetRecent(string tag)
     {
         if (!_values.TryGetValue(tag, out var list))
@@ -45,7 +43,7 @@ public class RecentValuesService
         list.RemoveAll(v => string.Equals(v, value, StringComparison.OrdinalIgnoreCase));
         list.Insert(0, value);
 
-        //read live, not cached, so a Settings change applies without a restart
+        //read live so a Settings change takes effect without restarting
         var cap = Math.Max(1, _settings.Settings.MaxRecentValues);
         if (list.Count > cap)
             list.RemoveRange(cap, list.Count - cap);

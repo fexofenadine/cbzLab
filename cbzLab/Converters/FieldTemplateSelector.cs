@@ -1,37 +1,33 @@
+using Avalonia.Controls;
+using Avalonia.Controls.Templates;
 using cbzLab.ViewModels;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
 
 namespace cbzLab.Converters;
 
-//picks a field's data template by widget type; templates assigned from window resources in xaml
-public class FieldTemplateSelector : DataTemplateSelector
+//dispatches composite fields (date, numeric-group) before the normal widget-type switch
+public class FieldTemplateSelector : IDataTemplate
 {
-    public DataTemplate? EntryTemplate { get; set; }
-    public DataTemplate? TextTemplate { get; set; }
-    public DataTemplate? ComboTemplate { get; set; }
-    public DataTemplate? DateTemplate { get; set; }
-    public DataTemplate? NumericGroupTemplate { get; set; }
+    public IDataTemplate? EntryTemplate { get; set; }
+    public IDataTemplate? TextTemplate { get; set; }
+    public IDataTemplate? ComboTemplate { get; set; }
+    public IDataTemplate? DateTemplate { get; set; }
+    public IDataTemplate? NumericGroupTemplate { get; set; }
 
-    protected override DataTemplate? SelectTemplateCore(object item)
+    public bool Match(object? data) => data is FieldViewModel;
+
+    public Control? Build(object? data)
     {
-        if (item is not FieldViewModel field)
-            return EntryTemplate;
+        if (data is not FieldViewModel field)
+            return null;
 
-        //companion-based checks take priority over plain widget-type dispatch
-        if (field.MonthCompanion is not null)
-            return DateTemplate;
-        if (field.RowCompanions.Count > 0)
-            return NumericGroupTemplate;
-
-        return field.Widget switch
-        {
-            "text" => TextTemplate,
-            "combo" => ComboTemplate,
-            _ => EntryTemplate,
-        };
+        var template = field.MonthCompanion is not null ? DateTemplate
+            : field.RowCompanions.Count > 0 ? NumericGroupTemplate
+            : field.Widget switch
+            {
+                "text" => TextTemplate,
+                "combo" => ComboTemplate,
+                _ => EntryTemplate,
+            };
+        return template?.Build(data);
     }
-
-    protected override DataTemplate? SelectTemplateCore(object item, DependencyObject container) =>
-        SelectTemplateCore(item);
 }

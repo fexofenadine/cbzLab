@@ -1,82 +1,96 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!--winui 3 desktop app, unpackaged (plain exe, no msix) for simple distribution-->
+    <!--avalonia rewrite skeleton (step 1 of the port, see CLAUDE.md): plain
+        net8.0, no windows-specific tfm suffix, targeting windows + linux
+        desktop from one build-->
+    <!--WinExe, not Exe: plain Exe allocates a console window on Windows (the
+        blank/black window that stayed open behind the GUI for the whole
+        session), matching a real bug rather than a testing artifact - the
+        winui original's own csproj already uses WinExe for the same reason.
+        WinExe is a Windows PE-subsystem concept with no meaning on Linux, so
+        this stays a no-op there rather than breaking cross-platform builds.-->
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
-    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
-    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>cbzLab</RootNamespace>
     <AssemblyName>cbzLab</AssemblyName>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Platforms>x64;ARM64</Platforms>
-    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
-    <UseWinUI>true</UseWinUI>
-    <EnableMsixTooling>true</EnableMsixTooling>
+    <!--Win32 PE resource icon (Explorer/taskbar) - Windows-only concept, harmless no-op on Linux.
+        Window/titlebar icon is set separately in code (MainWindow.LoadWindowIcon) since Avalonia
+        windows don't inherit this automatically the way WinUI 3 windows do.-->
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <!--2.0.0: parity with the winui original reached, beta tag dropped. This project itself
+        was renamed from cbzLab.Avalonia/ to cbzLab/ once the winui original moved to
+        cbzLab.winui3/ (see cbzLab.winui3/ARCHIVED.md) - this is now the primary and only
+        actively developed version. MainWindow.axaml.cs's DisplayVersion constant carries the
+        human-readable "2.0.0" string shown in the title bar/About.-->
+    <Version>2.0.0</Version>
+    <AssemblyVersion>2.0.0.0</AssemblyVersion>
+    <FileVersion>2.0.0.0</FileVersion>
+  </PropertyGroup>
 
-    <!--run without packaging; carry the windows app sdk runtime alongside the exe-->
-    <WindowsPackageType>None</WindowsPackageType>
-    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+  <!--scoped to Release only, not the main PropertyGroup above: SelfContained
+      (and RID-specific output it implies) applies to plain `dotnet build`
+      too, not just `dotnet publish`, if left unconditional - confirmed the
+      hard way when a debug build silently started producing bin/Debug/
+      net8.0/win-x64/ (a full self-contained framework copy) instead of the
+      normal bin/Debug/net8.0/ single-dll output, and a stale pre-existing
+      exe at the old path kept getting tested instead of the real new build.
+      Every publish command actually used for this project passes -c Release
+      (see CLAUDE.md), so gating on Configuration keeps `dotnet build`'s
+      default Debug config fast and framework-dependent while Release
+      publishes still get the single-file bundle below.-->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <!--matches cbzLab.winui3/cbzLab.csproj's own publish settings, so `dotnet publish -c
+        Release` needs no extra flags on the command line either - the winui
+        original already carries the same reasoning in its own (longer)
+        comment on these same three properties. IncludeNativeLibrariesForSelfExtract
+        bundles Avalonia's native deps (Skia/HarfBuzz/ANGLE) into the single
+        exe instead of leaving them as loose DLLs beside it.-->
     <SelfContained>true</SelfContained>
-
-    <!--PublishSingleFile + IncludeNativeLibrariesForSelfExtract: originally tried in
-        0.1.3, reverted in 0.1.23 after a launch crash that looked single-file-related
-        (native dlls were loading from a %TEMP% self-extraction path). Turned out to be
-        a red herring — the identical crash persisted in 0.1.23 with single-file OFF,
-        and was only actually fixed by the WindowsAppSDK 1.6 -> 1.8 bump in 0.1.24/25
-        (see CHANGELOG). Current Microsoft docs confirm PublishSingleFile is officially
-        supported for unpackaged, self-contained WinUI 3 apps since WindowsAppSDK 1.5 —
-        cbzLab is both, and is now on 1.8. Re-enabled in 0.1.27. The native WinAppSDK
-        files still extract to a temp folder at runtime either way — this collapses the
-        managed dependencies into cbzLab.exe, it doesn't change that part.-->
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-
-    <!--this app has no localized ui of its own; skip copying satellite resource dlls
-        for the dozens of cultures .net/WindowsAppSDK ship by default-->
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-
-    <!--exe resource icon-->
-    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
-
-    <!--version, kept in sync with the changelog-->
-    <Version>0.1.48</Version>
-    <AssemblyVersion>0.1.48.0</AssemblyVersion>
-    <FileVersion>0.1.48.0</FileVersion>
-    <Authors>fexofenadine</Authors>
-    <Product>cbzLab</Product>
-    <Description>ComicInfo.xml metadata editor for CBZ/CBR archives</Description>
   </PropertyGroup>
 
   <ItemGroup>
-    <!--bundled data assets, copied next to the exe so first-run seeding can find them-->
+    <PackageReference Include="Avalonia" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
+    <!--Avalonia.Diagnostics (dev-time f12 inspector) skipped for now: as of
+        this writing it has no 12.x release yet (latest is 11.3.20, against
+        core packages at 12.1.1) - add back once a compatible version ships-->
+    <!--matches the version pinned in cbzLab.csproj; needed by the ported
+        ArchiveService.cs for cbr (rar) reading-->
+    <PackageReference Include="SharpCompress" Version="0.50.4" />
+    <!--grid view (slice 2): one patch ahead of the 12.1.1 core packages above -
+        same avaloniaui-owned package family, no lower version published-->
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.1.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--ported schema.json/themes.json/theme files, same seeding pattern as
+        cbzLab.winui3/cbzLab.csproj - see Services/SettingsService.cs SeedBundledAssets()-->
     <Content Include="Assets\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
 
-  <ItemGroup>
-    <!--bumped 1.6.250108002 -> 1.8.260529003 in 0.1.24 to chase a launch crash on a
-        Windows 11 Dev Channel build far newer than 1.6 was ever tested against (see
-        CHANGELOG). Deliberately stayed within the 1.x line rather than jumping to the
-        current 2.x stable — 2.0 introduced semantic versioning as a deliberate break
-        from 1.x, so that's a bigger, riskier jump to make blind. Escalate to 2.x only
-        if this doesn't resolve it.-->
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260529003" />
-    <!--bumped alongside WindowsAppSDK in 0.1.24 -> 0.1.25: 1.8.260529003 transitively
-        needs BuildTools >= 10.0.26100.4654, and this project treats package downgrades
-        (NU1605) as a build error, so the old 10.0.26100.1742 pin has to move up too-->
-    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.4654" />
-    <!--rar reading (cbr) without external tools; 0.48.0+ required to clear GHSA-6c8g-7p36-r338-->
-    <PackageReference Include="SharpCompress" Version="0.48.0" />
-    <!--grid view (0.1.34): the Microsoft/CommunityToolkit DataGrid has been abandoned
-        since 7.1.2 in Nov 2021, and current Microsoft docs say so directly, recommending
-        this package by name instead. Actively maintained, purpose-built for WinUI 3,
-        derived from ListView (fluent styling + virtualization for free), IsReadOnly at
-        both grid and column level out of the box.-->
-    <PackageReference Include="WinUI.TableView" Version="1.4.1" />
-  </ItemGroup>
+  <!--SkiaSharp/HarfBuzzSharp ship their native .pdb files as content-copied
+      publish outputs (~105MB combined) alongside their .dll - the .dll
+      itself is a "native library" IncludeNativeLibrariesForSelfExtract
+      already bundles into the exe above, but its .pdb isn't covered by
+      that flag and would otherwise stay loose. cbzLab.pdb (this project's
+      own, small) is left alone - matches the winui original, which ships
+      exactly one pdb for the same debugging reason.-->
+  <Target Name="RemoveThirdPartyNativePdbsFromPublish" AfterTargets="ComputeFilesToPublish">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+                              Condition="'%(Filename)' == 'libSkiaSharp' or '%(Filename)' == 'libHarfBuzzSharp'" />
+    </ItemGroup>
+  </Target>
 
 </Project>

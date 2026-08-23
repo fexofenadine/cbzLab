@@ -1,24 +1,20 @@
+using System.Globalization;
+using Avalonia.Data.Converters;
 using cbzLab.ViewModels;
-using Microsoft.UI.Xaml.Data;
 
 namespace cbzLab.Converters;
 
-//resolves one field's value from a ComicFileViewModel row given the tag as
-//ConverterParameter — lets the grid view's dynamic columns share one binding
-//shape instead of needing a hardcoded property per schema field
+//resolves one field's value from a ComicFileViewModel row, tag given as ConverterParameter -
+//lets the grid's dynamic columns share one Binding shape instead of a hardcoded property per field
 public class FieldValueConverter : IValueConverter
 {
-    public object Convert(object value, Type targetType, object parameter, string language)
+    public object Convert(object? value, System.Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is ComicFileViewModel file && parameter is string tag)
             return file.GetValue(tag);
-
-        App.Log.Warning(
-            $"FieldValueConverter: unexpected value type {value?.GetType().FullName ?? "null"} "
-            + $"for parameter '{parameter}'");
         return "";
     }
 
-    public object ConvertBack(object value, Type targetType, object parameter, string language) =>
-        throw new NotSupportedException();
+    public object ConvertBack(object? value, System.Type targetType, object? parameter, CultureInfo culture) =>
+        throw new System.NotSupportedException();
 }

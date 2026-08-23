@@ -1,7 +1,7 @@
 version: 2
 updates:
-  #covers every .csproj under the repo root in one entry - cbzLab.Avalonia,
-  #cbzLab.Avalonia.Tests, and the archived cbzLab/cbzLab.csproj alike
+  #covers every .csproj under the repo root in one entry - cbzLab, cbzLab.Tests,
+  #and the archived cbzLab.winui3/cbzLab.csproj alike
   - package-ecosystem: "nuget"
     directory: "/"
     schedule:

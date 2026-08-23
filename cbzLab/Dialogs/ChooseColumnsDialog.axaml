@@ -1,0 +1,22 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="cbzLab.Dialogs.ChooseColumnsDialog"
+        Title="Choose Columns"
+        Width="440" Height="520"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource ThBg}">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="20">
+        <TextBlock Grid.Row="0" Text="Choose which fields appear as columns:" TextWrapping="Wrap" Margin="0,0,0,10" />
+
+        <ScrollViewer Grid.Row="1">
+            <StackPanel x:Name="ChecksPanel" Spacing="4" />
+        </ScrollViewer>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="0,14,0,0">
+            <Button x:Name="CancelButton" Content="Cancel" Click="OnCancel" />
+            <Button x:Name="ApplyButton" Content="Apply" Click="OnApply" IsDefault="True" />
+        </StackPanel>
+    </Grid>
+
+</Window>

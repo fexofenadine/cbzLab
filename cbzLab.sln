@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.10.35004.147
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "cbzLab.Avalonia", "cbzLab.Avalonia\cbzLab.Avalonia.csproj", "{1FD43E3E-8F59-45FD-8AF9-03A4BAFBECD9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "cbzLab", "cbzLab\cbzLab.csproj", "{1FD43E3E-8F59-45FD-8AF9-03A4BAFBECD9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "cbzLab.Avalonia.Tests", "cbzLab.Avalonia.Tests\cbzLab.Avalonia.Tests.csproj", "{DA941863-DFB8-4ABF-9AEF-B32E57866093}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "cbzLab.Tests", "cbzLab.Tests\cbzLab.Tests.csproj", "{DA941863-DFB8-4ABF-9AEF-B32E57866093}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -1,17 +1,17 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Text.RegularExpressions;
+using Avalonia;
 using cbzLab.Services;
-using Microsoft.UI.Xaml;
 
 namespace cbzLab.ViewModels;
 
-//sort modes for the sidebar's open-files list
 public enum FileSortMode { Name, SeriesNumber, ModifiedFirst }
 
 /// <summary>
-/// Central editor state: open files, selection, batch mode, the shared field set,
-/// and the tab/search/visibility filters. Archive i/o and dialogs live in MainWindow.
+/// Central editor state: open files, selection, batch mode, the shared field
+/// set, and the tab/search/visibility filters. Archive i/o and dialogs are
+/// orchestrated by the window; this owns data flow between files and fields.
 /// </summary>
 public class MainViewModel : ViewModelBase
 {
@@ -22,22 +22,25 @@ public class MainViewModel : ViewModelBase
 
     public ObservableCollection<ComicFileViewModel> OpenFiles { get; } = new();
 
-    //sorted/filtered projection the sidebar binds to; OpenFiles stays in insertion
-    //order for lookups that shouldn't care about display order
+    //sorted/filtered projection of OpenFiles that the sidebar binds to; OpenFiles
+    //itself stays in insertion order for lookups that don't care about display order
     public ObservableCollection<ComicFileViewModel> DisplayedFiles { get; } = new();
 
+    //selection state pushed in from the sidebar list view
     public List<ComicFileViewModel> SelectedFiles { get; private set; } = new();
     public ComicFileViewModel? CurrentFile => SelectedFiles.FirstOrDefault();
 
     public bool IsBatchMode => SelectedFiles.Count > 1;
     public bool HasSelection => SelectedFiles.Count > 0;
     public bool IsSearchEnabled => !IsBatchMode;
+
     public bool IsSingleFileMode => HasSelection && !IsBatchMode;
 
-    //the single shared field set; tabs and filters select subsets of this
+    //tabs and filters select subsets of this shared field set
     public List<FieldViewModel> AllFields { get; } = new();
     public ObservableCollection<FieldViewModel> VisibleFields { get; } = new();
 
+    //batch panel content
     public ObservableCollection<string> BatchFileNames { get; } = new();
 
     private string _batchHeader = "";
@@ -105,8 +108,7 @@ public class MainViewModel : ViewModelBase
         set => SetProperty(ref _editorFontFamily, value);
     }
 
-    //bound to the field-list ItemsControl's MaxWidth; PositiveInfinity is its own
-    //natural "unconstrained" value, not a magic number
+    //bound to the field-list ItemsControl's MaxWidth; PositiveInfinity = unconstrained
     private double _editorFieldsMaxWidth = 780;
     public double EditorFieldsMaxWidth
     {
@@ -114,13 +116,10 @@ public class MainViewModel : ViewModelBase
         set => SetProperty(ref _editorFieldsMaxWidth, value);
     }
 
-    //the two margins must always move together, so density is a computed pair
-    //rather than independently settable
     private bool _compactDensity;
     public Thickness FieldMargin => _compactDensity ? new Thickness(0, 0, 0, 8) : new Thickness(0, 0, 0, 14);
     public Thickness FileRowMargin => _compactDensity ? new Thickness(0, 3, 0, 3) : new Thickness(0, 6, 0, 6);
 
-    //raises change notification for both Thickness properties together
     public void ApplyDensitySetting(bool compact)
     {
         if (_compactDensity == compact)
@@ -130,8 +129,7 @@ public class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(FileRowMargin));
     }
 
-    //master switch for the whole ComicVine feature area — off means nothing
-    //ComicVine-related is visible anywhere, not just disabled
+    //master switch for ComicVine - off by default, and when off nothing ComicVine-related is visible, not just disabled
     private bool _onlineLookupEnabled;
     public bool OnlineLookupEnabled
     {
@@ -157,8 +155,7 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    //separate from SearchText, which only searches fields within the open file —
-    //this filters the file list itself
+    //filters the file list itself, separate from SearchText which searches fields within a file
     private string _fileFilterText = "";
     public string FileFilterText
     {
@@ -197,8 +194,7 @@ public class MainViewModel : ViewModelBase
         if (settings.Settings.ActiveTab >= 0 && settings.Settings.ActiveTab < tabs.Length)
             _activeTab = tabs[settings.Settings.ActiveTab];
 
-        //bypass the property setter — it triggers a DisplayedFiles rebuild that's
-        //pointless before any files exist
+        //backing field directly, not the setter, to skip a pointless DisplayedFiles rebuild before any files exist
         if (Enum.IsDefined(typeof(FileSortMode), settings.Settings.SortMode))
             _sortMode = (FileSortMode)settings.Settings.SortMode;
 
@@ -207,7 +203,8 @@ public class MainViewModel : ViewModelBase
 
     //---------------------------------------------------------------- fields
 
-    //creates view models for any schema fields that don't have one yet
+    //creates FieldViewModels for any schema fields that don't have one yet;
+    //called at startup and whenever a new unofficial tag is registered
     public void EnsureFieldViewModels()
     {
         var existing = AllFields.Select(f => f.Tag).ToHashSet(StringComparer.Ordinal);
@@ -222,9 +219,9 @@ public class MainViewModel : ViewModelBase
         WireFieldGroups();
     }
 
-    //links fields that share a row instead of getting one of their own (Year's
-    //date companions, the two numeric groups); safe to call repeatedly, each
-    //group only wires once
+    //links fields that share a row: Year's date display (Month/Day) and the numeric
+    //groups (Number/Count/Volume, AlternateNumber/AlternateCount). Safe to call
+    //repeatedly - each group only wires once, checked via RowCompanions/MonthCompanion
     private void WireFieldGroups()
     {
         FieldViewModel? Find(string tag) => AllFields.FirstOrDefault(f => f.Tag == tag);
@@ -280,16 +277,14 @@ public class MainViewModel : ViewModelBase
 
     private void OnFieldEdited(FieldViewModel field, string value)
     {
-        //applies to every selected file immediately — the "edit to override all"
-        //batch behaviour
+        //applies to every selected file immediately - "edit to override all" in batch mode
         foreach (var file in SelectedFiles)
             file.SetValue(field.Tag, value);
 
         if (IsBatchMode)
             RefreshDistinctValues(field);
 
-        //"blur" mode defers validation to LostFocus; "keystroke" validates here;
-        //"off" is handled inside ValidateLive itself
+        //"blur" mode validates on focus loss instead (see MainWindow); "off" is handled in ValidateLive
         if (_settings.Settings.LiveValidationMode != "blur")
             ValidateLive(field, value);
 
@@ -299,8 +294,7 @@ public class MainViewModel : ViewModelBase
     //used by the entry-field LostFocus handler when LiveValidationMode is "blur"
     public void ValidateFieldNow(FieldViewModel field) => ValidateLive(field, field.Value);
 
-    //single-file mode only — "revert to saved" has no one clean meaning across
-    //a multi-file selection, so this is a no-op in batch mode
+    //single-file mode only - "revert to saved" has no one clean meaning across a batch selection
     public void RevertFieldToSaved(FieldViewModel field)
     {
         if (IsBatchMode || CurrentFile is null)
@@ -310,8 +304,7 @@ public class MainViewModel : ViewModelBase
         field.SetValueSilent(v, mixed: false);
         ValidateLive(field, v);
 
-        //the composite date field's companions must revert alongside it, or
-        //Year alone reverts while Month/Day keep their unsaved values
+        //Year's companions revert alongside it, otherwise Month/Day would keep unsaved values
         if (field.MonthCompanion is not null)
         {
             CurrentFile.RevertField(field.MonthCompanion.Tag);
@@ -324,8 +317,7 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    //"off" always clears rather than checking, regardless of which caller
-    //(edit, blur, selection-load refresh) triggered it
+    //save-time validation is separate and always runs regardless of this setting
     private void ValidateLive(FieldViewModel field, string value)
     {
         if (_settings.Settings.LiveValidationMode == "off")
@@ -348,7 +340,7 @@ public class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsSingleFileMode));
         OnPropertyChanged(nameof(CurrentFile));
 
-        //search is disabled during batch mode; clear it so no stale filter lingers
+        //search is disabled in batch mode - clear so no stale filter lingers
         if (IsBatchMode && _searchText.Length > 0)
         {
             _searchText = "";
@@ -360,8 +352,7 @@ public class MainViewModel : ViewModelBase
         UpdateStatus();
     }
 
-    //loads current values into the shared field set — plain for a single file,
-    //union-with-mixed-sentinels for a batch — then rebuilds visibility
+    //loads current values into the shared field set, then rebuilds visibility
     public void RefreshEditor()
     {
         var batch = IsBatchMode;
@@ -386,13 +377,11 @@ public class MainViewModel : ViewModelBase
             }
             else
             {
-                //a blended placeholder isn't a real value; nothing to validate
+                //blended placeholder isn't a real value; nothing to validate
                 field.SetValueSilent("", mixed: true);
                 field.SetValidation(null, null);
             }
 
-            //batch mode shows values detected across the selection; single-file
-            //mode shows recent-value history instead, entry fields only
             if (batch)
                 RefreshDistinctValues(field);
             else
@@ -401,9 +390,8 @@ public class MainViewModel : ViewModelBase
         RebuildVisibleFields();
     }
 
-    //recent-value picker entries for a single-file entry-widget field; empty for
-    //combo/text fields or fields with no history yet. Public so MainWindow can
-    //refresh one field's picker right after recording a value.
+    //recent-value picker for a single-file entry-widget field; empty for combo/text.
+    //public so MainWindow can refresh one field right after recording a value
     public List<DistinctValue> RecentPickerFor(FieldViewModel field)
     {
         if (field.Widget != "entry")
@@ -411,10 +399,8 @@ public class MainViewModel : ViewModelBase
         return _recentValues.GetRecent(field.Tag).Select(v => new DistinctValue(v, 0)).ToList();
     }
 
-    //builds a batch picker list: values actually detected across the selection,
-    //most-common first, with a file count each. Combo fields also get the
-    //schema's own Options appended so an unset-everywhere field still offers
-    //something to pick.
+    //batch picker list: detected values (most-common first), plus for combo fields
+    //the schema's own Options appended so an all-unset field still offers choices
     private void RefreshDistinctValues(FieldViewModel field)
     {
         var detected = SelectedFiles
@@ -428,7 +414,7 @@ public class MainViewModel : ViewModelBase
         if (field.Widget == "combo")
         {
             var present = detected.Select(d => d.Value).ToHashSet(StringComparer.Ordinal);
-            //schema order, not alphabetical — Options are curated
+            //schema order, not alphabetical - Options are curated and reordering would look arbitrary
             detected.AddRange(field.Options
                 .Where(o => !present.Contains(o))
                 .Select(o => new DistinctValue(o, 0)));
@@ -449,15 +435,14 @@ public class MainViewModel : ViewModelBase
 
     //---------------------------------------------------------------- filtering
 
-    //applies the tab, show-all, show-extras and search filters; tab and search
-    //combine as an intersection
+    //applies tab, show-all, show-extras and search filters to the shared field set
     public void RebuildVisibleFields()
     {
         VisibleFields.Clear();
         if (!HasSelection)
             return;
 
-        //fields absorbed into another field's row never get one of their own
+        //fields absorbed into another field's row never get a separate row of their own
         var companionTags = AllFields
             .SelectMany(f => f.RowCompanions.Select(c => c.Tag)
                 .Concat(f.MonthCompanion is null ? Array.Empty<string>() : new[] { f.MonthCompanion.Tag })
@@ -515,9 +500,8 @@ public class MainViewModel : ViewModelBase
         if (e.PropertyName != nameof(ComicFileViewModel.IsDirty))
             return;
         UpdateStatus();
-        //Modified-first re-sorts live on a dirty-state flip since that's its whole
-        //point; Name/Series sort deliberately don't re-sort mid-edit (see
-        //RefreshDisplayedFiles)
+        //Modified-first reacts live to dirty state; Name/Series-Number deliberately don't
+        //re-sort mid-edit (see RefreshDisplayedFiles) - IsDirty only flips once per edit, not per keystroke
         if (_sortMode == FileSortMode.ModifiedFirst)
             RefreshDisplayedFiles();
     }
@@ -533,6 +517,7 @@ public class MainViewModel : ViewModelBase
         }
     }
 
+    //for the Save All toolbar badge's Visibility binding
     public bool HasDirtyFiles => DirtyCount > 0;
 
     public void UpdateStatus()
@@ -543,10 +528,8 @@ public class MainViewModel : ViewModelBase
         StatusText = dirty == 0 ? files : $"{files} · {dirty} unsaved";
     }
 
-    //recomputes DisplayedFiles from OpenFiles: filter then sort. Only Insert/
-    //Remove/Move are used, never Clear, so a bound ListView's selection survives
-    //the rebuild. Series/Number sort doesn't react live to in-progress edits —
-    //only to explicit sort/filter changes or files opening/closing.
+    //recomputes DisplayedFiles: filter then sort, via Insert/Remove/Move only (never Clear)
+    //so a bound ListView's selection survives the rebuild instead of looking like a full reset
     private void RefreshDisplayedFiles()
     {
         IEnumerable<ComicFileViewModel> query = OpenFiles;
@@ -564,6 +547,7 @@ public class MainViewModel : ViewModelBase
             FileSortMode.SeriesNumber => query
                 .OrderBy(f => f.GetValue("Series").Trim(), StringComparer.OrdinalIgnoreCase)
                 .ThenBy(f => NumberSortKey(f.GetValue("Number")))
+                //tie-break for non-numeric issue numbers (eg "Annual 1" vs "Annual 2")
                 .ThenBy(f => f.GetValue("Number").Trim(), StringComparer.OrdinalIgnoreCase),
             FileSortMode.ModifiedFirst => query.OrderByDescending(f => f.IsDirty)
                                                 .ThenBy(f => f.FileName, StringComparer.OrdinalIgnoreCase),
@@ -590,17 +574,14 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    //treats Number as numeric so 2 sorts before 10; handles half-issues ("1.5"),
-    //leading zeros and a numeric prefix followed by text ("10a"). Anything with
-    //no leading number sorts last.
+    //treats Number as numeric (2 before 10); handles half-issues and a numeric prefix
+    //followed by text ("10a"). Non-numeric (annuals) sorts to the end.
     private static double NumberSortKey(string number)
     {
         var match = Regex.Match(number.Trim(), @"^-?\d+(\.\d+)?");
         return match.Success && double.TryParse(match.Value, out var n) ? n : double.MaxValue;
     }
 
-    //builds ComicInfo.xml bytes from a file's current edits, layered on its
-    //original raw xml so unhandled elements are preserved
     public byte[] BuildXmlFor(ComicFileViewModel file) =>
         ComicInfoXml.Build(file.RawXml, file.BuildWriteValues());
 }

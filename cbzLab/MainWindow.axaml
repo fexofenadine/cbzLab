@@ -1,0 +1,303 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:cbzLab.ViewModels"
+        x:Class="cbzLab.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="cbzLab 2.0.0"
+        Width="900" Height="640">
+
+    <Window.Styles>
+        <!--flat toolbar buttons, no visible box at rest - ToggleButton's own :checked style still shows pressed/active-->
+        <Style Selector="Button.toolflat">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Padding" Value="10,6" />
+        </Style>
+        <Style Selector="ToggleButton.toolflat">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Padding" Value="10,6" />
+        </Style>
+        <Style Selector="Button.rowclose">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Padding" Value="6,2" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Opacity" Value="0.6" />
+        </Style>
+        <Style Selector="Button.rowclose:pointerover">
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+    </Window.Styles>
+
+    <Grid x:Name="RootGrid" RowDefinitions="Auto,Auto,*,Auto"
+          Background="{DynamicResource ThBg}"
+          DragDrop.AllowDrop="True"
+          DragDrop.DragOver="OnDragOver" DragDrop.DragEnter="OnDragEnter"
+          DragDrop.DragLeave="OnDragLeave" DragDrop.Drop="OnDrop"
+          KeyDown="OnRootGridKeyDown">
+
+        <Menu Grid.Row="0">
+            <MenuItem Header="_File">
+                <MenuItem Header="Open…" Click="OnOpen" HotKey="Ctrl+O" />
+                <!--populated via RecentMenu.Items in code, see BuildRecentMenu-->
+                <MenuItem x:Name="RecentMenu" Header="Open Recent" />
+                <Separator />
+                <MenuItem Header="Save" Click="OnSave" HotKey="Ctrl+S" />
+                <MenuItem Header="Save As…" Click="OnSaveAs" HotKey="Ctrl+Shift+S" />
+                <MenuItem Header="Save All" Click="OnSaveAll" HotKey="Ctrl+Alt+S" />
+                <Separator />
+                <MenuItem Header="Revert" Click="OnRevert" />
+                <MenuItem Header="Remove from List" Click="OnRemove" />
+                <MenuItem Header="Close" Click="OnCloseFile" HotKey="Ctrl+W" />
+                <MenuItem Header="Close All" Click="OnCloseAll" />
+                <MenuItem Header="Reopen Last Closed File" Click="OnReopenLastClosed" HotKey="Ctrl+Shift+T" />
+                <Separator />
+                <MenuItem Header="Quit" Click="OnQuit" HotKey="Ctrl+Q" />
+            </MenuItem>
+            <MenuItem Header="_View">
+                <!--one-way binding + explicit click: TwoWay CheckBox IsChecked didn't round-trip reliably-->
+                <MenuItem Header="Show All Fields" ToggleType="CheckBox"
+                          IsChecked="{Binding ShowAllFields, Mode=OneWay}" Click="OnToggleShowAllFields" />
+                <MenuItem Header="Show Extra Fields" ToggleType="CheckBox"
+                          IsChecked="{Binding ShowExtraFields, Mode=OneWay}" Click="OnToggleShowExtraFields" />
+                <Separator />
+                <MenuItem Header="Choose Grid Columns…" Click="OnChooseColumns" />
+                <Separator />
+                <!--populated via ThemeMenu.Items in code, see BuildThemeMenu-->
+                <MenuItem x:Name="ThemeMenu" Header="Theme" />
+            </MenuItem>
+            <MenuItem Header="_Tools">
+                <MenuItem Header="Search ComicVine…" Click="OnSearchComicVine"
+                          IsVisible="{Binding OnlineLookupEnabled}" />
+                <Separator IsVisible="{Binding OnlineLookupEnabled}" />
+                <MenuItem Header="Guess from Filename" Click="OnGuessFromFilename" />
+                <MenuItem Header="Auto Page Count" Click="OnAutoPageCount" />
+                <Separator />
+                <MenuItem Header="Copy ComicInfo.xml" Click="OnCopyXml" />
+                <MenuItem Header="Paste ComicInfo.xml" Click="OnPasteXml" />
+                <Separator />
+                <MenuItem Header="Find &amp; Replace…" Click="OnFindReplace" />
+                <MenuItem Header="Validate All Open Files…" Click="OnValidateAll" />
+                <Separator />
+                <MenuItem Header="Customize Toolbar…" Click="OnCustomizeToolbar" />
+                <MenuItem Header="Settings…" Click="OnSettings" />
+            </MenuItem>
+            <MenuItem Header="_Help">
+                <MenuItem Header="Check for Updates…" Click="OnCheckForUpdates" />
+                <Separator />
+                <MenuItem Header="About cbzLab" Click="OnAbout" />
+            </MenuItem>
+        </Menu>
+
+        <!--flat buttons, thin separators between groups, scroll-left/right overflow instead of wrapping.
+            ToolbarPanel is built in code from AppSettings.ToolbarButtons - see RebuildToolbar.-->
+        <Border Grid.Row="1" Background="{DynamicResource ThBg2}"
+                BorderBrush="{DynamicResource ThSep}" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <Button Grid.Column="0" Classes="toolflat" Click="OnToolbarScrollLeft"
+                        ToolTip.Tip="Scroll toolbar left" Content="&lt;" />
+
+                <ScrollViewer Grid.Column="1" x:Name="ToolbarScroll"
+                              HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
+                    <StackPanel x:Name="ToolbarPanel" Orientation="Horizontal" Spacing="2" Margin="8,4" />
+                </ScrollViewer>
+
+                <Button Grid.Column="2" Classes="toolflat" Click="OnToolbarScrollRight"
+                        ToolTip.Tip="Scroll toolbar right" Content="&gt;" />
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="2" ColumnDefinitions="260,Auto,*" IsVisible="{Binding !IsGridViewActive}">
+
+            <!--ThListBg is a real, separate theme key from ThBg, not just a duplicate-->
+            <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*,Auto" Background="{DynamicResource ThListBg}">
+                <TextBlock Grid.Row="0" Text="OPEN FILES" FontSize="11" FontWeight="SemiBold"
+                           Opacity="0.6" Margin="4,8,4,4" />
+
+                <!--separate from the field-search box below, which only searches the currently open file(s)-->
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Margin="4,0,4,6">
+                    <TextBox x:Name="FileFilterBox" Width="130" PlaceholderText="Filter files…"
+                             Text="{Binding FileFilterText, Mode=TwoWay}" />
+                    <ComboBox x:Name="SortCombo" Width="112" SelectedIndex="0"
+                              SelectionChanged="SortCombo_SelectionChanged"
+                              ToolTip.Tip="Sort open files by">
+                        <ComboBoxItem Content="Name" />
+                        <ComboBoxItem Content="Series / No." />
+                        <ComboBoxItem Content="Modified" />
+                    </ComboBox>
+                </StackPanel>
+
+                <ListBox x:Name="FileList" Grid.Row="2"
+                         ItemsSource="{Binding DisplayedFiles}"
+                         SelectionMode="Multiple"
+                         Focusable="True"
+                         Background="{DynamicResource ThListBg}"
+                         SelectionChanged="FileList_SelectionChanged"
+                         KeyDown="OnFileListKeyDown"
+                         ContextRequested="OnFileListContextRequested">
+                    <ListBox.ContextMenu>
+                        <ContextMenu Opening="FileContextMenu_Opening">
+                            <MenuItem Header="Save" Click="OnSave" />
+                            <MenuItem Header="Revert" Click="OnRevert" />
+                            <MenuItem Header="Remove from List" Click="OnRemove" />
+                            <Separator />
+                            <MenuItem Header="Copy Fields to Rest of Selection" Click="OnCopyFieldsToSelection" />
+                            <Separator />
+                            <MenuItem Header="Open Containing Folder" Click="OnOpenContainingFolder" />
+                        </ContextMenu>
+                    </ListBox.ContextMenu>
+                    <!--AutomationProperties.Name must be set on the generated ListBoxItem container, not the DataTemplate content-->
+                    <ListBox.Styles>
+                        <Style Selector="ListBoxItem" x:DataType="vm:ComicFileViewModel">
+                            <Setter Property="AutomationProperties.Name" Value="{Binding FileName}" />
+                        </Style>
+                    </ListBox.Styles>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ComicFileViewModel">
+                            <Grid ColumnDefinitions="30,*,Auto"
+                                  Margin="{Binding $parent[ListBox].((vm:MainViewModel)DataContext).FileRowMargin}">
+                                <Border Grid.Column="0" Width="30" Height="40" CornerRadius="2" Background="{DynamicResource ThBg2}">
+                                    <Image Source="{Binding CoverImage}" Stretch="UniformToFill" IsVisible="{Binding HasCover}" />
+                                </Border>
+                                <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="{Binding FileName}" TextTrimming="CharacterEllipsis" MaxWidth="170" />
+                                        <TextBlock Text="&#x2022;" FontWeight="Bold" Foreground="{DynamicResource ThListDirty}" IsVisible="{Binding IsDirty}" />
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding Subtitle}" FontSize="12" Opacity="{Binding SubtitleOpacity}"
+                                               TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                                <Button Grid.Column="2" Classes="rowclose" Content="✕"
+                                        VerticalAlignment="Top" Click="OnCloseFileRow"
+                                        ToolTip.Tip="Close this file" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <Border Grid.Row="3" Background="{DynamicResource ThBatchBg}"
+                        BorderBrush="{DynamicResource ThSep}" BorderThickness="0,1,0,0"
+                        IsVisible="{Binding IsBatchMode}">
+                    <StackPanel Margin="14,8" Spacing="4">
+                        <TextBlock Text="{Binding BatchHeader}" FontSize="12" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource ThAccent}" />
+                        <ScrollViewer MaxHeight="130">
+                            <ItemsControl ItemsSource="{Binding BatchFileNames}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="x:String">
+                                        <TextBlock Text="{Binding}" FontSize="12"
+                                                   Foreground="{DynamicResource ThFg}"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <GridSplitter Grid.Column="1" Width="1" Background="{DynamicResource ThSep}" />
+
+            <!--editor: one shared field list, filtered by ActiveTab-->
+            <Grid Grid.Column="2" RowDefinitions="Auto,Auto,Auto,*">
+                <Border Grid.Row="0" Padding="16,12" BorderBrush="{DynamicResource ThSep}"
+                        BorderThickness="0,0,0,1" IsVisible="{Binding IsSingleFileMode}">
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Border Width="84" Height="112" CornerRadius="3" Background="{DynamicResource ThBg2}">
+                            <Image Source="{Binding CurrentFile.CoverImage}" Stretch="UniformToFill"
+                                   IsVisible="{Binding CurrentFile.HasCover}" />
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="{Binding CurrentFile.FileName}" FontSize="15"
+                                       TextTrimming="CharacterEllipsis" MaxWidth="600" />
+                            <TextBlock Text="{Binding CurrentFile.Subtitle}" FontSize="12"
+                                       Opacity="{Binding CurrentFile.SubtitleOpacity}"
+                                       TextTrimming="CharacterEllipsis" MaxWidth="600" Margin="0,2,0,0" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!--filters VisibleFields within the current file; distinct from FileFilterBox, which filters the sidebar list-->
+                <TextBox Grid.Row="1" x:Name="SearchBox" Margin="16,8,16,0" Padding="10,4" Height="32"
+                         PlaceholderText="Search fields…"
+                         Text="{Binding SearchText, Mode=TwoWay}"
+                         IsEnabled="{Binding IsSearchEnabled}" />
+
+                <!--auto-width tabs, not stretching evenly: a UniformGrid ItemsPanel clipped longer labels at 5 uneven widths.
+                    TabItem:selected sets its own FontSize in FluentTheme (a style beats inheritance), so both states below need
+                    an explicit override, not just one on the TabControl itself.-->
+                <TabControl Grid.Row="2" x:Name="EditorTabs" Height="44" Margin="16,10,16,0" FontSize="14"
+                            SelectionChanged="OnEditorTabsSelectionChanged"
+                            IsVisible="{Binding HasSelection}">
+                    <TabControl.Styles>
+                        <Style Selector="TabItem">
+                            <Setter Property="FontSize" Value="14" />
+                        </Style>
+                        <Style Selector="TabItem:selected">
+                            <Setter Property="FontSize" Value="14" />
+                        </Style>
+                    </TabControl.Styles>
+                    <TabItem Header="Basic Info" />
+                    <TabItem Header="Publication" />
+                    <TabItem Header="Creators" />
+                    <TabItem Header="Story" />
+                    <TabItem Header="Extras" />
+                </TabControl>
+
+                <ScrollViewer Grid.Row="3" Padding="16,10">
+                    <ItemsControl x:Name="FieldList" ItemsSource="{Binding VisibleFields}"
+                                  FontSize="{Binding EditorFontSize}" FontFamily="{Binding EditorFontFamily}"
+                                  MaxWidth="{Binding EditorFieldsMaxWidth}" HorizontalAlignment="Left" />
+                </ScrollViewer>
+                <TextBlock Grid.Row="3" Text="Open a comic archive to begin" Opacity="0.5" FontSize="16"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding !HasSelection}" />
+            </Grid>
+        </Grid>
+
+        <!--dirty-indicator/Size/Modified columns are fixed (see FixedGridColumnCount); the rest come from AppSettings.GridColumns, built in RebuildGridColumns-->
+        <DataGrid Grid.Row="2" x:Name="ComicsGrid"
+                  ItemsSource="{Binding DisplayedFiles}"
+                  IsReadOnly="True"
+                  AutoGenerateColumns="False"
+                  IsVisible="{Binding IsGridViewActive}"
+                  DoubleTapped="OnGridDoubleTapped"
+                  ContextRequested="OnGridContextRequested"
+                  Margin="16,10,16,16">
+            <DataGrid.Columns>
+                <DataGridTemplateColumn Header="" Width="32" CanUserSort="False">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate x:DataType="vm:ComicFileViewModel">
+                            <TextBlock Text="&#x2022;" FontWeight="Bold" FontSize="16" Foreground="{DynamicResource ThListDirty}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       IsVisible="{Binding IsDirty}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Size" Binding="{Binding FileSizeDisplay}" />
+                <DataGridTextColumn Header="Modified" Binding="{Binding ModifiedDisplay}" />
+            </DataGrid.Columns>
+            <DataGrid.ContextMenu>
+                <ContextMenu Opening="GridContextMenu_Opening">
+                    <MenuItem x:Name="GridEditMenuItem" Header="Edit" Click="OnGridEditSelection" />
+                    <Separator />
+                    <MenuItem Header="Choose Columns…" Click="OnChooseColumns" />
+                </ContextMenu>
+            </DataGrid.ContextMenu>
+        </DataGrid>
+
+        <Border Grid.Row="3" Background="{DynamicResource ThBg2}"
+                BorderBrush="{DynamicResource ThSep}" BorderThickness="0,1,0,0">
+            <TextBlock Text="{Binding StatusText}" Margin="12,6" Opacity="0.7" />
+        </Border>
+
+        <!--IsHitTestVisible=False so drag events keep landing on RootGrid, not this overlay-->
+        <Border x:Name="DropOverlay" Grid.Row="0" Grid.RowSpan="4"
+                Background="#B0000000" BorderBrush="DodgerBlue" BorderThickness="3"
+                IsVisible="False" IsHitTestVisible="False">
+            <TextBlock Text="Drop comic archives to open" FontSize="22" FontWeight="SemiBold"
+                       Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+    </Grid>
+
+</Window>

@@ -7,13 +7,10 @@ namespace cbzLab.Services;
 
 public enum ArchiveFormat { Cbz, Cbr, Unknown }
 
-/// <summary>Result of opening an archive: raw ComicInfo.xml, page count, format, cover bytes.</summary>
+/// <summary>Result of opening an archive.</summary>
 public record ArchiveReadResult(byte[]? ComicInfoXml, int ImagePageCount, ArchiveFormat Format, byte[]? CoverBytes);
 
-/// <summary>
-/// All archive i/o. CBZ read/written natively; CBR read via SharpCompress but
-/// written via an external tool (rar/7z/7za/7zz), since no open library can write rar.
-/// </summary>
+/// <summary>All archive i/o. CBZ read/written natively; CBR read via SharpCompress, written via an external tool. Saves are temp-file-then-atomic-replace.</summary>
 public class ArchiveService
 {
     private const string ComicInfoName = "ComicInfo.xml";
@@ -31,11 +28,8 @@ public class ArchiveService
 
     //---------------------------------------------------------------- reading
 
-    /// <summary>
-    /// Opens an archive, extracts ComicInfo.xml, counts pages, and captures a cover
-    /// image per CoverSource. Cover is picked by natural-sorted filename, not archive
-    /// storage order — storage order doesn't reliably match page order.
-    /// </summary>
+    //cover is picked by natural-sorted filename, not archive storage order - storage order
+    //doesn't reliably match page order on a repacked archive
     public ArchiveReadResult Read(string path)
     {
         var wantLast = _settings.Settings.CoverSource == "last";
@@ -80,7 +74,7 @@ public class ArchiveService
         return new ArchiveReadResult(xml, pages, format, cover);
     }
 
-    //natural sort: digit runs compared as numbers, so "2.jpg" sorts before "10.jpg"
+    //compares digit runs as numbers so "2.jpg" sorts before "10.jpg"
     private static int NaturalCompare(string a, string b)
     {
         var partsA = Regex.Split(a, @"(\d+)");
@@ -100,7 +94,8 @@ public class ArchiveService
         return partsA.Length.CompareTo(partsB.Length);
     }
 
-    //re-opens the archive to decompress just one entry (the chosen cover)
+    //only used for "last page as cover" — needs its own pass since a
+    //sequential reader can't seek backward
     private byte[]? ExtractSingleEntry(string path, string key)
     {
         try
@@ -124,7 +119,7 @@ public class ArchiveService
         return null;
     }
 
-    //detects format from magic bytes first — cbz/cbr files are often mislabelled
+    /// <summary>Determines format from magic bytes, falling back to extension.</summary>
     public static ArchiveFormat SniffFormat(string path)
     {
         try
@@ -187,7 +182,6 @@ public class ArchiveService
                         continue;
 
                     var key = entry.Key.Replace('\\', '/');
-                    //drop any existing ComicInfo.xml wherever it lives; ours goes at the root
                     if (Path.GetFileName(key).Equals(ComicInfoName, StringComparison.OrdinalIgnoreCase))
                         continue;
 
@@ -212,8 +206,8 @@ public class ArchiveService
         }
     }
 
-    //in-place rar update goes through a temp copy; converting to cbr requires a full
-    //extract+repack via the external tool (7-Zip can't create rar; its error surfaces as-is)
+    //same archive: update in place via the tool. otherwise: full extract + repack
+    //(needs the real rar tool - 7-Zip can't create rar archives)
     private void SaveAsCbr(string sourcePath, string destPath, byte[] xml)
     {
         var tool = FindRarTool()
@@ -232,14 +226,12 @@ public class ArchiveService
 
             if (samePath && sourceIsRar)
             {
-                //in-place update: copy the archive aside, add/replace ComicInfo.xml, swap back
                 File.Copy(sourcePath, tempArchive);
                 File.WriteAllBytes(Path.Combine(workDir, ComicInfoName), xml);
                 RunTool(tool, BuildAddArgs(tool, tempArchive, ComicInfoName), workDir);
             }
             else
             {
-                //full repack: extract everything, drop in the new xml, archive the lot
                 var contentDir = Path.Combine(workDir, "content");
                 Directory.CreateDirectory(contentDir);
                 ExtractAll(sourcePath, contentDir);
@@ -257,7 +249,6 @@ public class ArchiveService
 
     private void ExtractAll(string archivePath, string destDir)
     {
-        //trailing separator so the escape check can't be fooled by a shared-prefix sibling dir
         var root = Path.GetFullPath(destDir + Path.DirectorySeparatorChar);
 
         using var stream = File.OpenRead(archivePath);
@@ -271,12 +262,11 @@ public class ArchiveService
             var name = Path.GetFileName(key);
             if (name.Length == 0)
                 continue;
-            //skip the old xml; the caller writes the fresh one
             if (name.Equals(ComicInfoName, StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            //manual extraction, not WriteEntryToDirectory: entry paths are untrusted,
-            //anything escaping the root is skipped (zip-slip, GHSA-6c8g-7p36-r338)
+            //entry paths are attacker-controlled; anything escaping the
+            //extraction root is skipped (zip-slip, GHSA-6c8g-7p36-r338)
             var target = ResolveWithinRoot(root, key);
             if (target is null)
                 continue;
@@ -288,7 +278,6 @@ public class ArchiveService
         }
     }
 
-    //resolves an entry key under root, or null if it's malformed or escapes it
     private string? ResolveWithinRoot(string root, string key)
     {
         try
@@ -301,7 +290,6 @@ public class ArchiveService
         }
         catch (Exception ex)
         {
-            //invalid path characters etc. — treat as hostile and skip
             _log.Warning($"Skipped unresolvable archive entry '{key}': {ex.Message}");
             return null;
         }
@@ -309,7 +297,7 @@ public class ArchiveService
 
     //---------------------------------------------------------------- rar tool
 
-    //configured path first, then PATH discovery of rar/7z/7za/7zz
+    /// <summary>Configured path first, then PATH discovery of rar/7z/7za/7zz.</summary>
     public string? FindRarTool()
     {
         var configured = _settings.Settings.RarToolPath;
@@ -344,21 +332,15 @@ public class ArchiveService
     private static bool IsRealRar(string toolPath) =>
         Path.GetFileNameWithoutExtension(toolPath).Contains("rar", StringComparison.OrdinalIgnoreCase);
 
-    private static IEnumerable<string> BuildAddArgs(string tool, string archive, string file)
-    {
-        //add a single file at the archive root, replacing any existing copy
-        return IsRealRar(tool)
+    private static IEnumerable<string> BuildAddArgs(string tool, string archive, string file) =>
+        IsRealRar(tool)
             ? new[] { "a", "-ep", "-idq", "-y", "--", archive, file }
             : new[] { "a", "-y", "--", archive, file };
-    }
 
-    private static IEnumerable<string> BuildPackArgs(string tool, string archive)
-    {
-        //pack the entire working directory recursively (the tool expands * itself)
-        return IsRealRar(tool)
+    private static IEnumerable<string> BuildPackArgs(string tool, string archive) =>
+        IsRealRar(tool)
             ? new[] { "a", "-r", "-idq", "-y", "--", archive, "*" }
             : new[] { "a", "-r", "-y", "--", archive, "*" };
-    }
 
     private static void RunTool(string tool, IEnumerable<string> args, string workingDir)
     {

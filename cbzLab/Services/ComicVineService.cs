@@ -17,16 +17,13 @@ public class ComicVineException : Exception
         : base(message, inner) => Kind = kind;
 }
 
-/// <summary>
-/// All ComicVine API access: series search, issue listing, single-issue detail —
-/// each backed by ComicVineCacheService. Requests are paced to ~1/second to respect
-/// ComicVine's velocity limits. Status-code mappings (100 = bad key, 107 = rate
-/// limited, etc.) are based on community docs, not an official spec.
-/// </summary>
+/// <summary>All ComicVine API access. Backed by ComicVineCacheService; requests paced to ~1/second.</summary>
 public class ComicVineService
 {
     private const string BaseUrl = "https://comicvine.gamespot.com/api";
 
+    //conservative spacing between any two requests, addressing ComicVine's
+    //"too many requests per second" velocity blocks specifically
     private static readonly TimeSpan MinRequestSpacing = TimeSpan.FromSeconds(1.1);
 
     private static readonly JsonSerializerOptions JsonOpts = new()
@@ -56,7 +53,6 @@ public class ComicVineService
 
     //---------------------------------------------------------------- public api
 
-    //cached by exact query text
     public async Task<List<ComicVineVolume>> SearchVolumesAsync(string query)
     {
         EnsureConfigured();
@@ -80,7 +76,7 @@ public class ComicVineService
         return volumes;
     }
 
-    //paginates (ComicVine caps pages at 100); capped at 500 issues total as a sanity ceiling
+    //paginates 100 at a time (ComicVine's page cap); capped at 500 issues total
     public async Task<List<ComicVineIssueSummary>> GetIssuesForVolumeAsync(int volumeId)
     {
         EnsureConfigured();
@@ -123,8 +119,9 @@ public class ComicVineService
         if (_cache.GetCachedIssueDetail(issueId) is { } cached)
             return cached;
 
-        //single-resource detail endpoints need the id prefixed with a resource-type
-        //code (4000 = issue) — unlike filter params (e.g. "volume:{id}"), which use a bare id
+        //single-resource detail endpoints need the id prefixed with a
+        //resource-type code (4000 = issue); filter params like "volume:{id}"
+        //above use a bare id instead
         var url = BuildUrl($"issue/4000-{issueId}", new Dictionary<string, string>
         {
             ["field_list"] = "id,name,issue_number,cover_date,description,site_detail_url,image,volume,"
@@ -144,7 +141,7 @@ public class ComicVineService
     public void RememberVolumeForSeries(string seriesName, ComicVineVolume volume) =>
         _cache.RememberVolumeForSeries(seriesName, volume);
 
-    //pure transform, never touches a file; the caller decides what actually gets applied
+    //pure transformation - produces proposed values only, never touches a file
     public static Dictionary<string, string> MapToComicInfoFields(ComicVineIssueDetail detail, ComicVineVolume volume)
     {
         var values = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -163,7 +160,7 @@ public class ComicVineService
             Set("Count", volume.IssueCount.ToString());
         Set("Web", detail.SiteDetailUrl);
 
-        //cover_date is documented as yyyy-MM-dd; fallback covers off-format responses
+        //cover_date is yyyy-MM-dd; general TryParse as a fallback
         DateTime? parsedDate = null;
         if (!string.IsNullOrWhiteSpace(detail.CoverDate))
         {
@@ -189,7 +186,7 @@ public class ComicVineService
         if (detail.Locations.Count > 0) Set("Locations", string.Join(", ", detail.Locations));
         if (detail.StoryArcs.Count > 0) Set("StoryArc", string.Join(", ", detail.StoryArcs));
 
-        //keyword-contains match, case-insensitive: one person can hold multiple roles at once
+        //keyword-contains match, case-insensitive; one person can hold multiple roles
         var writer = new List<string>();
         var penciller = new List<string>();
         var inker = new List<string>();
@@ -231,7 +228,8 @@ public class ComicVineService
         return collapsed.Trim();
     }
 
-    //tests the given key directly, bypassing the cache and saved settings (Test Connection button)
+    //tests the given key directly, bypassing the cache and saved settings —
+    //Test Connection must never mutate live settings before Save is pressed
     public async Task<int> TestApiKeyAsync(string apiKey)
     {
         apiKey = apiKey.Trim();
@@ -246,6 +244,21 @@ public class ComicVineService
         }, apiKey);
         var raw = await GetAsync<CvSearchResponse>(url);
         return raw.Results.Count;
+    }
+
+    //not throttled — CDN images aren't subject to the API's velocity limit;
+    //returns null (logged) on failure so one bad thumbnail can't break a dialog
+    public async Task<byte[]?> DownloadImageAsync(string url)
+    {
+        try
+        {
+            return await _http.GetByteArrayAsync(url);
+        }
+        catch (Exception ex)
+        {
+            _log.Warning($"Failed to download ComicVine thumbnail from {url}: {ex.Message}");
+            return null;
+        }
     }
 
     //---------------------------------------------------------------- http plumbing
@@ -307,7 +320,7 @@ public class ComicVineService
                 "Could not reach ComicVine — check your internet connection.", ex);
         }
 
-        //420 = comicvine's "slow down" response for velocity blocks
+        //420 is comicvine's documented "slow down" response for velocity blocks
         if ((int)response.StatusCode == 420)
             throw new ComicVineException(ComicVineErrorKind.RateLimited,
                 "ComicVine's rate limit was hit. Wait a while before trying again.");
@@ -367,7 +380,11 @@ public class ComicVineService
         r.StoryArcCredits.Where(c => c.Name is not null).Select(c => c.Name!).ToList());
 
     //---------------------------------------------------------------- raw json dtos
-    //mirror ComicVine's snake_case response shape; translated into ComicVineModels.cs before leaving this class
+    //
+    //private, implementation-only — these mirror ComicVine's actual (snake_case)
+    //response shape so System.Text.Json can deserialize it directly. Everything
+    //past this point is translated into the clean Models/ComicVineModels.cs
+    //records above before it ever leaves this class.
 
     private abstract class CvResponseBase
     {
@@ -388,14 +405,19 @@ public class ComicVineService
 
     private class CvIssueDetailResponse : CvResponseBase
     {
-        //ComicVine's single-issue endpoint returns "results" as either a bare object
-        //or a single-element array wrapping one — tolerate both
+        //the single-issue endpoint is documented to return "results" as a
+        //bare object, but that wasn't independently verified against a live
+        //response before this shipped, and evidently doesn't hold — a real
+        //key hit a genuine parse failure here. Rather than guess at the
+        //exact alternate shape, tolerate both a bare object and a
+        //single-element array wrapping one (the shape ComicVine's own list
+        //endpoints already use), so this doesn't need to be re-guessed.
         [JsonPropertyName("results")]
         [JsonConverter(typeof(SingleOrArrayConverter<CvIssueDetailRaw>))]
         public CvIssueDetailRaw? Results { get; set; }
     }
 
-    //deserializes a bare object or a single-element array wrapping one
+    //tolerates a bare object or a single-element array wrapping one
     private class SingleOrArrayConverter<T> : JsonConverter<T> where T : class
     {
         public override T? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)

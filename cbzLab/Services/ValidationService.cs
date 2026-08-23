@@ -3,11 +3,7 @@ using cbzLab.Models;
 
 namespace cbzLab.Services;
 
-/// <summary>
-/// Save-time type validation, driven by the constraints block of schema.json.
-/// Empty values are always valid — validation only rejects values that are
-/// present but of the wrong shape.
-/// </summary>
+/// <summary>Save-time type validation, driven by schema.json's constraints block. Empty values are always valid.</summary>
 public class ValidationService
 {
     private readonly SchemaService _schema;
@@ -33,7 +29,7 @@ public class ValidationService
         return errors;
     }
 
-    //also used for live as-you-type feedback; Validate() above is built on this same check
+    //used for live as-you-type feedback too; Validate() above is built on this same check
     public (string Problem, string Suggestion)? CheckField(string tag, string value)
     {
         if (string.IsNullOrWhiteSpace(value))

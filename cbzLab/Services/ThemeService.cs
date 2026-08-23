@@ -1,15 +1,18 @@
 using System.Text.Json;
-using Microsoft.UI;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Media;
-using Windows.UI;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Media;
 
 namespace cbzLab.Services;
 
 /// <summary>
-/// Loads colour themes from themes.json plus custom theme files, and applies them by
-/// mutating a fixed set of SolidColorBrush instances the whole ui points at — no
-/// restart needed. Missing keys in a partial theme fall back to Solarized Dark.
+/// Mutates a fixed set of shared SolidColorBrush instances that both the
+/// app's own DynamicResource-bound styles and a curated set of overridden
+/// Avalonia FluentTheme resource keys point at, so changing a theme repaints
+/// everything live with no dictionary replace needed. ListBox/DataGrid
+/// selection highlight has no separately-named FluentTheme override (unlike
+/// WinUI's ListViewItem*), so that's themed by overriding the accent colour
+/// itself instead, which those controls' templates reference directly.
 /// </summary>
 public class ThemeService
 {
@@ -40,13 +43,13 @@ public class ThemeService
     //theme name → (colour key → hex string)
     private readonly Dictionary<string, Dictionary<string, string>> _themes = new();
 
-    //colour key → the single mutable brush instance the ui binds to
+    //colour key → the single mutable brush instance the ui binds to via DynamicResource
     private readonly Dictionary<string, SolidColorBrush> _brushes = new();
 
     public string DefaultThemeName { get; private set; } = FallbackThemeName;
     public string CurrentThemeName { get; private set; } = FallbackThemeName;
 
-    //true when the active theme has a light background; used to flip fluent visual states
+    //true when the active theme has a light background; used to flip fluent light/dark
     public bool CurrentThemeIsLight { get; private set; }
 
     public event Action? ThemeChanged;
@@ -137,30 +140,20 @@ public class ThemeService
             _brushes[key] = new SolidColorBrush(ParseColour(HardFallback[key]));
     }
 
-    //registers every brush as ThBg/ThAccent/etc and overrides system control resources; run once before the main window is created
+    //registers ThBg/ThAccent/etc for DynamicResource binding, plus FluentTheme overrides. Call before the window shows.
     public void RegisterResources()
     {
-        var res = Application.Current.Resources;
+        var res = Application.Current!.Resources;
         foreach (var (key, brush) in _brushes)
             res["Th" + Pascalise(key)] = brush;
 
-        //a ResourceDictionary instance can only occupy one slot, so each variant gets its own (sharing the brushes)
-        var darkOverrides = new ResourceDictionary();
-        FillSystemOverrides(darkOverrides);
-        var lightOverrides = new ResourceDictionary();
-        FillSystemOverrides(lightOverrides);
-
-        var host = new ResourceDictionary();
-        host.ThemeDictionaries["Default"] = darkOverrides;
-        host.ThemeDictionaries["Light"] = lightOverrides;
-        res.MergedDictionaries.Add(host);
+        FillSystemOverrides(res);
     }
 
-    private void FillSystemOverrides(ResourceDictionary d)
+    private void FillSystemOverrides(IResourceDictionary d)
     {
         void Map(string systemKey, string themeKey) => d[systemKey] = _brushes[themeKey];
 
-        //text boxes
         Map("TextControlBackground", "entry_bg");
         Map("TextControlBackgroundPointerOver", "entry_bg");
         Map("TextControlBackgroundFocused", "entry_bg");
@@ -174,18 +167,14 @@ public class ThemeService
         Map("TextControlBorderBrushFocused", "accent");
         Map("TextControlBorderBrushDisabled", "disabled_fg");
         Map("TextControlPlaceholderForeground", "disabled_fg");
-        Map("TextControlPlaceholderForegroundPointerOver", "disabled_fg");
-        Map("TextControlPlaceholderForegroundFocused", "disabled_fg");
         Map("TextControlSelectionHighlightColor", "entry_sel");
 
-        //combo boxes
+        //no ComboBoxForegroundPointerOver/Pressed equivalent in Avalonia; only base + disabled map
         Map("ComboBoxBackground", "entry_bg");
         Map("ComboBoxBackgroundPointerOver", "entry_bg");
         Map("ComboBoxBackgroundPressed", "entry_bg");
         Map("ComboBoxBackgroundDisabled", "disabled_bg");
         Map("ComboBoxForeground", "entry_fg");
-        Map("ComboBoxForegroundPointerOver", "entry_fg");
-        Map("ComboBoxForegroundPressed", "entry_fg");
         Map("ComboBoxForegroundDisabled", "disabled_fg");
         Map("ComboBoxBorderBrush", "sep");
         Map("ComboBoxBorderBrushPointerOver", "sep");
@@ -195,28 +184,10 @@ public class ThemeService
         Map("ComboBoxItemForegroundSelected", "list_sel_fg");
         Map("ComboBoxItemBackgroundSelected", "list_sel");
 
-        //menus
         Map("MenuFlyoutPresenterBackground", "bg2");
-        //MenuFlyoutItemForeground deliberately not mapped: MenuBarItem/MenuFlyoutSubItem/
-        //Toggle/RadioMenuFlyoutItem don't honour Control.Foreground, so mapping it just made
-        //plain items render brighter than the rest
+        Map("MenuFlyoutItemForeground", "fg");
 
-        //list view rows
-        Map("ListViewItemForeground", "list_fg");
-        Map("ListViewItemForegroundPointerOver", "fg_bright");
-        Map("ListViewItemForegroundSelected", "list_sel_fg");
-        Map("ListViewItemBackgroundSelected", "list_sel");
-        Map("ListViewItemBackgroundSelectedPointerOver", "list_sel");
-        Map("ListViewItemBackgroundPointerOver", "bg2");
-
-        //tab strip
-        Map("TabViewBackground", "bg");
-        Map("TabViewItemHeaderBackground", "bg");
-        Map("TabViewItemHeaderBackgroundSelected", "bg2");
-        Map("TabViewItemHeaderForeground", "fg");
-        Map("TabViewItemHeaderForegroundSelected", "accent");
-
-        //buttons (also covers content dialog buttons)
+        //buttons
         Map("ButtonForeground", "fg");
         Map("ButtonForegroundPointerOver", "fg_bright");
         Map("ButtonForegroundPressed", "fg_bright");
@@ -226,23 +197,18 @@ public class ThemeService
         Map("ButtonBorderBrush", "sep");
         Map("ButtonBorderBrushPointerOver", "accent");
 
-        //toggle buttons (toolbar view toggles)
+        //only the checked states exist in Avalonia's fluent theme
         Map("ToggleButtonBackgroundChecked", "accent");
         Map("ToggleButtonBackgroundCheckedPointerOver", "accent");
         Map("ToggleButtonForegroundChecked", "bg");
         Map("ToggleButtonForegroundCheckedPointerOver", "bg");
-
-        //dialogs
-        Map("ContentDialogBackground", "bg2");
-        Map("ContentDialogForeground", "fg");
 
         //tooltips
         Map("ToolTipBackground", "tooltip_bg");
         Map("ToolTipForeground", "tooltip_fg");
         Map("ToolTipBorderBrush", "sep");
 
-        //scrollbars
-        Map("ScrollBarThumbFill", "thumb");
+        //no ScrollBarThumbFill (idle state) equivalent - idle thumb stays fluent's default colour
         Map("ScrollBarThumbFillPointerOver", "thumb");
         Map("ScrollBarThumbFillPressed", "thumb");
         Map("ScrollBarTrackFill", "scrollbar");
@@ -251,6 +217,26 @@ public class ThemeService
         //hyperlinks
         Map("HyperlinkButtonForeground", "accent");
         Map("HyperlinkButtonForegroundPointerOver", "fg_bright");
+
+        //simple lighten/darken steps, not a real fluent palette generator - this is chrome tinting
+        var accent = _brushes["accent"].Color;
+        d["SystemAccentColor"] = accent;
+        d["SystemAccentColorLight1"] = Lighten(accent, 0.15);
+        d["SystemAccentColorLight2"] = Lighten(accent, 0.30);
+        d["SystemAccentColorLight3"] = Lighten(accent, 0.45);
+        d["SystemAccentColorDark1"] = Lighten(accent, -0.15);
+        d["SystemAccentColorDark2"] = Lighten(accent, -0.30);
+        d["SystemAccentColorDark3"] = Lighten(accent, -0.45);
+    }
+
+    private static Color Lighten(Color c, double amount)
+    {
+        double Adjust(byte channel) =>
+            amount >= 0 ? channel + (255 - channel) * amount : channel * (1 + amount);
+        return Color.FromArgb(c.A,
+            (byte)Math.Clamp(Adjust(c.R), 0, 255),
+            (byte)Math.Clamp(Adjust(c.G), 0, 255),
+            (byte)Math.Clamp(Adjust(c.B), 0, 255));
     }
 
     //---------------------------------------------------------------- applying
@@ -271,6 +257,9 @@ public class ThemeService
                 : (fallback.TryGetValue(key, out var fv) ? fv : HardFallback[key]);
             _brushes[key].Color = ParseColour(hex);
         }
+
+        //accent-chain overrides are computed, not bound - must re-register every apply
+        FillSystemOverrides(Application.Current!.Resources);
 
         CurrentThemeName = name;
         CurrentThemeIsLight = Luminance(_brushes["bg"].Color) > 0.5;

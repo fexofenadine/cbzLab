@@ -1,10 +1,11 @@
-<img src="cbzLab.Avalonia/Assets/logo.png" width="120" alt="cbzLab logo">
+<img src="cbzLab/Assets/logo.png" width="120" alt="cbzLab logo">
 
 # Changelog
 
-> This history covers the archived WinUI 3 version (`cbzLab/`, see
-> [`cbzLab/ARCHIVED.md`](cbzLab/ARCHIVED.md)). The current Avalonia version's own
-> notable changes are tracked in its [GitHub Releases](../../releases) instead.
+> This history covers the archived WinUI 3 version (`cbzLab.winui3/`, see
+> [`cbzLab.winui3/ARCHIVED.md`](cbzLab.winui3/ARCHIVED.md)). The current Avalonia
+> version's own notable changes are tracked in its [GitHub Releases](../../releases)
+> instead.
 
 ## 0.1.48 — 2026-08-15
 

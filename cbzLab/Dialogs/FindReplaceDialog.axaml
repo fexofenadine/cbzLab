@@ -1,0 +1,38 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="cbzLab.Dialogs.FindReplaceDialog"
+        Title="Find &amp; Replace"
+        Width="420" SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource ThBg}">
+
+    <StackPanel Margin="20" Spacing="12">
+        <TextBlock x:Name="ScopeText" Opacity="0.75" TextWrapping="Wrap" />
+
+        <StackPanel Spacing="4">
+            <TextBlock Text="Field" />
+            <ComboBox x:Name="FieldCombo" HorizontalAlignment="Stretch" />
+        </StackPanel>
+
+        <StackPanel Spacing="4">
+            <TextBlock Text="Find" />
+            <TextBox x:Name="FindBox" />
+        </StackPanel>
+
+        <StackPanel Spacing="4">
+            <TextBlock Text="Replace with" />
+            <TextBox x:Name="ReplaceBox" />
+        </StackPanel>
+
+        <CheckBox x:Name="CaseSensitiveCheck" Content="Case sensitive" />
+
+        <TextBlock x:Name="StatusText" FontSize="12" Opacity="0.85" TextWrapping="Wrap" />
+
+        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+            <Button x:Name="CancelButton" Content="Cancel" Click="OnCancel" />
+            <Button x:Name="ReplaceButton" Content="Replace…" Click="OnReplace" IsDefault="True" />
+        </StackPanel>
+    </StackPanel>
+
+</Window>

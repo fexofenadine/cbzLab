@@ -2,8 +2,10 @@ using cbzLab.Models;
 
 namespace cbzLab.ViewModels;
 
-//one value shown in the entry-field picker: a batch-detected value with a file
-//count, or (Count 0) a recently typed value in single-file mode
+/// <summary>
+/// One value in the entry-field picker popover: a batch-detected value with
+/// its file count, or (Count 0) a single-file recent value.
+/// </summary>
 public record DistinctValue(string Value, int Count)
 {
     public string Display => Count == 0
@@ -12,9 +14,9 @@ public record DistinctValue(string Value, int Count)
 }
 
 /// <summary>
-/// One editable field in the form, shared across all tabs (tabs just filter which
-/// subset is visible). UI edits fire Edited; programmatic loads use SetValueSilent
-/// to avoid a feedback loop.
+/// One editable field, shared across tabs (tabs just filter visibility). UI
+/// edits raise Edited; programmatic writes use SetValueSilent to avoid a
+/// feedback loop.
 /// </summary>
 public class FieldViewModel : ViewModelBase
 {
@@ -30,7 +32,7 @@ public class FieldViewModel : ViewModelBase
     public bool IsExtraField => Definition.IsExtra;
     public List<string> Options => Definition.Options ?? new List<string>();
 
-    //raised on a user edit only, not a programmatic load
+    //raised when the user edits the field (not when values are loaded programmatically)
     public event Action<FieldViewModel, string>? Edited;
 
     private bool _suppress;
@@ -65,8 +67,10 @@ public class FieldViewModel : ViewModelBase
         }
     }
 
+    //sentinel placeholder shown in the empty field when values differ across the selection
     public string PlaceholderText => IsMixed ? MixedSentinel : "";
 
+    //label for the batch picker button on combo fields
     public string BatchButtonText =>
         IsMixed ? MixedSentinel : (Value.Length == 0 ? "(not set)" : Value);
 
@@ -81,7 +85,7 @@ public class FieldViewModel : ViewModelBase
         }
     }
 
-    //save-time validation (ValidationService.Validate) is separate and always runs
+    //live as-you-type validation state; save-time validation is separate and runs regardless
     private bool _hasError;
     public bool HasError
     {
@@ -113,26 +117,23 @@ public class FieldViewModel : ViewModelBase
         }
     }
 
-    //batch mode always offers the picker; single-file mode only when there's
-    //recent-value history (populated by MainViewModel, entry fields only)
+    //batch mode always offers the picker; single-file mode only when there's recent-value history
     public bool ShowPicker => IsBatch || DistinctValues.Count > 0;
 
+    //true when the field should appear under the default only-populated-fields view
     public bool HasValue => Value.Length > 0 || IsMixed;
 
-    //other fields that render inline on this field's own row instead of getting
-    //one of their own (Number/Count/Volume; Year's date companions below). A
-    //companion is excluded from the rendered list (RebuildVisibleFields) but
-    //still goes through the normal Edited/validate/revert pipeline via its own
-    //Value.
+    //other fields rendered inline on this field's row instead of getting their own
+    //(excluded from the normal rendered list - see RebuildVisibleFields); edited
+    //through their own Value, same Edited pipeline as if rendered normally
     public List<FieldViewModel> RowCompanions { get; } = new();
 
+    //Year's own companions, kept as named refs so DateDisplayValue reads clearly
     public FieldViewModel? MonthCompanion { get; set; }
     public FieldViewModel? DayCompanion { get; set; }
 
-    //composite localized date for Year's own template — Month/Day are hidden
-    //from the field list and edited only through this. Get formats via the
-    //current culture; set parses full date / year-only / "MM/yyyy" and writes
-    //Year plus both companions through their normal setters.
+    //composite localized date for Year's template; Month/Day are hidden from
+    //the rendered list and edited only through this
     public string DateDisplayValue
     {
         get => DateFieldHelper.FormatForDisplay(Value, MonthCompanion?.Value ?? "", DayCompanion?.Value ?? "");
@@ -150,8 +151,8 @@ public class FieldViewModel : ViewModelBase
         }
     }
 
-    //Month/Day are separate FieldViewModel instances, so their own changes
-    //don't otherwise reach Year's computed DateDisplayValue
+    //called when Month/Day change from elsewhere - their own PropertyChanged
+    //doesn't otherwise reach Year's computed display
     public void RefreshDateDisplay() => OnPropertyChanged(nameof(DateDisplayValue));
 
     public FieldViewModel(FieldDefinition definition, string tab)
@@ -160,6 +161,7 @@ public class FieldViewModel : ViewModelBase
         Tab = tab;
     }
 
+    //loads a value without treating it as a user edit
     public void SetValueSilent(string value, bool mixed)
     {
         _suppress = true;

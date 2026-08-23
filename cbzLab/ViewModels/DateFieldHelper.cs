@@ -4,15 +4,14 @@ using System.Text.RegularExpressions;
 namespace cbzLab.ViewModels;
 
 /// <summary>
-/// Bridges a single localized date string to/from ComicInfo's separate Year/
-/// Month/Day tags, via the current culture's own DateTime formatting. Also
-/// accepts partial dates ComicInfo allows: a bare year, or "MM/yyyy" as one
-/// fixed convention for year+month (deliberately not culture-derived — too
-/// rare a case to justify the ambiguity).
+/// Bridges a single localized date string to/from ComicInfo's separate
+/// Year/Month/Day tags, using the current culture's own DateTime formatting.
+/// Partial dates (bare year, or "MM/yyyy") are supported since ComicInfo
+/// allows them; arbitrary-culture partial-date ordering is not attempted.
 /// </summary>
 public static class DateFieldHelper
 {
-    //empty if Year is empty — a month/day with no year isn't a meaningful partial date
+    //empty if Year is empty - a month/day with no year isn't a meaningful partial date
     public static string FormatForDisplay(string year, string month, string day)
     {
         if (year.Length == 0)
@@ -26,7 +25,7 @@ public static class DateFieldHelper
             }
             catch (ArgumentOutOfRangeException)
             {
-                //bad data from elsewhere — fall through to looser renderings
+                //out-of-range combination - fall through to looser renderings below
             }
         }
 
@@ -36,24 +35,24 @@ public static class DateFieldHelper
         return year;
     }
 
-    //returns null if unrecognized (not a full date, bare year, or "MM/yyyy") so
-    //the caller leaves existing fields untouched rather than overwrite with a
-    //failed guess
+    //returns null (leave fields untouched) if input isn't a full date, bare year, or "MM/yyyy"
     public static (string Year, string Month, string Day)? Parse(string input)
     {
         input = input.Trim();
         if (input.Length == 0)
             return ("", "", "");
 
-        if (DateTime.TryParse(input, CultureInfo.CurrentCulture, DateTimeStyles.None, out var full))
-            return (full.Year.ToString(), full.Month.ToString(), full.Day.ToString());
-
+        //partial-date forms must be checked before DateTime.TryParse: it doesn't reject
+        //"03/2019", it silently fills Day=1 and succeeds as a full date
         if (Regex.IsMatch(input, @"^\d{4}$"))
             return (input, "", "");
 
         var m = Regex.Match(input, @"^(\d{1,2})[/\-](\d{4})$");
         if (m.Success && int.TryParse(m.Groups[1].Value, out var mm) && mm is >= 1 and <= 12)
             return (m.Groups[2].Value, mm.ToString(), "");
+
+        if (DateTime.TryParse(input, CultureInfo.CurrentCulture, DateTimeStyles.None, out var full))
+            return (full.Year.ToString(), full.Month.ToString(), full.Day.ToString());
 
         return null;
     }

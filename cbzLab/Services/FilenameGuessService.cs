@@ -2,21 +2,21 @@ using System.Text.RegularExpressions;
 
 namespace cbzLab.Services;
 
-/// <summary>Best-effort Series/Number/Volume/Year extraction from a file's path. Pure string parsing.</summary>
+/// <summary>Best-effort Series/Number/Volume/Year extraction from a file's path. Pure parsing, no i/o.</summary>
 public static class FilenameGuessService
 {
     public record Guess(string? Series, string? Number, string? Volume, string? Year);
 
-    //falls back to the parent folder name for Series (the common "Series Name\001.cbz" layout)
     public static Guess FromPath(string fullPath)
     {
         var working = Path.GetFileNameWithoutExtension(fullPath);
         var folderName = Path.GetFileName(Path.GetDirectoryName(fullPath) ?? "");
 
-        //normalize separators first: "_" is a word char to regex, so "Saga_012" has
-        //no \b before the digits until the underscore is gone
+        //normalize separators before matching - "_" is a word character to
+        //regex, so "Saga_012" has no \b before the digits until it's gone
         working = NormalizeSeparators(working);
 
+        //year: four digits in parentheses, e.g. "(1940)"
         string? year = null;
         var yearMatch = Regex.Match(working, @"\((19|20)\d{2}\)");
         if (yearMatch.Success)
@@ -25,7 +25,7 @@ public static class FilenameGuessService
             working = working.Remove(yearMatch.Index, yearMatch.Length);
         }
 
-        //explicit "Vol"/"Volume" prefix only — a bare "V2" is too ambiguous ("V for Vendetta")
+        //explicit "Vol"/"Volume" prefix only - a bare "V2" is too ambiguous (e.g. "V for Vendetta")
         string? volume = null;
         var volMatch = Regex.Match(working, @"\b(?:Vol(?:ume)?)\.?\s*#?(\d+)\b", RegexOptions.IgnoreCase);
         if (volMatch.Success)
@@ -34,8 +34,8 @@ public static class FilenameGuessService
             working = working.Remove(volMatch.Index, volMatch.Length);
         }
 
-        //"#123" first, else the last standalone number remaining (issue numbers
-        //are conventionally last, avoiding a leading series year/volume)
+        //"#123" first, else the last standalone numeric token (issue numbers are
+        //conventionally last, avoiding a leading year/volume already stripped above)
         string? number = null;
         var hashMatch = Regex.Match(working, @"#(\d+)");
         if (hashMatch.Success)
@@ -69,7 +69,7 @@ public static class FilenameGuessService
 
     private static string CleanSeries(string raw)
     {
-        var s = Regex.Replace(raw, @"\(\s*\)|\[\s*\]", "");   //empty brackets left behind by a removed token
+        var s = Regex.Replace(raw, @"\(\s*\)|\[\s*\]", "");   //empty brackets left behind by a stripped token
         s = Regex.Replace(s, @"\s{2,}", " ");
         return s.Trim(" -_.".ToCharArray());
     }
@@ -81,7 +81,7 @@ public static class FilenameGuessService
         return trimmed.Length == 0 ? "0" : trimmed;
     }
 
-    //generic filler words rejected as series leftovers, e.g. "issue_01.cbz" -> "issue"
+    //leftovers made entirely of these ("issue_01.cbz" -> "issue") fall back to the folder name
     private static readonly HashSet<string> GenericTokens = new(StringComparer.OrdinalIgnoreCase)
     {
         "issue", "issues", "chapter", "chap", "ch", "part", "pt", "page", "pg",

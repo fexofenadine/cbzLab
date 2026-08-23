@@ -2,9 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace cbzLab.Models;
 
-/// <summary>
-/// User preferences persisted to cbzLab_settings.json in the config directory.
-/// </summary>
+/// <summary>User preferences persisted to cbzLab_settings.json.</summary>
 public class AppSettings
 {
     [JsonPropertyName("theme")]
@@ -88,7 +86,7 @@ public class AppSettings
     [JsonPropertyName("editor_font_family")]
     public string EditorFontFamily { get; set; } = "Segoe UI";
 
-    //master switch — off means no ComicVine ui exists anywhere, not just greyed out
+    //off by default; when off, no ComicVine ui exists anywhere in the app, not just greyed out
     [JsonPropertyName("comicvine_enabled")]
     public bool ComicVineEnabled { get; set; }
 
@@ -101,7 +99,33 @@ public class AppSettings
     [JsonPropertyName("grid_view_active")]
     public bool GridViewActive { get; set; }
 
-    //a reasonable starter set for a library-wide audit
+    //a reasonable starter set — the fields most people would actually want
+    //to audit across a library at a glance
     [JsonPropertyName("grid_columns")]
     public List<string> GridColumns { get; set; } = new() { "Series", "Number", "Writer", "Publisher" };
+
+    //empty means let the platform pick a default starting folder
+    [JsonPropertyName("last_open_folder")]
+    public string LastOpenFolder { get; set; } = "";
+
+    //ordered list of enabled toolbar item ids; full catalog is in MainWindow
+    [JsonPropertyName("toolbar_buttons")]
+    public List<string> ToolbarButtons { get; set; } = new()
+    {
+        "Open", "Save", "SaveAll", "Remove", "Revert", "CopyXml", "PasteXml",
+        "AllFields", "Extras", "GridView",
+    };
+
+    //off by default, matching ComicVineEnabled's own "no background network calls
+    //unless you opt in" convention - a startup check is still just a GitHub API
+    //read, not itself an update
+    [JsonPropertyName("check_for_updates_on_startup")]
+    public bool CheckForUpdatesOnStartup { get; set; }
+
+    //gates whether Help > Check for Updates (or the startup check) offers to
+    //actually download and install a newer version - off by default; either way
+    //it always requires an explicit confirm before doing anything, this only
+    //controls whether that offer appears at all instead of just linking the release
+    [JsonPropertyName("auto_update_enabled")]
+    public bool AutoUpdateEnabled { get; set; }
 }

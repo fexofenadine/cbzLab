@@ -2,7 +2,7 @@ using cbzLab.Models;
 
 namespace cbzLab.Services;
 
-/// <summary>File-backed cache for ComicVine API responses, persisted to comicvine_cache.json.</summary>
+/// <summary>File-backed cache for ComicVine API responses, in comicvine_cache.json.</summary>
 public class ComicVineCacheService
 {
     private readonly LogService _log;
@@ -18,7 +18,6 @@ public class ComicVineCacheService
 
     //---------------------------------------------------------------- series -> volume memory
 
-    //lets later files from the same run skip straight to issue matching
     public void RememberVolumeForSeries(string seriesName, ComicVineVolume volume)
     {
         var key = NormalizeKey(seriesName);
@@ -73,6 +72,17 @@ public class ComicVineCacheService
         Save();
     }
 
+    //---------------------------------------------------------------- clearing
+
+    public void ClearAll()
+    {
+        _data.SeriesToVolume.Clear();
+        _data.SearchResults.Clear();
+        _data.VolumeIssues.Clear();
+        _data.IssueDetails.Clear();
+        Save();
+    }
+
     //---------------------------------------------------------------- persistence
 
     private static string NormalizeKey(string s) => s.Trim().ToLowerInvariant();
@@ -81,7 +91,6 @@ public class ComicVineCacheService
 
     //---------------------------------------------------------------- storage shape
 
-    //ComicVineModels' public records serialize directly, no shadow dtos needed
     private class CacheData
     {
         public Dictionary<string, ComicVineVolume> SeriesToVolume { get; set; } = new();

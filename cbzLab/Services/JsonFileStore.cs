@@ -2,10 +2,10 @@ using System.Text.Json;
 
 namespace cbzLab.Services;
 
-/// <summary>Shared json load/save for config-directory state. Load falls back to a default on failure; save is best-effort.</summary>
+/// <summary>Shared json-file persistence pattern for config-directory state. Never throws.</summary>
 public static class JsonFileStore
 {
-    //indented for hand-editability; tolerant of comments/trailing commas
+    //indented for hand-editability, tolerant of comments/trailing commas
     public static readonly JsonSerializerOptions JsonOpts = new()
     {
         WriteIndented = true,
@@ -13,7 +13,7 @@ public static class JsonFileStore
         AllowTrailingCommas = true,
     };
 
-    //defaultValue() only runs when actually needed
+    //defaultValue() only invoked when needed, so callers can build fresh collections lazily
     public static T Load<T>(string path, LogService log, Func<T> defaultValue)
     {
         try

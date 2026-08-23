@@ -2,7 +2,7 @@ name: release
 
 #triggered by pushing a version tag (e.g. `git tag v2.0.1 && git push origin v2.0.1`),
 #not by every push to a branch - deliberate: a release is a cut point you choose,
-#not something that should fire on every commit. Bump cbzLab.Avalonia.csproj's
+#not something that should fire on every commit. Bump cbzLab.csproj's
 #<Version> and MainWindow.axaml.cs's DisplayVersion together first, commit, then tag.
 on:
   push:
@@ -28,14 +28,14 @@ jobs:
         id: version
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
-      #catches the tag and cbzLab.Avalonia.csproj's <Version> drifting apart - e.g.
+      #catches the tag and cbzLab.csproj's <Version> drifting apart - e.g.
       #tagging v2.1.0 while the csproj (and MainWindow.axaml.cs's DisplayVersion,
       #kept in sync with it by convention, not checked here) still says 2.0.0
       - name: Verify tag matches the project version
         run: |
-          PROJECT_VERSION=$(grep -oP '(?<=<Version>)[^<]+' cbzLab.Avalonia/cbzLab.Avalonia.csproj)
+          PROJECT_VERSION=$(grep -oP '(?<=<Version>)[^<]+' cbzLab/cbzLab.csproj)
           if [ "$PROJECT_VERSION" != "${{ steps.version.outputs.version }}" ]; then
-            echo "::error::Tag ${{ github.ref_name }} implies version ${{ steps.version.outputs.version }}, but cbzLab.Avalonia.csproj's <Version> is $PROJECT_VERSION - bump the csproj (and MainWindow.axaml.cs's DisplayVersion) first."
+            echo "::error::Tag ${{ github.ref_name }} implies version ${{ steps.version.outputs.version }}, but cbzLab.csproj's <Version> is $PROJECT_VERSION - bump the csproj (and MainWindow.axaml.cs's DisplayVersion) first."
             exit 1
           fi
 
@@ -49,20 +49,20 @@ jobs:
       - name: Build and test
         run: |
           dotnet build cbzLab.sln -c Release
-          dotnet test cbzLab.Avalonia.Tests/cbzLab.Avalonia.Tests.csproj -c Release
+          dotnet test cbzLab.Tests/cbzLab.Tests.csproj -c Release
 
       #self-contained publish doesn't need the target OS - both run fine from this
       #ubuntu runner, and doing so here means the linux-x64 binary gets a real,
       #natively-set executable bit rather than one that has to be forced afterward
       - name: Publish win-x64
         run: >
-          dotnet publish cbzLab.Avalonia/cbzLab.Avalonia.csproj
+          dotnet publish cbzLab/cbzLab.csproj
           -c Release -r win-x64 --self-contained true
           -o publish/win-x64
 
       - name: Publish linux-x64
         run: >
-          dotnet publish cbzLab.Avalonia/cbzLab.Avalonia.csproj
+          dotnet publish cbzLab/cbzLab.csproj
           -c Release -r linux-x64 --self-contained true
           -o publish/linux-x64
 
@@ -72,21 +72,21 @@ jobs:
       #warn on first launch; no Apple Developer account is set up to fix that yet.
       - name: Publish osx-x64
         run: >
-          dotnet publish cbzLab.Avalonia/cbzLab.Avalonia.csproj
+          dotnet publish cbzLab/cbzLab.csproj
           -c Release -r osx-x64 --self-contained true
           -o publish/osx-x64
 
       - name: Publish osx-arm64
         run: >
-          dotnet publish cbzLab.Avalonia/cbzLab.Avalonia.csproj
+          dotnet publish cbzLab/cbzLab.csproj
           -c Release -r osx-arm64 --self-contained true
           -o publish/osx-arm64
 
       - name: Make the Linux/macOS binaries executable
         run: |
-          chmod +x publish/linux-x64/cbzLab.Avalonia
-          chmod +x publish/osx-x64/cbzLab.Avalonia
-          chmod +x publish/osx-arm64/cbzLab.Avalonia
+          chmod +x publish/linux-x64/cbzLab
+          chmod +x publish/osx-x64/cbzLab
+          chmod +x publish/osx-arm64/cbzLab
 
       - name: Package Windows build
         run: |

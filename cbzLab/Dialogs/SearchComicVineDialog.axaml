@@ -1,0 +1,41 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="using:cbzLab.Dialogs"
+        x:Class="cbzLab.Dialogs.SearchComicVineDialog"
+        Title="Search ComicVine"
+        Width="480" Height="520"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource ThBg}">
+
+    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" Margin="20">
+        <TextBlock Grid.Row="0" Text="Series name" FontSize="12" Opacity="0.7" Margin="0,0,0,4" />
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
+            <TextBox x:Name="QueryBox" Width="320" KeyDown="OnQueryKeyDown" />
+            <Button x:Name="SearchButton" Content="Search" Click="OnSearch" />
+        </StackPanel>
+        <TextBlock Grid.Row="2" x:Name="StatusText" FontSize="12" Opacity="0.75" TextWrapping="Wrap" Margin="0,8,0,4" />
+
+        <ListBox Grid.Row="3" x:Name="ResultsList" SelectionMode="Single" SelectionChanged="OnSelectionChanged">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="d:VolumeRow">
+                    <Grid ColumnDefinitions="40,*" Margin="4">
+                        <!--placeholder slot always shows; image sits on top once downloaded-->
+                        <Border Grid.Column="0" Width="40" Height="54" CornerRadius="2" Background="{DynamicResource ThBg2}">
+                            <Image Source="{Binding Cover}" Stretch="UniformToFill" IsVisible="{Binding HasCover}" />
+                        </Border>
+                        <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Name}" FontSize="14" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding Meta}" FontSize="12" Opacity="0.7" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="0,14,0,0">
+            <Button x:Name="CancelButton" Content="Cancel" Click="OnCancel" />
+            <Button x:Name="UseButton" Content="Use This Series" Click="OnUse" IsEnabled="False" />
+        </StackPanel>
+    </Grid>
+
+</Window>

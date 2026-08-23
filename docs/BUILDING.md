@@ -1,13 +1,16 @@
-<img src="../cbzLab.Avalonia/Assets/logo.png" width="120" alt="cbzLab logo">
+<img src="../cbzLab/Assets/logo.png" width="120" alt="cbzLab logo">
 
 # Building cbzLab from source
 
-> Written for the archived WinUI 3 version (`cbzLab/`, see
-> [`cbzLab/ARCHIVED.md`](../cbzLab/ARCHIVED.md)) — Visual Studio, the WinUI
-> workload, and the `cbzLab.csproj` commands below are all specific to that
-> project. To build the current Avalonia version instead, see the root
-> [`README.md`](../README.md)'s Quick start section — it only needs the .NET 8
-> SDK, no Visual Studio or platform-specific workload required.
+> Written for the archived WinUI 3 version, now at `cbzLab.winui3/` (see
+> [`cbzLab.winui3/ARCHIVED.md`](../cbzLab.winui3/ARCHIVED.md)) — Visual Studio, the
+> WinUI workload, and the commands below are all specific to that project, and its
+> paths were updated for its new folder name but its own project files were not
+> otherwise touched. It's also no longer part of `cbzLab.sln` — open
+> `cbzLab.winui3/cbzLab.csproj` directly rather than the solution. To build the
+> current Avalonia version instead, see the root [`README.md`](../README.md)'s
+> Quick start section — it only needs the .NET 8 SDK, no Visual Studio or
+> platform-specific workload required.
 
 ## Environment setup
 
@@ -48,7 +51,8 @@ If Visual Studio itself is new to you:
 ### Opening the project
 
 1. Unzip the source anywhere sensible (avoid deeply nested paths).
-2. Double-click `cbzLab.sln`, or in VS use **File → Open → Project/Solution**.
+2. Double-click `cbzLab.winui3\cbzLab.csproj` directly (it's no longer part of
+   `cbzLab.sln`), or in VS use **File → Open → Project/Solution**.
 3. In the toolbar, set platform to **x64** (or **ARM64** on an ARM machine) and the
    launch profile to **cbzLab (Unpackaged)**.
 4. Press **F5**. First build takes a while (NuGet restore + XAML compile); after
@@ -61,16 +65,16 @@ you can copy to another machine, use the command line rather than Visual Studio'
 Publish dialog (overkill for an unpackaged app):
 
 ```powershell
-dotnet publish cbzLab\cbzLab.csproj -c Release -r win-x64 --self-contained true
+dotnet publish cbzLab.winui3\cbzLab.csproj -c Release -r win-x64 --self-contained true
 ```
 
 For ARM64:
 
 ```powershell
-dotnet publish cbzLab\cbzLab.csproj -c Release -r win-arm64 --self-contained true
+dotnet publish cbzLab.winui3\cbzLab.csproj -c Release -r win-arm64 --self-contained true
 ```
 
-The output lands in `cbzLab\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\publish\`
+The output lands in `cbzLab.winui3\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\publish\`
 (adjust for platform). Managed dependencies are collapsed into `cbzLab.exe` via
 `PublishSingleFile`. A handful of native Windows App SDK files
 (`Microsoft.ui.xaml.dll`, `DWriteCore.dll`, the WindowsAppRuntime bootstrapper,
@@ -82,8 +86,7 @@ and run `cbzLab.exe`; nothing needs installing on the target machine.
 ## Project layout
 
 ```
-cbzLab.sln
-cbzLab/
+cbzLab.winui3/
   cbzLab.csproj            project config: unpackaged WinUI 3, self-contained
   app.manifest             dpi awareness
   App.xaml / App.xaml.cs   service wiring, theme bootstrap, cli handling

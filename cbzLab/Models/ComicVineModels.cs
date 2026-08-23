@@ -1,6 +1,6 @@
 namespace cbzLab.Models;
 
-//a ComicVine "volume" (their name for what cbzLab calls a series) search result
+/// <summary>A ComicVine "volume" (series) search result.</summary>
 public record ComicVineVolume(
     int Id,
     string Name,
@@ -9,19 +9,17 @@ public record ComicVineVolume(
     int? IssueCount,
     string? ThumbImageUrl);
 
-//one entry in a volume's issue list, for matching against a file's Number field
+/// <summary>One entry in a volume's issue list.</summary>
 public record ComicVineIssueSummary(
     int Id,
     string? IssueNumber,
     string? Name,
     string? CoverDate);
 
-//one person credited on an issue, with ComicVine's own free-text role string
-//(e.g. "writer", "penciler, inks") — parsed into separate fields elsewhere
+//raw free-text role (e.g. "penciler, inks") - parsed into Writer/Penciller/etc by ComicVineService
 public record ComicVineCredit(string Name, string Role);
 
-//full detail for one matched issue. Publisher isn't included — it comes from
-//the ComicVineVolume already fetched during series search instead.
+//Publisher isn't here - it comes from the ComicVineVolume already fetched during series search
 public record ComicVineIssueDetail(
     int Id,
     string? Name,

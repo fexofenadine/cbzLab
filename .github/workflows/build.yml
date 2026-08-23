@@ -10,8 +10,8 @@ jobs:
   build:
     strategy:
       #the old x64/ARM64 Platform matrix only meant anything for the now-archived
-      #WinUI cbzLab.csproj (Platform-based RID switching). cbzLab.sln now only holds
-      #cbzLab.Avalonia (plain AnyCPU, no Platform property) and its test project -
+      #WinUI project (Platform-based RID switching, now at cbzLab.winui3/). cbzLab.sln
+      #now only holds cbzLab (plain AnyCPU, no Platform property) and its test project -
       #an OS matrix is the meaningful axis now that the app is actually cross-platform
       fail-fast: false
       matrix:
@@ -29,11 +29,11 @@ jobs:
 
       #restore and build/test run as one command each, not split with --no-restore/
       #--no-build: a plain `dotnet restore` with no -c Release doesn't know to fetch
-      #the RID-specific packages cbzLab.Avalonia.csproj's SelfContained (conditional
+      #the RID-specific packages cbzLab/cbzLab.csproj's SelfContained (conditional
       #on Release) needs, and a later --no-restore build then fails looking for a
       #target project.assets.json never restored - bit every CI run for weeks
       - name: Build (Release)
         run: dotnet build cbzLab.sln -c Release
 
       - name: Test
-        run: dotnet test cbzLab.Avalonia.Tests/cbzLab.Avalonia.Tests.csproj -c Release
+        run: dotnet test cbzLab.Tests/cbzLab.Tests.csproj -c Release

@@ -3,7 +3,7 @@ using cbzLab.Models;
 
 namespace cbzLab.Services;
 
-/// <summary>Loads the field schema from schema.json, merges in schema_extra.json, and assigns each field a tab.</summary>
+/// <summary>Loads the field schema, merges in accumulated unofficial fields from schema_extra.json, assigns tabs.</summary>
 public class SchemaService
 {
     public const string TabBasicInfo = "Basic Info";
@@ -68,7 +68,7 @@ public class SchemaService
 
     private void LoadOfficialSchema()
     {
-        //not via JsonFileStore.Load: a broken schema.json means no fields to edit, so this fails loudly
+        //not via JsonFileStore.Load - a missing/broken schema.json should fail loudly, not fall back
         var json = File.ReadAllText(_settings.SchemaPath);
         var doc = JsonSerializer.Deserialize<SchemaDocument>(json, JsonFileStore.JsonOpts)
                   ?? throw new InvalidDataException("schema.json could not be parsed");
@@ -99,7 +99,7 @@ public class SchemaService
         }
     }
 
-    //registers an unofficial tag as an editable Extras field, persisted for future sessions
+    //persists a discovered non-schema tag as an editable Extras field; returns true if newly registered
     public bool RegisterExtraTag(string tag)
     {
         if (_byTag.ContainsKey(tag))
