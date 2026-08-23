@@ -25,10 +25,15 @@
         was renamed from cbzLab.Avalonia/ to cbzLab/ once the winui original moved to
         cbzLab.winui3/ (see cbzLab.winui3/ARCHIVED.md) - this is now the primary and only
         actively developed version. MainWindow.axaml.cs's DisplayVersion constant carries the
-        human-readable "2.0.0" string shown in the title bar/About.-->
-    <Version>2.0.0</Version>
-    <AssemblyVersion>2.0.0.0</AssemblyVersion>
-    <FileVersion>2.0.0.0</FileVersion>
+        human-readable version string shown in the title bar/About - three places
+        (here, DisplayVersion, and MainWindow.axaml's XAML-declared Title) need bumping
+        together; nothing enforces that automatically yet.
+        2.0.1: the rename above, plus a verified SharpCompress bump and first-ever
+        confirmed macOS publish - also the first release actually cut via release.yml
+        rather than by hand.-->
+    <Version>2.0.1</Version>
+    <AssemblyVersion>2.0.1.0</AssemblyVersion>
+    <FileVersion>2.0.1.0</FileVersion>
   </PropertyGroup>
 
   <!--scoped to Release only, not the main PropertyGroup above: SelfContained
