@@ -71,6 +71,8 @@
 
 ## Grid view
 
+![Choose Columns dialog over the grid view, Dracula theme](screenshots/columns-dracula.png)
+
 The **Grid View** toggle (toolbar, far right) swaps the whole sidebar+editor
 layout for a full-width table of your open files — one row per file, one
 column per field, useful for spotting which books are missing a field at a
