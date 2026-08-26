@@ -1,0 +1,59 @@
+name: pages
+
+#deploys fexofenadine.github.io/cbzLab from site/ + the project's real docs
+#(site/build_site.py converts docs/USER_GUIDE.md, docs/BUILDING.md and
+#CHANGELOG.md to html so the published site never drifts from them) -
+#rebuilds only when something the site actually shows changes, not on every commit
+on:
+  push:
+    branches: [master]
+    paths:
+      - "site/**"
+      - "docs/**"
+      - "README.md"
+      - "CHANGELOG.md"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+#a newer push should win over a stale in-progress deploy, not queue behind it
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.x"
+
+      - name: Install the markdown converter
+        run: pip install markdown
+
+      - name: Build the site
+        run: python site/build_site.py
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

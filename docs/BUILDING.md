@@ -2,111 +2,152 @@
 
 # Building cbzLab from source
 
-> Written for the archived WinUI 3 version, now at `cbzLab.winui3/` (see
-> [`cbzLab.winui3/ARCHIVED.md`](../cbzLab.winui3/ARCHIVED.md)) — Visual Studio, the
-> WinUI workload, and the commands below are all specific to that project, and its
-> paths were updated for its new folder name but its own project files were not
-> otherwise touched. It's also no longer part of `cbzLab.sln` — open
-> `cbzLab.winui3/cbzLab.csproj` directly rather than the solution. To build the
-> current Avalonia version instead, see the root [`README.md`](../README.md)'s
-> Quick start section — it only needs the .NET 8 SDK, no Visual Studio or
-> platform-specific workload required.
+cbzLab is a plain SDK-style .NET 8 project — no platform-specific workload,
+no Windows-only tooling. If you have the .NET 8 SDK, you can build and run it.
 
-## Environment setup
+## Prerequisites
 
-You need two things: the **.NET 8 SDK** and **Visual Studio 2022** with the right
-workload. Total download is a few GB; allow half an hour on a fresh machine.
+Just the **.NET 8 SDK** — <https://dotnet.microsoft.com/download/dotnet/8.0>.
+Confirm it's installed with:
 
-### Install Visual Studio 2022
+```powershell
+dotnet --list-sdks
+```
 
-1. Download **Visual Studio 2022 Community** (free) from
-   <https://visualstudio.microsoft.com/downloads/>. Version 17.10 or later.
-2. Run the installer. On the **Workloads** tab, tick:
-   - **WinUI application development** — this is the one that matters. It pulls in
-     the Windows App SDK templates, XAML tooling and the Windows SDK.
-   - If you don't see that workload (older installer versions), instead tick
-     **.NET desktop development**, then switch to the **Individual components** tab
-     and add **Windows App SDK C# Templates** and a **Windows 11 SDK** (10.0.22621
-     or newer).
-3. Let it install. The .NET 8 SDK comes bundled with current VS 2022 releases —
-   confirm afterwards by opening a terminal and running `dotnet --list-sdks`; you
-   want an `8.0.x` entry. If it's missing, grab it from
-   <https://dotnet.microsoft.com/download/dotnet/8.0>.
+You want an `8.0.x` entry. Any editor works: Visual Studio 2022, VS Code (with
+the C# Dev Kit extension), JetBrains Rider, or a plain text editor plus the
+`dotnet` CLI — none of it is required, just convenient.
 
-### First-time Visual Studio orientation
+## Building and running
 
-If Visual Studio itself is new to you:
+```powershell
+git clone https://github.com/fexofenadine/cbzLab.git
+cd cbzLab
+dotnet build cbzLab.sln
+dotnet run --project cbzLab/cbzLab.csproj
+```
 
-- **Solution Explorer** (right-hand panel) is the file tree. The `.sln` is the
-  workspace; the `.csproj` is the project (roughly a `pyproject.toml` plus build
-  config in one).
-- The toolbar dropdowns near the Run button select **configuration** (Debug/Release),
-  **platform** (x64/ARM64) and the **launch profile**.
-- **F5** = build and run with debugger. **Ctrl+F5** = run without debugger.
-  **Ctrl+Shift+B** = just build.
-- NuGet packages (the .NET equivalent of pip packages) restore automatically on
-  first build. If anything looks unresolved, right-click the solution →
-  **Restore NuGet Packages**.
+NuGet packages restore automatically on first build.
 
-### Opening the project
+## Running the tests
 
-1. Unzip the source anywhere sensible (avoid deeply nested paths).
-2. Double-click `cbzLab.winui3\cbzLab.csproj` directly (it's no longer part of
-   `cbzLab.sln`), or in VS use **File → Open → Project/Solution**.
-3. In the toolbar, set platform to **x64** (or **ARM64** on an ARM machine) and the
-   launch profile to **cbzLab (Unpackaged)**.
-4. Press **F5**. First build takes a while (NuGet restore + XAML compile); after
-   that it's quick.
+```powershell
+dotnet test cbzLab.Tests/cbzLab.Tests.csproj
+```
+
+29 xUnit tests cover the pure/injectable logic — `DateFieldHelper`,
+`ComicInfoXml`, `JsonFileStore`, `AutosaveService`. `SettingsService`,
+`SchemaService`, and `ValidationService` aren't tested directly: all three
+resolve to the real, shared `%APPDATA%\cbzLab` directory with no injectable
+override today, so constructing them for real in a test would risk touching
+your actual settings/schema/logs.
 
 ## Building a distributable executable
 
-Debug builds run from `bin\x64\Debug\...` and are fine for development. For a build
-you can copy to another machine, use the command line rather than Visual Studio's
-Publish dialog (overkill for an unpackaged app):
+Debug builds (`dotnet build`) are fine for development. For a self-contained,
+single-file build you can copy to another machine, publish for the target
+platform:
 
 ```powershell
-dotnet publish cbzLab.winui3\cbzLab.csproj -c Release -r win-x64 --self-contained true
+# Windows
+dotnet publish cbzLab/cbzLab.csproj -c Release -r win-x64 --self-contained true
+
+# Linux
+dotnet publish cbzLab/cbzLab.csproj -c Release -r linux-x64 --self-contained true
+
+# macOS (Intel)
+dotnet publish cbzLab/cbzLab.csproj -c Release -r osx-x64 --self-contained true
+
+# macOS (Apple Silicon)
+dotnet publish cbzLab/cbzLab.csproj -c Release -r osx-arm64 --self-contained true
 ```
 
-For ARM64:
+These are exactly the commands the project's own release workflow
+(`.github/workflows/release.yml`) runs for each platform, so a passing publish
+here means the same thing a real release build does.
 
-```powershell
-dotnet publish cbzLab.winui3\cbzLab.csproj -c Release -r win-arm64 --self-contained true
+Without an explicit `-o`, the output lands in
+`cbzLab/bin/Release/net8.0/<rid>/publish/`. Managed dependencies (including
+Avalonia's Skia/HarfBuzz native libraries) are collapsed into the single
+`cbzLab`/`cbzLab.exe` via `PublishSingleFile` — nothing else needs installing
+on the target machine. On Linux/macOS, mark the output executable before
+running it:
+
+```bash
+chmod +x cbzLab/bin/Release/net8.0/linux-x64/publish/cbzLab
 ```
 
-The output lands in `cbzLab.winui3\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\publish\`
-(adjust for platform). Managed dependencies are collapsed into `cbzLab.exe` via
-`PublishSingleFile`. A handful of native Windows App SDK files
-(`Microsoft.ui.xaml.dll`, `DWriteCore.dll`, the WindowsAppRuntime bootstrapper,
-`resources.pri`) still sit alongside it — the OS loads these directly rather than
-through .NET, so they can't be folded into the exe. This is true of any unpackaged
-WinUI 3 app, not specific to this project. Copy the whole folder wherever you like
-and run `cbzLab.exe`; nothing needs installing on the target machine.
+To land the exe somewhere more convenient, add `-o <path>`, e.g.
+`-o publish/win-x64`.
+
+## Dependencies
+
+| Package | Version | Used for |
+|---|---|---|
+| `Avalonia` / `Avalonia.Desktop` / `Avalonia.Themes.Fluent` | 12.1.1 | the UI framework itself, desktop windowing, and the Fluent theme (default light/dark chrome — cbzLab's own themes layer on top via `ThemeService`) |
+| `Avalonia.Controls.DataGrid` | 12.1.2 | grid view's table control — needs its own `StyleInclude` in `App.axaml`, since `FluentTheme` alone doesn't style it |
+| `SharpCompress` | 0.50.4 | reading `.cbr`/RAR archives (`ArchiveService`) |
+
+`Avalonia.Diagnostics` (the F12 dev-time inspector) is deliberately not
+referenced — as of this writing it has no 12.x release compatible with the
+12.1.1 core packages.
 
 ## Project layout
 
 ```
-cbzLab.winui3/
-  cbzLab.csproj            project config: unpackaged WinUI 3, self-contained
-  app.manifest             dpi awareness
-  App.xaml / App.xaml.cs   service wiring, theme bootstrap, cli handling
-  MainWindow.xaml / .cs    full ui + orchestration of i/o and dialogs
-  Assets/                  icons, bundled schema.json, themes (seeded to %APPDATA%)
-  Models/                  schema, settings and validation data classes
-  Services/                settings, schema, themes, xml, archives, validation
-  ViewModels/              main/file/field view models (data flow, dirty tracking)
-  Dialogs/                 settings, multi-save, progress, validation, about
-  Converters/              xaml value converters and the field template selector
+cbzLab/
+  cbzLab.csproj          project config: net8.0, WinExe, self-contained + single-file on Release
+  Program.cs              entry point, AppBuilder setup
+  App.axaml / .cs         application-level styles, service construction order
+  MainWindow.axaml / .cs  the whole main UI: file list, editor, grid view, menu, toolbar
+  Assets/                 icon, logo, bundled schema.json/themes.json (seeded to %APPDATA% on first run)
+  Assets/themes/          custom theme JSON files bundled with the app (Synthwave Dark, etc.)
+  Services/               settings, schema, themes, xml, archives, validation, ComicVine, autosave, updates
+  ViewModels/              main/file/field view models — data flow, dirty tracking, composite fields
+  Models/                  settings, schema, and ComicVine data classes
+  Dialogs/                 one Window (.axaml + .cs) per dialog — Avalonia has no ContentDialog equivalent,
+                           so each dialog is its own Window shown via ShowDialog, not a shared static-method file
+  Converters/              FieldTemplateSelector (widget dispatch) and FieldValueConverter (grid cell values)
+cbzLab.Tests/              xUnit tests for the pure/injectable services and helpers
 ```
 
 A few things worth knowing before changing this code:
 
-- Archive writes always go temp-file-then-atomic-replace. Don't "optimise" that away.
-- The theme system mutates a fixed set of `SolidColorBrush` instances that both the
-  app's own styles and a set of overridden system control resources point at. Adding
-  a themed control usually just means binding to an existing `Th*` brush.
-- `ComicInfoXml.Build` layers edits on top of the original raw XML bytes so complex
-  elements (`<Pages>`) survive untouched. Parsing and writing are DTD-disabled —
-  archive contents are untrusted input.
-- The five editor tabs are filters over one shared field list. Tab assignment is
-  the `TabMap` in `SchemaService`; unknown fields land on Extras.
+- Archive writes always go temp-file-then-atomic-replace (`ArchiveService`).
+  Don't "optimise" that away.
+- `ThemeService` mutates a fixed set of shared `SolidColorBrush` instances
+  registered into `Application.Resources` as `Th*` keys. Any
+  `DynamicResource`-bound control repaints automatically when a brush's
+  `.Color` changes — no dictionary replace needed. Adding a themed control
+  usually just means binding to an existing `Th*` brush.
+- `ComicInfoXml.Build` layers edits on top of the original raw XML bytes so
+  complex elements (`<Pages>`) survive untouched. Parsing and writing are
+  DTD-disabled — archive contents are untrusted input.
+- The five editor tabs are filters over one shared field list. Tab assignment
+  is `SchemaService`'s tab map; unknown fields land on Extras.
+- `FieldTemplateSelector` dispatches in a specific order — `MonthCompanion is
+  not null` (date fields) → `RowCompanions.Count > 0` (numeric row-sharing,
+  e.g. Issue #/Count/Volume) → the normal widget-type switch (entry/text/
+  combo). Follow this same order for any new composite field, or it'll fall
+  through to the wrong template.
+
+## Building the archived WinUI 3 version
+
+The original Windows-only WinUI 3 version is no longer developed, but its
+source is kept at `cbzLab.winui3/` for history — see
+[`cbzLab.winui3/ARCHIVED.md`](../cbzLab.winui3/ARCHIVED.md). It needs Visual
+Studio 2022 with the WinUI application development workload (or .NET desktop
+development + the Windows App SDK C# templates and a Windows 11 SDK), and is
+no longer part of `cbzLab.sln` — open `cbzLab.winui3/cbzLab.csproj` directly.
+Publish with:
+
+```powershell
+dotnet publish cbzLab.winui3/cbzLab.csproj -c Release -r win-x64 --self-contained true
+```
+
+Output lands in
+`cbzLab.winui3/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/publish/`,
+alongside a handful of native Windows App SDK files
+(`Microsoft.ui.xaml.dll`, `DWriteCore.dll`, the WindowsAppRuntime bootstrapper,
+`resources.pri`) that the OS loads directly and can't be folded into the exe —
+true of any unpackaged WinUI 3 app, not specific to this project.

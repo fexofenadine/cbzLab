@@ -18,6 +18,10 @@ obj/
 *.idb
 *.ilk
 
+#pages site build output (site/build_site.py generates this; the workflow
+#builds it fresh in ci, so the generated html never needs to be committed)
+_site/
+
 #publish / packaging output
 publish/
 AppPackages/

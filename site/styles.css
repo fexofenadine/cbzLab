@@ -1,0 +1,80 @@
+:root{
+  --bg:#0d0221; --bg2:#1a0a3d; --bg3:#261255; --sep:#4a1f7a;
+  --fg:#d4b3ff; --fg-bright:#f0d6ff; --accent:#ff2d9b; --cyan:#00f0ff;
+  --max:1080px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:radial-gradient(ellipse at top, #170a3a 0%, var(--bg) 55%, #08011a 100%);
+  color:var(--fg);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  line-height:1.55;
+}
+a{color:var(--cyan); text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:var(--max); margin:0 auto; padding:0 24px}
+
+header.top{padding:20px 0; border-bottom:1px solid var(--sep)}
+header.top .wrap{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px}
+.brand{display:flex; align-items:center; gap:12px}
+.brand img{width:36px; height:36px; border-radius:8px}
+.brand span{font-weight:700; font-size:1.2rem; color:var(--fg-bright); letter-spacing:.02em}
+nav a{color:var(--fg); margin-left:20px; font-size:.95rem}
+nav a:first-child{margin-left:0}
+
+.hero{padding:64px 0 48px; text-align:center}
+.hero img.logo{width:140px; height:140px; border-radius:24px; box-shadow:0 0 60px -10px var(--accent)}
+.hero h1{font-size:2.4rem; color:var(--fg-bright); margin:24px 0 8px}
+.hero p.tag{font-size:1.15rem; color:var(--fg); max-width:640px; margin:0 auto 28px}
+.cta{display:flex; gap:16px; justify-content:center; flex-wrap:wrap}
+.btn{display:inline-block; padding:12px 24px; border-radius:8px; font-weight:600; font-size:.95rem}
+.btn.primary{background:var(--accent); color:#1a0a3d}
+.btn.primary:hover{background:#ff5cb0; text-decoration:none}
+.btn.secondary{border:1px solid var(--sep); color:var(--fg-bright)}
+.btn.secondary:hover{border-color:var(--cyan); text-decoration:none}
+
+.badges{display:flex; gap:10px; justify-content:center; margin-top:22px; flex-wrap:wrap}
+.badges img{height:20px}
+
+section{padding:40px 0}
+section h2{color:var(--fg-bright); font-size:1.5rem; border-left:4px solid var(--accent); padding-left:14px; margin-bottom:24px}
+
+.features{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:20px}
+.feature{background:var(--bg2); border:1px solid var(--sep); border-radius:12px; padding:18px 20px}
+.feature h3{margin:0 0 6px; color:var(--cyan); font-size:1.02rem}
+.feature p{margin:0; font-size:.92rem; color:var(--fg)}
+
+.gallery{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:22px}
+figure{margin:0; background:var(--bg2); border:1px solid var(--sep); border-radius:12px; overflow:hidden}
+figure img{width:100%; display:block; border-bottom:1px solid var(--sep)}
+figcaption{padding:12px 16px; font-size:.88rem; color:var(--fg)}
+figcaption b{color:var(--fg-bright)}
+
+.docs-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px}
+.doc-card{background:var(--bg2); border:1px solid var(--sep); border-radius:12px; padding:20px; display:block}
+.doc-card:hover{border-color:var(--cyan); text-decoration:none}
+.doc-card h3{margin:0 0 6px; color:var(--fg-bright); font-size:1rem}
+.doc-card p{margin:0; font-size:.88rem; color:var(--fg)}
+
+footer{border-top:1px solid var(--sep); padding:28px 0; text-align:center; font-size:.85rem; color:var(--sep)}
+footer a{color:var(--fg)}
+
+code{background:var(--bg3); padding:2px 6px; border-radius:4px; font-size:.85em}
+
+/* markdown-derived doc pages (guide/building/changelog) */
+.doc{padding:48px 0 80px}
+.doc h1{color:var(--fg-bright); font-size:2rem; margin-top:0}
+.doc h2{color:var(--fg-bright); font-size:1.35rem; border-left:4px solid var(--accent); padding-left:14px; margin:40px 0 16px}
+.doc h3{color:var(--cyan); font-size:1.05rem; margin:28px 0 10px}
+.doc p{color:var(--fg)}
+.doc blockquote{margin:0 0 20px; padding:10px 18px; background:var(--bg2); border-left:4px solid var(--sep); border-radius:0 8px 8px 0; color:var(--fg-bright)}
+.doc pre{background:var(--bg3); padding:14px 16px; border-radius:8px; overflow-x:auto}
+.doc pre code{background:none; padding:0}
+.doc table{border-collapse:collapse; width:100%; margin:0 0 20px}
+.doc th,.doc td{border:1px solid var(--sep); padding:8px 12px; text-align:left; font-size:.92rem}
+.doc th{background:var(--bg2); color:var(--fg-bright)}
+.doc img{max-width:100%; border-radius:10px; border:1px solid var(--sep); margin:8px 0 20px}
+.doc ul,.doc ol{color:var(--fg)}
+.doc li{margin-bottom:4px}
+.doc a{word-break:break-word}

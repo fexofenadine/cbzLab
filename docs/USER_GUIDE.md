@@ -2,10 +2,10 @@
 
 # Using cbzLab
 
-> Written for the archived WinUI 3 version, now at `cbzLab.winui3/` (see
-> [`cbzLab.winui3/ARCHIVED.md`](../cbzLab.winui3/ARCHIVED.md)). The workflow below
-> is the same in the current Avalonia version (`cbzLab/`); menu wording matches
-> unless noted elsewhere in this guide.
+> Describes **cbzLab**, the current Avalonia app (`cbzLab/`). The workflow below
+> also matches the archived WinUI 3 version (`cbzLab.winui3/`, see
+> [`cbzLab.winui3/ARCHIVED.md`](../cbzLab.winui3/ARCHIVED.md)) menu-for-menu,
+> unless noted otherwise elsewhere in this guide.
 
 ## Opening files
 
@@ -17,6 +17,8 @@
 - You can also drag cbz/cbr files from Explorer straight onto the window to open them.
 
 ## The editor
+
+![The editor with All Fields toggled on, Solarized Light theme](screenshots/allfields-solarized-light.png)
 
 - Open files appear in the left sidebar with a small cover thumbnail (taken
   from the first image in the archive), the filename, and a derived subtitle
@@ -49,6 +51,8 @@
   already have their own curated list of options).
 
 ## Batch editing
+
+![Batch mode with three files selected, showing mixed-value sentinels, GitHub Light theme](screenshots/batch-github-light.png)
 
 - Select multiple files in the sidebar (Ctrl-click / Shift-click). The editor
   switches to batch mode and a panel appears listing the files in scope.
@@ -141,6 +145,8 @@ the RAR format can only be created by WinRAR's own `rar.exe`:
   clipboard. Handy for cloning metadata between files.
 
 ## Settings, themes and storage
+
+![Settings dialog, Tokyo Night theme](screenshots/settings-tokyo-night.png)
 
 **Tools → Settings** covers theme, editor font size and font, default field
 visibility, default save format, batch-save confirmation, auto page count,
