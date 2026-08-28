@@ -54,12 +54,6 @@ dotnet publish cbzLab/cbzLab.csproj -c Release -r win-x64 --self-contained true
 
 # Linux
 dotnet publish cbzLab/cbzLab.csproj -c Release -r linux-x64 --self-contained true
-
-# macOS (Intel)
-dotnet publish cbzLab/cbzLab.csproj -c Release -r osx-x64 --self-contained true
-
-# macOS (Apple Silicon)
-dotnet publish cbzLab/cbzLab.csproj -c Release -r osx-arm64 --self-contained true
 ```
 
 These are exactly the commands the project's own release workflow
@@ -70,8 +64,7 @@ Without an explicit `-o`, the output lands in
 `cbzLab/bin/Release/net8.0/<rid>/publish/`. Managed dependencies (including
 Avalonia's Skia/HarfBuzz native libraries) are collapsed into the single
 `cbzLab`/`cbzLab.exe` via `PublishSingleFile` — nothing else needs installing
-on the target machine. On Linux/macOS, mark the output executable before
-running it:
+on the target machine. On Linux, mark the output executable before running it:
 
 ```bash
 chmod +x cbzLab/bin/Release/net8.0/linux-x64/publish/cbzLab
@@ -79,6 +72,12 @@ chmod +x cbzLab/bin/Release/net8.0/linux-x64/publish/cbzLab
 
 To land the exe somewhere more convenient, add `-o <path>`, e.g.
 `-o publish/win-x64`.
+
+**No macOS build.** Avalonia itself targets macOS fine (`-r osx-x64`/
+`-r osx-arm64` both work if you want to build it yourself), but the project
+doesn't publish or ship one — nobody working on it has Apple hardware to
+verify an unsigned, unnotarized build actually runs, and shipping one nobody
+can test isn't worth the CI time.
 
 ## Dependencies
 

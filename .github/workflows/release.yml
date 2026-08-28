@@ -66,27 +66,11 @@ jobs:
           -c Release -r linux-x64 --self-contained true
           -o publish/linux-x64
 
-      #both mac architectures are worth shipping: osx-x64 for older Intel Macs,
-      #osx-arm64 for current Apple Silicon ones - neither is a substitute for the
-      #other. Unsigned/unnotarized like the other two builds, so Gatekeeper will
-      #warn on first launch; no Apple Developer account is set up to fix that yet.
-      - name: Publish osx-x64
-        run: >
-          dotnet publish cbzLab/cbzLab.csproj
-          -c Release -r osx-x64 --self-contained true
-          -o publish/osx-x64
-
-      - name: Publish osx-arm64
-        run: >
-          dotnet publish cbzLab/cbzLab.csproj
-          -c Release -r osx-arm64 --self-contained true
-          -o publish/osx-arm64
-
-      - name: Make the Linux/macOS binaries executable
-        run: |
-          chmod +x publish/linux-x64/cbzLab
-          chmod +x publish/osx-x64/cbzLab
-          chmod +x publish/osx-arm64/cbzLab
+      #no macOS build: nobody on this project has Apple hardware to actually
+      #run/verify one, and an unsigned/unnotarized build nobody can test is
+      #worse than not shipping it at all - win-x64 and linux-x64 only.
+      - name: Make the Linux binary executable
+        run: chmod +x publish/linux-x64/cbzLab
 
       - name: Package Windows build
         run: |
@@ -98,13 +82,6 @@ jobs:
           cd publish/linux-x64
           tar -czf "../../cbzLab-${{ steps.version.outputs.version }}-linux-x64.tar.gz" .
 
-      - name: Package macOS builds
-        run: |
-          cd publish/osx-x64
-          tar -czf "../../cbzLab-${{ steps.version.outputs.version }}-osx-x64.tar.gz" .
-          cd ../osx-arm64
-          tar -czf "../../cbzLab-${{ steps.version.outputs.version }}-osx-arm64.tar.gz" .
-
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -112,7 +89,5 @@ jobs:
           gh release create "${{ github.ref_name }}" \
             "cbzLab-${{ steps.version.outputs.version }}-win-x64.zip" \
             "cbzLab-${{ steps.version.outputs.version }}-linux-x64.tar.gz" \
-            "cbzLab-${{ steps.version.outputs.version }}-osx-x64.tar.gz" \
-            "cbzLab-${{ steps.version.outputs.version }}-osx-arm64.tar.gz" \
             --title "cbzLab ${{ steps.version.outputs.version }}" \
             --generate-notes

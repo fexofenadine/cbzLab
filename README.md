@@ -11,8 +11,11 @@ view and edit the `ComicInfo.xml` metadata inside them (single files or whole
 batches at once), and writes changes back safely without ever touching the page
 images.
 
-Built with C# / .NET 8 and **Avalonia UI**, cross-platform (Windows + Linux + macOS),
-deployed as an unpackaged self-contained executable — no installer, no store.
+Built with C# / .NET 8 and **Avalonia UI**. Pre-built releases target Windows and
+Linux, deployed as an unpackaged self-contained executable — no installer, no
+store. (Avalonia itself also runs on macOS, but the project doesn't build or
+ship a macOS release — see [Building from source](#documentation) if you want
+one.)
 
 > **Note:** an earlier WinUI 3 / Windows-only version of cbzLab lives under
 > `cbzLab.winui3/` and is now archived — see
