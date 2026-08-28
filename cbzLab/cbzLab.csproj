@@ -59,6 +59,12 @@
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!--the single-file bundle is already extracted-to-disk on first run
+        (IncludeNativeLibrariesForSelfExtract implies that), so compressing it
+        costs only a one-time decompress on the first launch of each build -
+        subsequent launches reuse the extracted cache same as before. Pure
+        packaging-level size win, no behaviour change.-->
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
   </PropertyGroup>
 
   <ItemGroup>
