@@ -31,9 +31,9 @@
         2.0.1: the rename above, plus a verified SharpCompress bump and first-ever
         confirmed macOS publish - also the first release actually cut via release.yml
         rather than by hand.-->
-    <Version>2.0.1</Version>
-    <AssemblyVersion>2.0.1.0</AssemblyVersion>
-    <FileVersion>2.0.1.0</FileVersion>
+    <Version>2.0.2</Version>
+    <AssemblyVersion>2.0.2.0</AssemblyVersion>
+    <FileVersion>2.0.2.0</FileVersion>
   </PropertyGroup>
 
   <!--scoped to Release only, not the main PropertyGroup above: SelfContained

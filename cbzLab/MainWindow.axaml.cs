@@ -28,7 +28,7 @@ namespace cbzLab;
 public partial class MainWindow : Window
 {
     //keep in sync with cbzLab.csproj's Version
-    public const string DisplayVersion = "2.0.1";
+    public const string DisplayVersion = "2.0.2";
 
     private readonly LogService _log;
     private readonly SettingsService _settings;
@@ -1729,12 +1729,37 @@ public partial class MainWindow : Window
         return res as IBrush ?? Brushes.OrangeRed;
     }
 
+    //assigning TextBox.ContextMenu replaces its built-in cut/copy/paste menu entirely, so
+    //this rebuilds those items by hand - without them, right-clicking selected text in a
+    //field only ever offered "Revert to Saved" with no way to copy or paste
     private void AttachRevertContextMenu(Control input, FieldViewModel field)
     {
-        var item = new MenuItem { Header = "Revert to Saved" };
-        item.Click += (_, _) => _viewModel.RevertFieldToSaved(field);
         var menu = new ContextMenu();
-        menu.Items.Add(item);
+
+        if (input is TextBox textBox)
+        {
+            var cut = new MenuItem { Header = "Cut" };
+            cut.Click += (_, _) => textBox.Cut();
+            cut.Bind(MenuItem.IsEnabledProperty, new Binding(nameof(TextBox.CanCut)) { Source = textBox });
+
+            var copy = new MenuItem { Header = "Copy" };
+            copy.Click += (_, _) => textBox.Copy();
+            copy.Bind(MenuItem.IsEnabledProperty, new Binding(nameof(TextBox.CanCopy)) { Source = textBox });
+
+            var paste = new MenuItem { Header = "Paste" };
+            paste.Click += (_, _) => textBox.Paste();
+            paste.Bind(MenuItem.IsEnabledProperty, new Binding(nameof(TextBox.CanPaste)) { Source = textBox });
+
+            menu.Items.Add(cut);
+            menu.Items.Add(copy);
+            menu.Items.Add(paste);
+            menu.Items.Add(new Separator());
+        }
+
+        var revert = new MenuItem { Header = "Revert to Saved" };
+        revert.Click += (_, _) => _viewModel.RevertFieldToSaved(field);
+        menu.Items.Add(revert);
+
         input.ContextMenu = menu;
     }
 }

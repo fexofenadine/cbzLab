@@ -10,6 +10,14 @@
 
 ## cbzLab (Avalonia)
 
+### 2.0.2 — 2026-08-31
+
+- Fixed the editor field context menu: right-clicking selected text in any
+  field only ever showed "Revert to Saved", with no way to Cut/Copy/Paste.
+  Assigning `TextBox.ContextMenu` in Avalonia replaces its built-in
+  cut/copy/paste menu entirely rather than adding to it — `AttachRevertContextMenu`
+  now rebuilds those items by hand alongside Revert to Saved.
+
 ### 2.0.1 — 2026-08-23
 
 - New optional auto-update: on startup, checks GitHub Releases and — if
