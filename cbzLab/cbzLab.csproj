@@ -70,7 +70,7 @@
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.1.2" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.2" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.2" />
     <!--Avalonia.Diagnostics (dev-time f12 inspector) skipped for now: as of
         this writing it has no 12.x release yet (latest is 11.3.20, against
         core packages at 12.1.1) - add back once a compatible version ships-->

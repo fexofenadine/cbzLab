@@ -1,0 +1,45 @@
+name: auto-tag
+
+#runs on every push to master that touches cbzLab.csproj (a version bump, or a
+#dependency bump that leaves <Version> unchanged) and tags v<version> if that tag
+#doesn't already exist - release.yml is tag-triggered by design (see its own top
+#comment), so this closes the loop that used to rely on remembering to run
+#`git tag vX.Y.Z && git push origin vX.Y.Z` by hand after every version bump.
+#idempotent: a push that doesn't change <Version> (e.g. a dependency-only bump)
+#just finds the tag already exists and does nothing.
+on:
+  push:
+    branches: [master]
+    paths:
+      - "cbzLab/cbzLab.csproj"
+
+permissions:
+  contents: write
+
+jobs:
+  auto-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Read version from cbzLab.csproj
+        id: version
+        run: |
+          VERSION=$(grep -oP '(?<=<Version>)[^<]+' cbzLab/cbzLab.csproj)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      #checks the remote, not just the local (shallow, depth-1) checkout - a tag
+      #pushed by an earlier run of this same workflow wouldn't exist in this fresh
+      #checkout otherwise, and would get recreated/re-pushed every time
+      - name: Tag and push, if this version isn't tagged yet
+        run: |
+          TAG="v${{ steps.version.outputs.version }}"
+          if git ls-remote --tags origin | grep -q "refs/tags/$TAG$"; then
+            echo "$TAG already exists - nothing to do."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "cbzLab $TAG"
+          git push origin "$TAG"
