@@ -88,6 +88,27 @@ jobs:
           cd publish/linux-x64
           tar -czf "../../cbzLab-${{ steps.version.outputs.version }}-linux-x64.tar.gz" .
 
+      #pulls out just this version's own section (between its "### x.y.z — date"
+      #heading and the next one) so the release notes carry the actual human-written
+      #changelog entry, not just the auto-generated merged-PR list below. Matches on
+      #a literal line prefix (index(), not a regex) so the version number's dots
+      #can't be misread as regex wildcards.
+      - name: Extract this version's changelog section
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          awk -v heading="### $VERSION " '
+            index($0, heading) == 1 { found=1; next }
+            found && /^### / { exit }
+            found { print }
+          ' CHANGELOG.md > changelog-notes.md
+          if [ ! -s changelog-notes.md ]; then
+            echo "::warning::No CHANGELOG.md section found for $VERSION - release notes will only have the auto-generated PR list."
+          fi
+
+      #--notes supplies the changelog section as-is; --generate-notes then appends
+      #GitHub's own auto-generated merged-PR/commit summary after it (documented
+      #gh behavior: "Additional release notes can be prepended to automatically
+      #generated notes by using the --notes flag")
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -96,4 +117,5 @@ jobs:
             "cbzLab-${{ steps.version.outputs.version }}-win-x64.zip" \
             "cbzLab-${{ steps.version.outputs.version }}-linux-x64.tar.gz" \
             --title "cbzLab ${{ steps.version.outputs.version }}" \
+            --notes "$(cat changelog-notes.md)" \
             --generate-notes
