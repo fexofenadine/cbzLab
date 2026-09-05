@@ -8,6 +8,12 @@ on:
   push:
     tags:
       - "v*.*.*"
+  #dispatched by auto-tag.yml right after it pushes a new version tag - a tag
+  #pushed with the default GITHUB_TOKEN doesn't trigger other workflows (GitHub's
+  #built-in recursion guard), but workflow_dispatch is explicitly exempt from
+  #that guard, so auto-tag.yml calls this directly with --ref <tag> instead of
+  #relying on the push-tags trigger above to fire on its own for that case.
+  workflow_dispatch:
 
 permissions:
   contents: write
