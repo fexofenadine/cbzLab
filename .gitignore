@@ -53,6 +53,7 @@ Thumbs.db
 *.tmp
 *.bak
 *.dmp
+*.lnk
 msbuild.log
 msbuild.err
 msbuild.wrn
