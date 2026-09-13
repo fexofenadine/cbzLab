@@ -81,6 +81,7 @@
                 <MenuItem Header="Validate All Open Files…" Click="OnValidateAll" />
                 <Separator />
                 <MenuItem Header="Combine Archives…" Click="OnCombineArchives" />
+                <MenuItem Header="Trim Branding Footers…" Click="OnTrimFooters" />
                 <Separator />
                 <MenuItem Header="Customize Toolbar…" Click="OnCustomizeToolbar" />
                 <MenuItem Header="Settings…" Click="OnSettings" />

@@ -36,6 +36,7 @@ public partial class MainWindow : Window
     private readonly ThemeService _theme;
     private readonly ArchiveService _archive;
     private readonly CombineService _combine;
+    private readonly FooterTrimService _footerTrim;
     private readonly ValidationService _validation;
     private readonly RecentValuesService _recentValues;
     private readonly ComicVineCacheService _comicVineCache;
@@ -70,6 +71,7 @@ public partial class MainWindow : Window
         _theme = new ThemeService(_settings, _log);
         _archive = new ArchiveService(_settings, _schema, _log);
         _combine = new CombineService(_log, _schema.Constraints.ImageExtensions);
+        _footerTrim = new FooterTrimService(_log, _schema.Constraints.ImageExtensions);
         _validation = new ValidationService(_schema);
         _recentValues = new RecentValuesService(_settings, _log);
         _comicVineCache = new ComicVineCacheService(_settings, _log);
@@ -822,6 +824,7 @@ public partial class MainWindow : Window
         ("PasteXml", "Paste XML", 2),
         ("GuessFromFilename", "Guess from Filename", 3),
         ("Combine", "Combine Archives…", 3),
+        ("TrimFooters", "Trim Branding Footers…", 3),
         ("SearchComicVine", "Search ComicVine…", 4),
         ("AllFields", "All Fields", 5),
         ("Extras", "Extras", 5),
@@ -866,6 +869,8 @@ public partial class MainWindow : Window
             "Fill empty Series/Number/Volume/Year fields from the filename and folder"),
         "Combine" => MakeToolButton("Combine…", OnCombineArchives,
             "Join the selected archives into one new CBZ (for reassembling a split TPB)"),
+        "TrimFooters" => MakeToolButton("Trim Footers…", OnTrimFooters,
+            "Find and cut the branding strip some sources add to the bottom of pages"),
         "SearchComicVine" => BuildSearchComicVineButton(),
         "AllFields" => BuildToolToggle("All Fields", nameof(MainViewModel.ShowAllFields),
             OnToggleShowAllFields, "Show all fields, including empty ones"),
@@ -1367,6 +1372,129 @@ public partial class MainWindow : Window
             var trimmed = CombineService.TrimPartSuffix(current);
             if (trimmed != current)
                 file.SetValue(tag, trimmed);
+        }
+    }
+
+    //---------------------------------------------------------------- footer trimming
+
+    //the only path in the app that re-encodes page images; it always writes a new archive and
+    //leaves the source untouched - see CLAUDE.md's amended page-image constraint
+    private async void OnTrimFooters(object? sender, RoutedEventArgs e)
+    {
+        var file = _viewModel.CurrentFile;
+        if (file is null || _viewModel.IsBatchMode)
+        {
+            await MessageDialog.ShowAsync(this, "Trim Branding Footers",
+                "Select a single archive in the file list first.");
+            return;
+        }
+
+        var scanProgress = new ProgressDialog($"Scanning {file.FileName}", Math.Max(1, file.DetectedPageCount));
+        scanProgress.ShowNonBlocking(this);
+
+        FooterScan scan;
+        try
+        {
+            var path = file.Path;
+            scan = await Task.Run(() => _footerTrim.Scan(path,
+                (current, _, label) => Dispatcher.UIThread.Post(
+                    () => scanProgress.Report(current, Math.Max(current, file.DetectedPageCount), label))));
+        }
+        catch (System.Exception ex)
+        {
+            scanProgress.Complete();
+            _log.Error($"Footer scan failed for '{file.Path}'", ex);
+            await MessageDialog.ShowAsync(this, "Scan failed", ex.Message);
+            return;
+        }
+        scanProgress.Complete();
+
+        if (!scan.FoundAny)
+        {
+            await MessageDialog.ShowAsync(this, "Trim Branding Footers",
+                $"No branding footer was found across {scan.PagesScanned} pages in {file.FileName}.\n\n"
+                + "This looks for a consistent two-tone bar along the bottom edge — a footer that "
+                + "varies from page to page, or blends into the artwork, won't be picked up.");
+            return;
+        }
+
+        var chosen = await TrimFootersDialog.ShowAsync(this, scan, file.FileName);
+        if (chosen is null || chosen.Count == 0)
+            return;
+
+        var destination = await PickTrimDestinationAsync(file.Path);
+        if (destination is null)
+            return;
+
+        var trimProgress = new ProgressDialog("Trimming footers", Math.Max(1, scan.PagesScanned));
+        trimProgress.ShowNonBlocking(this);
+
+        int trimmed;
+        try
+        {
+            var source = file.Path;
+            var keys = chosen.ToHashSet();
+            var band = scan.BandHeight;
+            trimmed = await Task.Run(() => _footerTrim.Trim(source, destination, keys, band, JpegQuality,
+                (current, _, label) => Dispatcher.UIThread.Post(
+                    () => trimProgress.Report(current, Math.Max(current, scan.PagesScanned), label))));
+        }
+        catch (System.Exception ex)
+        {
+            trimProgress.Complete();
+            _log.Error($"Footer trim failed for '{file.Path}'", ex);
+            await MessageDialog.ShowAsync(this, "Trim failed", ex.Message);
+            return;
+        }
+        trimProgress.Complete();
+
+        await OpenPathsAsync(new List<string> { destination });
+        var opened = _viewModel.FindByPath(destination);
+        if (opened is not null)
+            SwitchToEditorForSelection(new[] { opened });
+
+        _viewModel.StatusText =
+            $"Trimmed {trimmed} footer(s) into {System.IO.Path.GetFileName(destination)} — original untouched";
+    }
+
+    //95 measured comfortably past the visually-lossless mark on real pages while keeping the file
+    //smaller than a lossless re-encode would; only the cropped pages are re-encoded at all
+    private const int JpegQuality = 95;
+
+    private async Task<string?> PickTrimDestinationAsync(string sourcePath)
+    {
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel is null)
+            return null;
+
+        IStorageFolder? startLocation = null;
+        var sourceDir = System.IO.Path.GetDirectoryName(sourcePath);
+        if (!string.IsNullOrEmpty(sourceDir))
+        {
+            try { startLocation = await topLevel.StorageProvider.TryGetFolderFromPathAsync(sourceDir); }
+            catch (System.Exception ex) { _log.Error("Could not resolve the trim output folder", ex); }
+        }
+
+        try
+        {
+            var target = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Save trimmed archive as",
+                SuggestedFileName = System.IO.Path.GetFileNameWithoutExtension(sourcePath) + " (trimmed)",
+                SuggestedStartLocation = startLocation,
+                DefaultExtension = "cbz",
+                FileTypeChoices = new[]
+                {
+                    new FilePickerFileType("Comic ZIP archive") { Patterns = new[] { "*.cbz" } },
+                },
+            });
+            return target?.Path.LocalPath;
+        }
+        catch (System.Exception ex)
+        {
+            _log.Error("Trim output picker failed", ex);
+            _viewModel.StatusText = $"Trim failed: {ex.Message}";
+            return null;
         }
     }
 

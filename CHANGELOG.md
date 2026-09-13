@@ -22,11 +22,22 @@
   "(Part 1)"-style marker trimmed off Title/Series — left unsaved and visible, so
   the change can be reviewed or reverted rather than applied silently. Also
   available as an optional "Combine…" toolbar button.
-- **This is the first feature that writes page images**, which the project's
+- New Tools → Trim Branding Footers…, which finds and cuts the strip some
+  sources graft onto the bottom of pages (a solid bar carrying a site name).
+  It is self-calibrating — the bar's height is measured from the book itself,
+  so nothing needs configuring per source and no reference images are stored —
+  and every detected band is shown as an actual image strip in the dialog, so
+  what would be cut can be checked before anything is written. Only the pages
+  you confirm are re-encoded; every other page is copied through byte-for-byte,
+  and the result is always written to a new file. Also available as an optional
+  "Trim Footers…" toolbar button.
+- **These are the first features that write page images**, which the project's
   founding constraint previously ruled out entirely. The constraint is now
-  narrower rather than gone: combining only ever writes a *new* archive, copies
-  page bytes through verbatim without decoding or re-encoding them, and leaves
-  every source file untouched on disk. See CLAUDE.md for the amended wording.
+  narrower rather than gone: both only ever write a *new* archive and leave
+  every source file untouched on disk. Combining additionally copies page bytes
+  verbatim without decoding them; footer trimming is the one path that genuinely
+  re-encodes, and only for the pages actually being cropped. See CLAUDE.md for
+  the amended wording.
 
 ### 2.0.2 — 2026-08-31
 

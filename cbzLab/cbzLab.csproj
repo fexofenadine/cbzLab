@@ -80,6 +80,11 @@
     <!--grid view (slice 2): one patch ahead of the 12.1.1 core packages above -
         same avaloniaui-owned package family, no lower version published-->
     <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.1.2" />
+    <!--already present transitively as Avalonia's own rendering backend, so referencing it
+        directly costs no extra payload - pinned to the same version Avalonia.Skia resolves.
+        Used by FooterTrimService for the one job Avalonia's own Bitmap can't do: decoding a
+        page, cropping it, and re-encoding as jpeg at a chosen quality.-->
+    <PackageReference Include="SkiaSharp" Version="3.119.4" />
   </ItemGroup>
 
   <ItemGroup>
