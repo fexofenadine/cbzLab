@@ -70,7 +70,7 @@ public class AppSettings
     [JsonPropertyName("max_recent_values")]
     public int MaxRecentValues { get; set; } = 12;
 
-    //"first" or "last" — which image entry in the archive becomes the cover
+    //"first" or "last" - which image entry in the archive becomes the cover
     [JsonPropertyName("cover_source")]
     public string CoverSource { get; set; } = "first";
 
@@ -99,7 +99,7 @@ public class AppSettings
     [JsonPropertyName("grid_view_active")]
     public bool GridViewActive { get; set; }
 
-    //a reasonable starter set — the fields most people would actually want
+    //a reasonable starter set - the fields most people would actually want
     //to audit across a library at a glance
     [JsonPropertyName("grid_columns")]
     public List<string> GridColumns { get; set; } = new() { "Series", "Number", "Writer", "Publisher" };

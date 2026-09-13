@@ -58,7 +58,7 @@ public partial class SearchComicVineDialog : Window
             }
             StatusText.Text = results.Count == 0
                 ? "No matches found."
-                : $"{results.Count} match{(results.Count == 1 ? "" : "es")} — pick one below.";
+                : $"{results.Count} match{(results.Count == 1 ? "" : "es")} - pick one below.";
         }
         catch (ComicVineException ex)
         {

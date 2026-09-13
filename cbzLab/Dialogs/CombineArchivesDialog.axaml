@@ -11,7 +11,7 @@
                    Text="These archives will be joined into one new CBZ, in the order shown. Pages are renumbered into a single sequence; the first book's ComicInfo.xml is kept and the rest are dropped." />
 
         <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,6,0,10">
-            <Button Content="Sort A–Z" Click="OnSortAlphabetically"
+            <Button Content="Sort A-Z" Click="OnSortAlphabetically"
                     ToolTip.Tip="Restore the default order: alphabetical by filename" />
             <Button Content="Reverse" Click="OnReverse" />
         </StackPanel>

@@ -27,11 +27,11 @@ public partial class TrimFootersDialog : Window
     {
         SummaryText.Text =
             $"Found a {scan.BandHeight}px branding footer on {scan.Pages.Count} of {scan.PagesScanned} pages "
-            + $"in {fileName}. Each strip below is exactly what would be cut — untick anything that looks "
+            + $"in {fileName}. Each strip below is exactly what would be cut - untick anything that looks "
             + "like real artwork.";
         NoteText.Text =
             "Trimmed pages are re-encoded (measurably lossless at this quality, but not bit-identical); "
-            + "every other page is copied through untouched. The result is written to a new file — the "
+            + "every other page is copied through untouched. The result is written to a new file - the "
             + "original is never modified.";
 
         foreach (var page in scan.Pages)
@@ -44,7 +44,7 @@ public partial class TrimFootersDialog : Window
                 Width = 90,
                 VerticalAlignment = VerticalAlignment.Center,
             };
-            ToolTip.SetTip(label, $"{page.EntryKey} — {page.Width}x{page.Height}, "
+            ToolTip.SetTip(label, $"{page.EntryKey} - {page.Width}x{page.Height}, "
                 + $"{page.DarkShare:P1} dark / {page.BrightShare:P1} bright");
 
             var preview = new Image

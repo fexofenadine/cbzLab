@@ -228,7 +228,7 @@ public class ComicVineService
         return collapsed.Trim();
     }
 
-    //tests the given key directly, bypassing the cache and saved settings —
+    //tests the given key directly, bypassing the cache and saved settings -
     //Test Connection must never mutate live settings before Save is pressed
     public async Task<int> TestApiKeyAsync(string apiKey)
     {
@@ -246,7 +246,7 @@ public class ComicVineService
         return raw.Results.Count;
     }
 
-    //not throttled — CDN images aren't subject to the API's velocity limit;
+    //not throttled - CDN images aren't subject to the API's velocity limit;
     //returns null (logged) on failure so one bad thumbnail can't break a dialog
     public async Task<byte[]?> DownloadImageAsync(string url)
     {
@@ -317,7 +317,7 @@ public class ComicVineService
         catch (HttpRequestException ex)
         {
             throw new ComicVineException(ComicVineErrorKind.NotReachable,
-                "Could not reach ComicVine — check your internet connection.", ex);
+                "Could not reach ComicVine - check your internet connection.", ex);
         }
 
         //420 is comicvine's documented "slow down" response for velocity blocks
@@ -381,7 +381,7 @@ public class ComicVineService
 
     //---------------------------------------------------------------- raw json dtos
     //
-    //private, implementation-only — these mirror ComicVine's actual (snake_case)
+    //private, implementation-only - these mirror ComicVine's actual (snake_case)
     //response shape so System.Text.Json can deserialize it directly. Everything
     //past this point is translated into the clean Models/ComicVineModels.cs
     //records above before it ever leaves this class.
@@ -407,7 +407,7 @@ public class ComicVineService
     {
         //the single-issue endpoint is documented to return "results" as a
         //bare object, but that wasn't independently verified against a live
-        //response before this shipped, and evidently doesn't hold — a real
+        //response before this shipped, and evidently doesn't hold - a real
         //key hit a genuine parse failure here. Rather than guess at the
         //exact alternate shape, tolerate both a bare object and a
         //single-element array wrapping one (the shape ComicVine's own list

@@ -24,18 +24,18 @@
   from the first image in the archive), the filename, and a derived subtitle
   (series/number/volume). A coloured dot marks unsaved changes.
 - Above the file list, a **Filter files…** box narrows the sidebar by filename
-  or subtitle — this is separate from the field search box lower down, which
+  or subtitle - this is separate from the field search box lower down, which
   only searches fields within the file(s) currently open in the editor.
 - The sort dropdown next to it offers **Name**, **Series / No.**, and
   **Modified** (unsaved files first). Name and Series/No. sort only update when
-  you change the sort mode or the filter — not on every keystroke while you're
+  you change the sort mode or the filter - not on every keystroke while you're
   editing a field, so the list doesn't reorder itself under your cursor mid-edit.
   Modified updates live as files become dirty, since that's the whole point of it.
 - Selecting a single file shows a larger cover and title banner above the
   search box; it's hidden during batch editing since it wouldn't apply to
   more than one file.
 - Metadata fields are grouped into five tabs: **Basic Info**, **Publication**,
-  **Creators**, **Story** and **Extras**. The tabs filter one shared form — they're
+  **Creators**, **Story** and **Extras**. The tabs filter one shared form - they're
   views onto the same data, not separate pages.
 - By default only fields with values are shown. Toggle **All Fields** (toolbar or
   View menu) to see everything, including empty fields.
@@ -46,7 +46,7 @@
   remembered between sessions. The **Extras** toggle shows/hides them.
 - Single-line fields (Writer, Publisher, Imprint, and so on) remember what you've
   typed into them before. A small picker button appears beside the field once
-  it has any history — click it to pick a recent value instead of retyping.
+  it has any history - click it to pick a recent value instead of retyping.
   Doesn't apply to multi-line fields (Summary, Notes) or dropdown fields (which
   already have their own curated list of options).
 
@@ -57,15 +57,15 @@
 - Select multiple files in the sidebar (Ctrl-click / Shift-click). The editor
   switches to batch mode and a panel appears listing the files in scope.
 - Fields where the selected files agree show the common value. Fields that differ
-  show a coloured *"(multiple values — edit to override all)"* placeholder.
+  show a coloured *"(multiple values - edit to override all)"* placeholder.
 - Anything you type or pick applies to **every** selected file, immediately marking
   them all dirty. Untouched fields keep their per-file values.
 - Dropdown fields in batch mode become a picker listing each distinct value with a
-  count of how many files carry it — click one to apply it to the whole selection.
+  count of how many files carry it - click one to apply it to the whole selection.
 - Search is disabled while in batch mode.
 - **Copy Fields to Rest of Selection** (right-click a file within a multi-select):
   copies the right-clicked file's own field values onto every other selected
-  file. Only overwrites the fields you tick in the confirmation list — Number
+  file. Only overwrites the fields you tick in the confirmation list - Number
   and Page Count start unticked since they're almost always specific to one
   issue.
 
@@ -74,20 +74,20 @@
 ![Choose Columns dialog over the grid view, Dracula theme](screenshots/columns-dracula.png)
 
 The **Grid View** toggle (toolbar, far right) swaps the whole sidebar+editor
-layout for a full-width table of your open files — one row per file, one
+layout for a full-width table of your open files - one row per file, one
 column per field, useful for spotting which books are missing a field at a
 glance. A dot in the leftmost column marks unsaved files, same as the
 sidebar. Right-click the grid, or **View → Choose Grid Columns…**, to pick
-which fields appear — defaults to Series, Number, Writer, Publisher, listed
+which fields appear - defaults to Series, Number, Writer, Publisher, listed
 in a curated "most likely wanted" order rather than raw schema order; your
 choice is remembered either way. The grid is backed by the same file list as
 the sidebar, so it already reflects your current sort and filter.
 
-Cells themselves are read-only — editing happens back in the normal view.
+Cells themselves are read-only - editing happens back in the normal view.
 **Double-click** any row to jump straight there for that one file, regardless
 of anything else you've selected. **Right-click** adapts to your selection:
 one file offers "Edit This Book", several offer "Edit N Books in Batch
-Editor". Your selection carries across the toggle either way — switching
+Editor". Your selection carries across the toggle either way - switching
 into grid view seeds it from whatever's selected in the sidebar, switching
 back out (via the toolbar toggle, not double/right-click) does the reverse.
 
@@ -116,34 +116,34 @@ end to scroll it left/right rather than wrapping to a second row.
 - Writes are atomic: the new archive is built as a temporary file and swapped in
   only when complete, so a crash mid-save can't corrupt your comics.
 - Page images and any `<Pages>` element in the existing XML are preserved
-  byte-for-byte in spirit — only the flat metadata elements are touched.
+  byte-for-byte in spirit - only the flat metadata elements are touched.
 
-## CBR (RAR) writing — important
+## CBR (RAR) writing - important
 
 Reading CBR needs nothing extra. **Writing** CBR requires an external tool because
 the RAR format can only be created by WinRAR's own `rar.exe`:
 
 - If WinRAR is installed and `rar` is on your PATH (or you set the path in
-  Settings), CBR saves work fully — in-place updates and CBZ→CBR conversion.
+  Settings), CBR saves work fully - in-place updates and CBZ→CBR conversion.
 - 7-Zip (`7z`/`7za`/`7zz`) is accepted as a configured tool but **cannot create
   RAR archives**; attempts will fail with the tool's own error message. Its
-  practical use is limited — if you don't have WinRAR, save as CBZ instead
+  practical use is limited - if you don't have WinRAR, save as CBZ instead
   (arguably the better format anyway).
 
 ## Tools
 
-- **Guess from Filename** — parses Series, Number, Volume and Year out of the
+- **Guess from Filename** - parses Series, Number, Volume and Year out of the
   selected file(s)' own filename, falling back to the parent folder name for
   Series when the filename alone doesn't have enough to go on. Only fills
   fields that are currently empty; never overwrites anything you've already
   set. Works across a whole batch selection, since each file's own path is
   used independently.
-- **Auto Page Count** — counts image files in the current archive and writes the
+- **Auto Page Count** - counts image files in the current archive and writes the
   result to the Page Count field. Also runs automatically on open (fills the field
   only when it's empty; configurable in Settings).
-- **Copy XML** — puts the current file's ComicInfo.xml (with your pending edits)
+- **Copy XML** - puts the current file's ComicInfo.xml (with your pending edits)
   on the clipboard.
-- **Paste XML** — replaces the current file's metadata from ComicInfo XML on the
+- **Paste XML** - replaces the current file's metadata from ComicInfo XML on the
   clipboard. Handy for cloning metadata between files.
 
 ## Settings, themes and storage
@@ -163,38 +163,38 @@ fits more on screen.
 
 A **Reset to Defaults** button in the same dialog resets all of the above
 back to their defaults (confirmed first, since it includes your ComicVine
-API key). It only touches your preferences — auto-discovered unofficial
+API key). It only touches your preferences - auto-discovered unofficial
 fields, recently typed values, and cached ComicVine lookups are separate
 accumulated data and aren't affected.
 
-**Online metadata lookup (ComicVine)** — off by default, near the bottom of
+**Online metadata lookup (ComicVine)** - off by default, near the bottom of
 Settings. Turning it on reveals an API key field (get a free one at
 comicvine.gamespot.com/api), a Test Connection button to check the key works,
-and an "always review matches before applying" option — and adds a **Search
+and an "always review matches before applying" option - and adds a **Search
 ComicVine** action (Tools menu and toolbar) that's otherwise not present
 anywhere in the app at all.
 
 Search ComicVine looks up a single selected file's series (using its own
 Series field if set, or a filename/folder guess otherwise), then helps you
-find the matching issue — confirming an auto-match rather than applying it
+find the matching issue - confirming an auto-match rather than applying it
 silently, since issue-number matching can be genuinely ambiguous (variant
 covers, facsimile editions, reprints). A series you've already matched is
 remembered, so tagging several issues from the same run only needs one real
 search. Once an issue is confirmed, a review dialog shows only the fields
-where ComicVine's data actually differs from what's already in the file —
-current value and proposed value shown side by side — so you can judge each
+where ComicVine's data actually differs from what's already in the file -
+current value and proposed value shown side by side - so you can judge each
 one before it's applied. Nothing is written unless you tick it and confirm.
 
 Selecting **multiple files** and running Search ComicVine does one series
 search for the whole batch, then matches each file to its own issue
-individually — every file always gets its own matched data, never one
+individually - every file always gets its own matched data, never one
 file's values forced onto the rest. The review step covers every matched
 file at once: a field where every file's match agrees (Writer, Publisher,
 Characters, and similar series-level facts) shows as a single line and is
 ticked by default; a field that actually differs across the matched files
 is flagged and left unticked, listing every distinct value and how many
 files carry it, since that's exactly the situation worth a second look
-before applying — it might be a genuine change partway through the run, or
+before applying - it might be a genuine change partway through the run, or
 it might be a mismatch. Fields that are naturally expected to vary issue to
 issue (Number, Title, dates, Summary) aren't held to that comparison at
 all. Any file that can't be matched is skipped and named at the end so it
@@ -209,16 +209,16 @@ Everything lives in `%APPDATA%\cbzLab`:
 | File / folder            | Purpose                                              |
 |--------------------------|------------------------------------------------------|
 | `cbzLab_settings.json`   | preferences and recent files                         |
-| `schema.json`            | field definitions — editable, seeded on first run    |
+| `schema.json`            | field definitions - editable, seeded on first run    |
 | `schema_extra.json`      | auto-registered unofficial fields                    |
 | `recent_values.json`     | recently typed values per field, for the picker      |
-| `comicvine_cache.json`   | cached ComicVine lookups (foundation only for now — see below) |
-| `themes.json`            | built-in theme definitions — editable                |
+| `comicvine_cache.json`   | cached ComicVine lookups (foundation only for now - see below) |
+| `themes.json`            | built-in theme definitions - editable                |
 | `themes\*.json`          | custom themes, one file per theme                    |
 | `logs\cbzLab-yyyyMMdd.log` | one plain-text log file per day (Settings → Open logs folder) |
 
 To make your own theme, copy one of the files in `themes\` (e.g.
-`Synthwave Dark.json`), rename it — the filename becomes the theme name — and
+`Synthwave Dark.json`), rename it - the filename becomes the theme name - and
 change the colour values. Keys you omit fall back to Solarized Dark. Themes are
 picked up at launch and apply instantly when selected, no restart needed. Keys
 beginning with `_` are treated as comments.

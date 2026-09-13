@@ -89,7 +89,7 @@ public class ThemeService
         }
         catch (Exception ex)
         {
-            //fall through — the hard fallback keeps the app usable
+            //fall through - the hard fallback keeps the app usable
             _log.Warning($"Failed to load themes.json, using the built-in fallback: {ex.Message}");
         }
 

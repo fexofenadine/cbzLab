@@ -19,7 +19,7 @@ public record CombineOutcome(string OutputPath, int TotalPages, int SourceCount)
 /// into one continuous sequence, plus the first source's ComicInfo.xml. Built for reassembling a
 /// TPB that was released split across several files.
 ///
-/// This is the one place the app writes page images — and it only ever writes a NEW archive, copying
+/// This is the one place the app writes page images - and it only ever writes a NEW archive, copying
 /// page bytes through verbatim without decoding or re-encoding them. Source archives are opened
 /// read-only and never modified. See CLAUDE.md's amended page-image constraint.
 /// </summary>
@@ -52,7 +52,7 @@ public class CombineService
         {
             if (SamePath(source, destPath))
                 throw new ArgumentException(
-                    $"'{Path.GetFileName(source)}' is both a source and the output — choose a different output name.");
+                    $"'{Path.GetFileName(source)}' is both a source and the output - choose a different output name.");
         }
 
         var workDir = Path.Combine(Path.GetTempPath(), "cbzLab-combine-" + Guid.NewGuid().ToString("N"));
@@ -226,7 +226,10 @@ public class CombineService
     }
 
     /// <summary>
-    /// Strips a trailing part marker so a joined book's "TPB 1 (Part 1)" becomes "TPB 1". Only ever
+    /// Strips a trailing part marker so a joined book's "TPB 1 (Part 1)" becomes "TPB 1". The dash
+    /// characters in the pattern and the TrimEnd list below are deliberately the real en/em dashes:
+    /// they match titles that use those as separators, so do not "normalise" them to a hyphen.
+    /// Only ever
     /// strips a marker that ends the string AND carries a number, so a real title like "Part of the
     /// Problem" is left alone. Returns the original if trimming would empty it.
     /// </summary>

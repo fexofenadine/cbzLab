@@ -39,7 +39,7 @@ public partial class ProgressDialog : Window
         if (_cts.IsCancellationRequested)
             return;
         _cts.Cancel();
-        LabelText.Text = "Cancelling — finishing the current file…";
+        LabelText.Text = "Cancelling - finishing the current file…";
     }
 
     //must be called on the ui thread

@@ -21,7 +21,7 @@ public partial class MatchIssueDialog : Window
     private void Populate(ComicVineVolume volume, List<ComicVineIssueSummary> issues, string currentNumber, string? contextLabel)
     {
         HeaderText.Text = (contextLabel is null ? "" : contextLabel + "\n")
-            + $"{volume.Name} — {issues.Count} issue{(issues.Count == 1 ? "" : "s")}. Pick one:";
+            + $"{volume.Name} - {issues.Count} issue{(issues.Count == 1 ? "" : "s")}. Pick one:";
 
         var rows = issues.Select(i => new IssueRow(i.Id, "#" + (i.IssueNumber ?? "?"), BuildMeta(i))).ToList();
         IssuesList.ItemsSource = rows;

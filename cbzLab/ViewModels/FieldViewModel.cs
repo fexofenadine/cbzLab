@@ -10,7 +10,7 @@ public record DistinctValue(string Value, int Count)
 {
     public string Display => Count == 0
         ? (Value.Length == 0 ? "(blank)" : Value)
-        : $"{(Value.Length == 0 ? "(blank)" : Value)}  —  {Count} file{(Count == 1 ? "" : "s")}";
+        : $"{(Value.Length == 0 ? "(blank)" : Value)}  -  {Count} file{(Count == 1 ? "" : "s")}";
 }
 
 /// <summary>
@@ -20,7 +20,7 @@ public record DistinctValue(string Value, int Count)
 /// </summary>
 public class FieldViewModel : ViewModelBase
 {
-    public const string MixedSentinel = "(multiple values — edit to override all)";
+    public const string MixedSentinel = "(multiple values - edit to override all)";
 
     public FieldDefinition Definition { get; }
     public string Tab { get; }

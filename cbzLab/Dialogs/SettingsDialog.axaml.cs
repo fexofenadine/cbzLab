@@ -225,7 +225,7 @@ public partial class SettingsDialog : Window
         try
         {
             var count = await _comicVine.TestApiKeyAsync(ApiKeyBox.Text ?? "");
-            TestConnectionStatus.Text = $"Key works — got {count} test result(s) back from ComicVine.";
+            TestConnectionStatus.Text = $"Key works - got {count} test result(s) back from ComicVine.";
         }
         catch (ComicVineException ex)
         {
@@ -255,7 +255,7 @@ public partial class SettingsDialog : Window
 
         var found = archive.FindRarTool();
         dlg.RarToolStatus.Text = found is null
-            ? "No RAR write tool found — CBR saving will be unavailable."
+            ? "No RAR write tool found - CBR saving will be unavailable."
             : $"Tool in use: {found}";
 
         await dlg.ShowDialog(owner);

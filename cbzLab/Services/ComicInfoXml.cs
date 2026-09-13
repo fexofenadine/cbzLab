@@ -10,7 +10,7 @@ public static class ComicInfoXml
     private static readonly XNamespace Xsd = "http://www.w3.org/2001/XMLSchema";
     private static readonly XNamespace Xsi = "http://www.w3.org/2001/XMLSchema-instance";
 
-    //returns empty rather than throwing — a mangled ComicInfo.xml should still be openable
+    //returns empty rather than throwing - a mangled ComicInfo.xml should still be openable
     public static Dictionary<string, string> Parse(byte[]? raw)
     {
         var values = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -85,7 +85,7 @@ public static class ComicInfoXml
         return new XDocument(new XDeclaration("1.0", "utf-8", null), root);
     }
 
-    //dtd processing disabled, no resolver — archive contents are untrusted input
+    //dtd processing disabled, no resolver - archive contents are untrusted input
     private static XDocument LoadSafe(byte[] raw)
     {
         var settings = new XmlReaderSettings

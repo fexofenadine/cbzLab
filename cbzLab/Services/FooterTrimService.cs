@@ -19,7 +19,7 @@ public record FooterScan(int BandHeight, int PagesScanned, IReadOnlyList<FooterP
 /// nothing needs configuring per source and no reference images are stored.
 ///
 /// Unlike every other page-touching path in the app this one genuinely re-encodes the pages it
-/// cuts — see CLAUDE.md's amended page-image constraint. Pages without a footer are copied through
+/// cuts - see CLAUDE.md's amended page-image constraint. Pages without a footer are copied through
 /// byte-for-byte untouched, and the result is always written to a NEW archive.
 /// </summary>
 public class FooterTrimService
@@ -111,7 +111,7 @@ public class FooterTrimService
     ///
     /// Scoring candidate heights by "how many pages does this validate" seems reasonable and is not:
     /// a short band demands less than a tall one, so it matches strictly more pages, and the score
-    /// then always drifts downward. That picked a half-height bar on two real books — the crop would
+    /// then always drifts downward. That picked a half-height bar on two real books - the crop would
     /// have sliced the branding in half and left the top of it on the page.
     /// </summary>
     private static int ChooseBandHeight(IReadOnlyList<RowCensus> census)
@@ -135,7 +135,7 @@ public class FooterTrimService
     /// dark" fails: the bar's own lettering rows are only ~45% dark in one book and less where the
     /// type is bolder, which stops the scan half way up the bar and yields a crop that leaves the
     /// rest of it behind. So lettering rows are walked through, and the block ends at the last row
-    /// that was actually dark — bounded by the first row of clean paper or of midtone artwork.
+    /// that was actually dark - bounded by the first row of clean paper or of midtone artwork.
     /// </summary>
     private static int RunLength(RowCensus c)
     {

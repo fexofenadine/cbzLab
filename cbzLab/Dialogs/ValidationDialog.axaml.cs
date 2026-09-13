@@ -25,7 +25,7 @@ public partial class ValidationDialog : Window
         foreach (var err in errors)
         {
             var entry = new StackPanel { Spacing = 2 };
-            entry.Children.Add(new TextBlock { Text = $"{err.FileName} — {err.Label}", FontWeight = FontWeight.SemiBold });
+            entry.Children.Add(new TextBlock { Text = $"{err.FileName} - {err.Label}", FontWeight = FontWeight.SemiBold });
             entry.Children.Add(new TextBlock
             {
                 Text = err.Problem,

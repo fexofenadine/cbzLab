@@ -53,7 +53,7 @@ public partial class ReviewComicVineBatchDialog : Window
 
         HeaderText.Text = $"ComicVine proposes changes across {perFileProposed.Count} file"
             + $"{(perFileProposed.Count == 1 ? "" : "s")}. Fields that differ across files are unticked "
-            + "and flagged — review before including them.";
+            + "and flagged - review before including them.";
 
         foreach (var (tag, changes) in groups)
         {
@@ -83,7 +83,7 @@ public partial class ReviewComicVineBatchDialog : Window
                     var count = changes.Count(c => c.Value == value);
                     row.Children.Add(new TextBlock
                     {
-                        Text = $"\"{Truncate(value, 60)}\" — {count} file{(count == 1 ? "" : "s")}",
+                        Text = $"\"{Truncate(value, 60)}\" - {count} file{(count == 1 ? "" : "s")}",
                         FontSize = 12, Opacity = 0.75, TextWrapping = TextWrapping.Wrap,
                         Margin = new Thickness(28, 0, 0, 0),
                     });
@@ -95,7 +95,7 @@ public partial class ReviewComicVineBatchDialog : Window
                 row.Children.Add(headerRow);
                 row.Children.Add(new TextBlock
                 {
-                    Text = $"\"{Truncate(distinctValues[0], 80)}\" — all {changes.Count} file{(changes.Count == 1 ? "" : "s")}",
+                    Text = $"\"{Truncate(distinctValues[0], 80)}\" - all {changes.Count} file{(changes.Count == 1 ? "" : "s")}",
                     FontSize = 12, Opacity = 0.7, TextWrapping = TextWrapping.Wrap,
                     Margin = new Thickness(28, 0, 0, 0),
                 });
@@ -106,7 +106,7 @@ public partial class ReviewComicVineBatchDialog : Window
                 row.Children.Add(headerRow);
                 row.Children.Add(new TextBlock
                 {
-                    Text = $"applies individually — {changes.Count} file{(changes.Count == 1 ? "" : "s")} affected",
+                    Text = $"applies individually - {changes.Count} file{(changes.Count == 1 ? "" : "s")} affected",
                     FontSize = 12, Opacity = 0.7, Margin = new Thickness(28, 0, 0, 0),
                 });
             }

@@ -22,9 +22,9 @@
       "header": "📅  Publication Date",
       "first_tag": "Year",
       "fields": [
-        {"tag": "Year",  "label": "Publication Date",  "widget": "entry", "tooltip": "Publication date. Type a full date, a year alone, or 'MM/yyyy' for year and month — a full date can also be picked from the calendar button. Combines the underlying Year/Month/Day fields into one."},
-        {"tag": "Month", "label": "Month", "widget": "entry", "tooltip": "Publication month as a number, 1–12."},
-        {"tag": "Day",   "label": "Day",   "widget": "entry", "tooltip": "Publication day of the month, 1–31."}
+        {"tag": "Year",  "label": "Publication Date",  "widget": "entry", "tooltip": "Publication date. Type a full date, a year alone, or 'MM/yyyy' for year and month - a full date can also be picked from the calendar button. Combines the underlying Year/Month/Day fields into one."},
+        {"tag": "Month", "label": "Month", "widget": "entry", "tooltip": "Publication month as a number, 1-12."},
+        {"tag": "Day",   "label": "Day",   "widget": "entry", "tooltip": "Publication day of the month, 1-31."}
       ]
     },
     {
@@ -87,7 +87,7 @@
       "header": "⭐  Rating & Review",
       "first_tag": "CommunityRating",
       "fields": [
-        {"tag": "CommunityRating", "label": "Community Rating", "widget": "entry", "tooltip": "Community star rating, 0.0–5.0 (decimal allowed)."},
+        {"tag": "CommunityRating", "label": "Community Rating", "widget": "entry", "tooltip": "Community star rating, 0.0-5.0 (decimal allowed)."},
         {"tag": "Review",          "label": "Review",           "widget": "text",  "tooltip": "A review or editorial comment about this issue."}
       ]
     }
@@ -103,8 +103,8 @@
       "Volume":         "volume number (e.g. 1, 2, 3)",
       "AlternateCount": "total issues in the alternate series (e.g. 4)",
       "Year":           "four-digit publication year (e.g. 2024)",
-      "Month":          "publication month, 1–12 (e.g. 3 for March)",
-      "Day":            "publication day of the month, 1–31 (e.g. 15)",
+      "Month":          "publication month, 1-12 (e.g. 3 for March)",
+      "Day":            "publication day of the month, 1-31 (e.g. 15)",
       "PageCount":      "total number of pages (e.g. 24, 48)"
     }
   }
