@@ -10,6 +10,24 @@
 
 ## cbzLab (Avalonia)
 
+### 2.0.3 — 2026-09-13
+
+- New Tools → Combine Archives…, for reassembling a TPB that was released split
+  across several files. Select two or more open archives, order them (defaulting
+  to alphabetical by filename, with up/down reordering and Sort A–Z / Reverse),
+  and they're joined into one new CBZ: every source's pages in order, renumbered
+  into a single continuous sequence that follows the first book's own naming
+  convention, plus the first book's ComicInfo.xml. The joined book is then opened
+  and selected in the editor with its Page Count corrected and any trailing
+  "(Part 1)"-style marker trimmed off Title/Series — left unsaved and visible, so
+  the change can be reviewed or reverted rather than applied silently. Also
+  available as an optional "Combine…" toolbar button.
+- **This is the first feature that writes page images**, which the project's
+  founding constraint previously ruled out entirely. The constraint is now
+  narrower rather than gone: combining only ever writes a *new* archive, copies
+  page bytes through verbatim without decoding or re-encoding them, and leaves
+  every source file untouched on disk. See CLAUDE.md for the amended wording.
+
 ### 2.0.2 — 2026-08-31
 
 - Fixed the editor field context menu: right-clicking selected text in any

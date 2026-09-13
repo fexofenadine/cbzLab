@@ -74,8 +74,9 @@ public class ArchiveService
         return new ArchiveReadResult(xml, pages, format, cover);
     }
 
-    //compares digit runs as numbers so "2.jpg" sorts before "10.jpg"
-    private static int NaturalCompare(string a, string b)
+    //compares digit runs as numbers so "2.jpg" sorts before "10.jpg". Shared with
+    //CombineService - page order must be derived the same way in both places.
+    internal static int NaturalCompare(string a, string b)
     {
         var partsA = Regex.Split(a, @"(\d+)");
         var partsB = Regex.Split(b, @"(\d+)");

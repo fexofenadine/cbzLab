@@ -28,13 +28,14 @@ namespace cbzLab;
 public partial class MainWindow : Window
 {
     //keep in sync with cbzLab.csproj's Version
-    public const string DisplayVersion = "2.0.2";
+    public const string DisplayVersion = "2.0.3";
 
     private readonly LogService _log;
     private readonly SettingsService _settings;
     private readonly SchemaService _schema;
     private readonly ThemeService _theme;
     private readonly ArchiveService _archive;
+    private readonly CombineService _combine;
     private readonly ValidationService _validation;
     private readonly RecentValuesService _recentValues;
     private readonly ComicVineCacheService _comicVineCache;
@@ -68,6 +69,7 @@ public partial class MainWindow : Window
         _schema = new SchemaService(_settings, _log);
         _theme = new ThemeService(_settings, _log);
         _archive = new ArchiveService(_settings, _schema, _log);
+        _combine = new CombineService(_log, _schema.Constraints.ImageExtensions);
         _validation = new ValidationService(_schema);
         _recentValues = new RecentValuesService(_settings, _log);
         _comicVineCache = new ComicVineCacheService(_settings, _log);
@@ -819,6 +821,7 @@ public partial class MainWindow : Window
         ("CopyXml", "Copy XML", 2),
         ("PasteXml", "Paste XML", 2),
         ("GuessFromFilename", "Guess from Filename", 3),
+        ("Combine", "Combine Archives…", 3),
         ("SearchComicVine", "Search ComicVine…", 4),
         ("AllFields", "All Fields", 5),
         ("Extras", "Extras", 5),
@@ -861,6 +864,8 @@ public partial class MainWindow : Window
         "PasteXml" => MakeToolButton("Paste XML", OnPasteXml, "Replace the current file's metadata from clipboard XML"),
         "GuessFromFilename" => MakeToolButton("Guess from Filename", OnGuessFromFilename,
             "Fill empty Series/Number/Volume/Year fields from the filename and folder"),
+        "Combine" => MakeToolButton("Combine…", OnCombineArchives,
+            "Join the selected archives into one new CBZ (for reassembling a split TPB)"),
         "SearchComicVine" => BuildSearchComicVineButton(),
         "AllFields" => BuildToolToggle("All Fields", nameof(MainViewModel.ShowAllFields),
             OnToggleShowAllFields, "Show all fields, including empty ones"),
@@ -1231,6 +1236,138 @@ public partial class MainWindow : Window
             $"{err.FileName} — {err.Label}\n{err.Problem}\nFix: {err.Suggestion}"));
         await MessageDialog.ShowAsync(this, "Validate All Open Files",
             $"{allErrors.Count} problem(s) across {_viewModel.OpenFiles.Count} open file(s):\n\n{summary}");
+    }
+
+    //---------------------------------------------------------------- combine
+
+    //the one feature that writes page images, and only ever into a NEW archive - the
+    //selected sources are opened read-only and left untouched on disk
+    private async void OnCombineArchives(object? sender, RoutedEventArgs e)
+    {
+        var selected = _viewModel.SelectedFiles.ToList();
+        if (selected.Count < 2)
+        {
+            await MessageDialog.ShowAsync(this, "Combine Archives",
+                "Select two or more archives in the file list first — they'll be joined into one "
+                + "new CBZ, in an order you choose.");
+            return;
+        }
+
+        //combining reads from disk, so anything edited but not yet saved wouldn't make it in
+        var dirty = selected.Where(f => f.IsDirty).Select(f => f.FileName).ToList();
+        if (dirty.Count > 0)
+        {
+            var proceed = await ConfirmDialog.ShowAsync(this, "Unsaved changes",
+                "These files have unsaved edits, which won't be included — combining reads each "
+                + "archive from disk:\n\n" + string.Join("\n", dirty)
+                + "\n\nCombine using the versions currently on disk?", "Combine Anyway");
+            if (!proceed)
+                return;
+        }
+
+        var ordered = await CombineArchivesDialog.ShowAsync(this, selected
+            .Select(f => new CombineCandidate(f.Path, f.FileName, f.DetectedPageCount))
+            .ToList());
+        if (ordered is null || ordered.Count < 2)
+            return;
+
+        var destination = await PickCombineDestinationAsync(ordered[0].Path);
+        if (destination is null)
+            return;
+
+        var sourcePaths = ordered.Select(o => o.Path).ToList();
+        var progress = new ProgressDialog("Combining archives", sourcePaths.Count + 1);
+        progress.ShowNonBlocking(this);
+
+        CombineOutcome outcome;
+        try
+        {
+            outcome = await Task.Run(() => _combine.Combine(sourcePaths, destination,
+                (current, total, label) => Dispatcher.UIThread.Post(() => progress.Report(current, total, label))));
+        }
+        catch (System.Exception ex)
+        {
+            progress.Complete();
+            _log.Error($"Failed to combine {sourcePaths.Count} archives into '{destination}'", ex);
+            await MessageDialog.ShowAsync(this, "Combine failed", ex.Message);
+            return;
+        }
+        progress.Complete();
+
+        await OpenPathsAsync(new List<string> { outcome.OutputPath });
+        var combined = _viewModel.FindByPath(outcome.OutputPath);
+        if (combined is null)
+        {
+            _viewModel.StatusText =
+                $"Combined {outcome.SourceCount} archives into {System.IO.Path.GetFileName(outcome.OutputPath)}";
+            return;
+        }
+
+        SwitchToEditorForSelection(new[] { combined });
+        ApplyPostCombineMetadata(combined, outcome.TotalPages);
+        _viewModel.RefreshEditor();
+        _viewModel.StatusText =
+            $"Combined {outcome.SourceCount} archives into {combined.FileName} ({outcome.TotalPages} pages) — "
+            + "metadata updated but not yet saved";
+    }
+
+    private async Task<string?> PickCombineDestinationAsync(string firstSourcePath)
+    {
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel is null)
+            return null;
+
+        IStorageFolder? startLocation = null;
+        var sourceDir = System.IO.Path.GetDirectoryName(firstSourcePath);
+        if (!string.IsNullOrEmpty(sourceDir))
+        {
+            try { startLocation = await topLevel.StorageProvider.TryGetFolderFromPathAsync(sourceDir); }
+            catch (System.Exception ex) { _log.Error("Could not resolve the combine output folder", ex); }
+        }
+
+        //the joined book is no longer "part 1", so the suggested name drops that marker
+        var suggested = CombineService.TrimPartSuffix(
+            System.IO.Path.GetFileNameWithoutExtension(firstSourcePath));
+
+        try
+        {
+            //cbz only: a cbr output would need the external rar tool for a file this size, and
+            //cbz is the right container for a repacked book anyway
+            var target = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Save combined archive as",
+                SuggestedFileName = suggested,
+                SuggestedStartLocation = startLocation,
+                DefaultExtension = "cbz",
+                FileTypeChoices = new[]
+                {
+                    new FilePickerFileType("Comic ZIP archive") { Patterns = new[] { "*.cbz" } },
+                },
+            });
+            return target?.Path.LocalPath;
+        }
+        catch (System.Exception ex)
+        {
+            _log.Error("Combine output picker failed", ex);
+            _viewModel.StatusText = $"Combine failed: {ex.Message}";
+            return null;
+        }
+    }
+
+    //left dirty on purpose: the user sees exactly what changed and can Revert it, rather than
+    //having the app quietly rewrite metadata behind them
+    private void ApplyPostCombineMetadata(ComicFileViewModel file, int totalPages)
+    {
+        file.DetectedPageCount = totalPages;
+        file.SetValue("PageCount", totalPages.ToString());
+
+        foreach (var tag in new[] { "Title", "Series" })
+        {
+            var current = file.GetValue(tag);
+            var trimmed = CombineService.TrimPartSuffix(current);
+            if (trimmed != current)
+                file.SetValue(tag, trimmed);
+        }
     }
 
     //---------------------------------------------------------------- settings

@@ -3,7 +3,7 @@
         xmlns:vm="using:cbzLab.ViewModels"
         x:Class="cbzLab.MainWindow"
         x:DataType="vm:MainViewModel"
-        Title="cbzLab 2.0.2"
+        Title="cbzLab 2.0.3"
         Width="900" Height="640">
 
     <Window.Styles>
@@ -79,6 +79,8 @@
                 <Separator />
                 <MenuItem Header="Find &amp; Replace…" Click="OnFindReplace" />
                 <MenuItem Header="Validate All Open Files…" Click="OnValidateAll" />
+                <Separator />
+                <MenuItem Header="Combine Archives…" Click="OnCombineArchives" />
                 <Separator />
                 <MenuItem Header="Customize Toolbar…" Click="OnCustomizeToolbar" />
                 <MenuItem Header="Settings…" Click="OnSettings" />
