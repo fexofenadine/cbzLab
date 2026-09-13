@@ -42,11 +42,6 @@
   size rather than speed. Memory is now bounded by what is on screen, and a
   bulk import no longer pays for a second pass through each archive just to
   extract a cover it may never show.
-- Replaced every em dash and en dash in code comments, UI text, docs and the
-  changelog with a plain hyphen. Two deliberate exceptions remain in
-  CombineService's part-suffix trimming, where the real dash characters are
-  matched on purpose so titles like "Saga - Part 1" are recognised whichever
-  dash the author used; both are now called out in a comment.
 
 ### 2.0.3 - 2026-09-13
 

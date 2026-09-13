@@ -226,12 +226,12 @@ public class CombineService
     }
 
     /// <summary>
-    /// Strips a trailing part marker so a joined book's "TPB 1 (Part 1)" becomes "TPB 1". The dash
-    /// characters in the pattern and the TrimEnd list below are deliberately the real en/em dashes:
-    /// they match titles that use those as separators, so do not "normalise" them to a hyphen.
-    /// Only ever
+    /// Strips a trailing part marker so a joined book's "TPB 1 (Part 1)" becomes "TPB 1". Only ever
     /// strips a marker that ends the string AND carries a number, so a real title like "Part of the
     /// Problem" is left alone. Returns the original if trimming would empty it.
+    ///
+    /// The separator sets below cover every dash a publisher might have used, hyphen or otherwise,
+    /// since the title being matched was written by someone else and can carry any of them.
     /// </summary>
     public static string TrimPartSuffix(string value)
     {
