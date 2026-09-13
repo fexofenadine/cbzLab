@@ -28,7 +28,7 @@ namespace cbzLab;
 public partial class MainWindow : Window
 {
     //keep in sync with cbzLab.csproj's Version
-    public const string DisplayVersion = "2.0.3";
+    public const string DisplayVersion = "2.0.4";
 
     private readonly LogService _log;
     private readonly SettingsService _settings;
@@ -287,40 +287,116 @@ public partial class MainWindow : Window
     }
 
     //shared by the Open picker and drag-drop; already-open files are skipped, failures collected and shown together
+    //built for bulk: archives are read in parallel, the view model is updated once at the end, and
+    //the recent-files list is written once instead of per file. Covers are deliberately NOT decoded
+    //here - they load per visible row (see OnCoverAttached), which is what keeps memory flat whether
+    //the user opens ten books or ten thousand.
     private async Task OpenPathsAsync(IReadOnlyList<string> paths)
     {
-        var failures = new List<string>();
-        foreach (var path in paths)
+        var pending = paths.Where(p => _viewModel.FindByPath(p) is null)
+                           .Distinct(System.StringComparer.OrdinalIgnoreCase)
+                           .ToList();
+        if (pending.Count == 0)
+            return;
+
+        var progress = pending.Count >= BulkImportProgressThreshold
+            ? new ProgressDialog("Opening archives", pending.Count)
+            : null;
+        progress?.ShowNonBlocking(this);
+
+        var opened = new ComicFileViewModel?[pending.Count];
+        var failures = new System.Collections.Concurrent.ConcurrentBag<string>();
+        var done = 0;
+
+        try
         {
-            if (_viewModel.FindByPath(path) is not null)
-                continue;
+            await Parallel.ForEachAsync(
+                Enumerable.Range(0, pending.Count),
+                new ParallelOptions { MaxDegreeOfParallelism = System.Environment.ProcessorCount },
+                (index, token) =>
+                {
+                    var path = pending[index];
+                    try
+                    {
+                        var result = _archive.Read(path, includeCover: false);
+                        var values = ComicInfoXml.Parse(result.ComicInfoXml);
+                        opened[index] = new ComicFileViewModel(path, result.Format, result.ComicInfoXml,
+                            values, result.ImagePageCount);
+                    }
+                    catch (System.Exception ex)
+                    {
+                        _log.Error($"Failed to open '{path}'", ex);
+                        failures.Add($"{System.IO.Path.GetFileName(path)}: {ex.Message}");
+                    }
 
-            try
-            {
-                var result = await System.Threading.Tasks.Task.Run(() => _archive.Read(path));
-                var values = ComicInfoXml.Parse(result.ComicInfoXml);
-                _viewModel.RegisterExtrasFrom(values.Keys);
-
-                var vm = new ComicFileViewModel(path, result.Format, result.ComicInfoXml,
-                    values, result.ImagePageCount);
-                await vm.LoadCoverAsync(result.CoverBytes);
-
-                _viewModel.AddFile(vm);
-                _settings.AddRecentFile(path);
-            }
-            catch (System.Exception ex)
-            {
-                _log.Error($"Failed to open '{path}'", ex);
-                failures.Add($"{System.IO.Path.GetFileName(path)}: {ex.Message}");
-            }
+                    var seen = System.Threading.Interlocked.Increment(ref done);
+                    if (progress is not null)
+                        Dispatcher.UIThread.Post(() => progress.Report(seen, pending.Count,
+                            System.IO.Path.GetFileName(path)));
+                    return ValueTask.CompletedTask;
+                });
+        }
+        finally
+        {
+            progress?.Complete();
         }
 
+        //schema extras and the view model itself are only touched here, on the ui thread, rather
+        //than from the parallel loop above
+        var loaded = opened.Where(f => f is not null).Select(f => f!).ToList();
+        foreach (var file in loaded)
+            _viewModel.RegisterExtrasFrom(file.CurrentValues.Keys);
+
+        _viewModel.AddFiles(loaded);
+        _settings.AddRecentFiles(loaded.Select(f => f.Path));
         BuildRecentMenu();
 
-        if (failures.Count > 0)
+        if (!failures.IsEmpty)
         {
             await MessageDialog.ShowAsync(this, "Some files could not be opened",
                 string.Join("\n", failures));
+        }
+    }
+
+    //below this a progress window is more disruptive than the wait it reports on
+    private const int BulkImportProgressThreshold = 25;
+
+    //---------------------------------------------------------------- lazy covers
+
+    private async void OnCoverAttached(object? sender, VisualTreeAttachmentEventArgs e)
+    {
+        if (sender is not Control control || control.DataContext is not ComicFileViewModel file)
+            return;
+        await EnsureCoverAsync(file);
+    }
+
+    //the editor pane binds CurrentFile.CoverImage too, so a selected file keeps its thumbnail even
+    //once its row has scrolled out of the list - otherwise the header banner would blank out
+    private void OnCoverDetached(object? sender, VisualTreeAttachmentEventArgs e)
+    {
+        if (sender is not Control control || control.DataContext is not ComicFileViewModel file)
+            return;
+        if (_viewModel.SelectedFiles.Contains(file))
+            return;
+        file.ReleaseCover();
+    }
+
+    private async Task EnsureCoverAsync(ComicFileViewModel file)
+    {
+        if (file.HasCover)
+            return;
+
+        var token = file.BeginCoverLoad();
+        try
+        {
+            var path = file.Path;
+            var bytes = await Task.Run(() => _archive.ReadCoverBytes(path));
+            //the token check inside ApplyCover discards this if the row was released meanwhile
+            file.ApplyCover(token, bytes);
+        }
+        catch (System.Exception ex)
+        {
+            _log.Warning($"Could not load cover for '{file.Path}': {ex.Message}");
         }
     }
 
@@ -661,8 +737,15 @@ public partial class MainWindow : Window
 
     //---------------------------------------------------------------- selection / tabs
 
-    private void FileList_SelectionChanged(object? sender, SelectionChangedEventArgs e) =>
+    private async void FileList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
         _viewModel.SetSelection(FileList.SelectedItems!.Cast<ComicFileViewModel>());
+
+        //the editor header shows the current file's cover, and with lazy loading that file may
+        //never have had a visible row (selected programmatically, or scrolled past too fast)
+        if (_viewModel.CurrentFile is { } current)
+            await EnsureCoverAsync(current);
+    }
 
     //guards against firing before _viewModel exists (xaml-default SelectedIndex="0" fires this once during InitializeComponent)
     private void SortCombo_SelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -1101,7 +1184,7 @@ public partial class MainWindow : Window
         }
 
         _pendingUpdateSwapScript = scriptPath;
-        _viewModel.StatusText = "Update ready — closing to install…";
+        _viewModel.StatusText = "Update ready - closing to install…";
         Close();
     }
 
@@ -1238,7 +1321,7 @@ public partial class MainWindow : Window
         }
 
         var summary = string.Join("\n\n", allErrors.Select(err =>
-            $"{err.FileName} — {err.Label}\n{err.Problem}\nFix: {err.Suggestion}"));
+            $"{err.FileName} - {err.Label}\n{err.Problem}\nFix: {err.Suggestion}"));
         await MessageDialog.ShowAsync(this, "Validate All Open Files",
             $"{allErrors.Count} problem(s) across {_viewModel.OpenFiles.Count} open file(s):\n\n{summary}");
     }
@@ -1253,7 +1336,7 @@ public partial class MainWindow : Window
         if (selected.Count < 2)
         {
             await MessageDialog.ShowAsync(this, "Combine Archives",
-                "Select two or more archives in the file list first — they'll be joined into one "
+                "Select two or more archives in the file list first - they'll be joined into one "
                 + "new CBZ, in an order you choose.");
             return;
         }
@@ -1263,7 +1346,7 @@ public partial class MainWindow : Window
         if (dirty.Count > 0)
         {
             var proceed = await ConfirmDialog.ShowAsync(this, "Unsaved changes",
-                "These files have unsaved edits, which won't be included — combining reads each "
+                "These files have unsaved edits, which won't be included - combining reads each "
                 + "archive from disk:\n\n" + string.Join("\n", dirty)
                 + "\n\nCombine using the versions currently on disk?", "Combine Anyway");
             if (!proceed)
@@ -1312,7 +1395,7 @@ public partial class MainWindow : Window
         ApplyPostCombineMetadata(combined, outcome.TotalPages);
         _viewModel.RefreshEditor();
         _viewModel.StatusText =
-            $"Combined {outcome.SourceCount} archives into {combined.FileName} ({outcome.TotalPages} pages) — "
+            $"Combined {outcome.SourceCount} archives into {combined.FileName} ({outcome.TotalPages} pages) - "
             + "metadata updated but not yet saved";
     }
 
@@ -1413,7 +1496,7 @@ public partial class MainWindow : Window
         {
             await MessageDialog.ShowAsync(this, "Trim Branding Footers",
                 $"No branding footer was found across {scan.PagesScanned} pages in {file.FileName}.\n\n"
-                + "This looks for a consistent two-tone bar along the bottom edge — a footer that "
+                + "This looks for a consistent two-tone bar along the bottom edge - a footer that "
                 + "varies from page to page, or blends into the artwork, won't be picked up.");
             return;
         }
@@ -1454,7 +1537,7 @@ public partial class MainWindow : Window
             SwitchToEditorForSelection(new[] { opened });
 
         _viewModel.StatusText =
-            $"Trimmed {trimmed} footer(s) into {System.IO.Path.GetFileName(destination)} — original untouched";
+            $"Trimmed {trimmed} footer(s) into {System.IO.Path.GetFileName(destination)} - original untouched";
     }
 
     //95 measured comfortably past the visually-lossless mark on real pages while keeping the file
@@ -1663,7 +1746,7 @@ public partial class MainWindow : Window
 
             var statusMsg = $"Applied ComicVine data to {appliedFileCount} file{(appliedFileCount == 1 ? "" : "s")}";
             if (skipped.Count > 0)
-                statusMsg += $" — {skipped.Count} skipped";
+                statusMsg += $" - {skipped.Count} skipped";
             _viewModel.StatusText = statusMsg;
 
             if (skipped.Count > 0)

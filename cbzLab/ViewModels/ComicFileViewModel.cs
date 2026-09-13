@@ -108,24 +108,61 @@ public class ComicFileViewModel : ViewModelBase
         UpdateSubtitle();
     }
 
+    //bumped every time the cover is asked for or released, so a decode that is still in flight
+    //when a row scrolls away can tell that its result is stale and throw it away instead of
+    //resurrecting a thumbnail for a row nobody is looking at any more
+    private int _coverToken;
+
+    /// <summary>Cover loads are lazy. This is the token to hand back to <see cref="ApplyCover"/>.</summary>
+    public int BeginCoverLoad() => ++_coverToken;
+
     //decodes the archive's first image entry into a thumbnail; null bytes or a decode
     //failure just leaves CoverImage null (falls back to the placeholder slot)
     public Task LoadCoverAsync(byte[]? coverBytes)
     {
-        if (coverBytes is null || coverBytes.Length == 0)
-            return Task.CompletedTask;
+        ApplyCover(BeginCoverLoad(), coverBytes);
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Assigns a decoded cover, unless the request was superseded while it was decoding.</summary>
+    public void ApplyCover(int token, byte[]? coverBytes)
+    {
+        if (token != _coverToken || coverBytes is null || coverBytes.Length == 0)
+            return;
 
         try
         {
             using var stream = new MemoryStream(coverBytes);
-            CoverImage = Bitmap.DecodeToWidth(stream, 200);
+            SetCover(Bitmap.DecodeToWidth(stream, 200));
         }
         catch
         {
-            CoverImage = null;
+            SetCover(null);
         }
+    }
+
+    /// <summary>
+    /// Drops the decoded thumbnail. Called when a row scrolls out of the virtualised list: holding
+    /// every cover costs ~234KB each, which is what used to put a hard ceiling on how many books
+    /// could be open at once.
+    /// </summary>
+    public void ReleaseCover()
+    {
+        _coverToken++;
+        SetCover(null);
+    }
+
+    //the previous bitmap owns unmanaged pixel memory, so it has to be disposed rather than just
+    //dropped - waiting for a finalizer is what turns "bounded" back into "grows until GC notices"
+    private void SetCover(Bitmap? bitmap)
+    {
+        if (ReferenceEquals(_coverImage, bitmap))
+            return;
+
+        var previous = _coverImage;
+        CoverImage = bitmap;
         OnPropertyChanged(nameof(HasCover));
-        return Task.CompletedTask;
+        previous?.Dispose();
     }
 
     //empty values are stored as removals

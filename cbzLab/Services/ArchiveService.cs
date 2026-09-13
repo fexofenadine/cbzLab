@@ -29,8 +29,10 @@ public class ArchiveService
     //---------------------------------------------------------------- reading
 
     //cover is picked by natural-sorted filename, not archive storage order - storage order
-    //doesn't reliably match page order on a repacked archive
-    public ArchiveReadResult Read(string path)
+    //doesn't reliably match page order on a repacked archive.
+    //includeCover: false skips the second pass entirely, which roughly halves the cost of
+    //opening a file - used by bulk imports, which fetch covers lazily per visible row instead
+    public ArchiveReadResult Read(string path, bool includeCover = true)
     {
         var wantLast = _settings.Settings.CoverSource == "last";
         var format = SniffFormat(path);
@@ -64,7 +66,7 @@ public class ArchiveService
         }
 
         byte[]? cover = null;
-        if (imageKeys.Count > 0)
+        if (includeCover && imageKeys.Count > 0)
         {
             imageKeys.Sort(NaturalCompare);
             var coverKey = wantLast ? imageKeys[^1] : imageKeys[0];
@@ -72,6 +74,38 @@ public class ArchiveService
         }
 
         return new ArchiveReadResult(xml, pages, format, cover);
+    }
+
+    /// <summary>Extracts just the cover bytes, for a file whose metadata is already open.</summary>
+    public byte[]? ReadCoverBytes(string path)
+    {
+        var wantLast = _settings.Settings.CoverSource == "last";
+        var imageKeys = new List<string>();
+
+        try
+        {
+            using var stream = File.OpenRead(path);
+            using var reader = ReaderFactory.OpenReader(stream);
+            while (reader.MoveToNextEntry())
+            {
+                var entry = reader.Entry;
+                if (entry.IsDirectory || entry.Key is null)
+                    continue;
+                if (IsImage(Path.GetFileName(entry.Key.Replace('\\', '/'))))
+                    imageKeys.Add(entry.Key);
+            }
+        }
+        catch (Exception ex)
+        {
+            _log.Warning($"Could not scan '{path}' for a cover: {ex.Message}");
+            return null;
+        }
+
+        if (imageKeys.Count == 0)
+            return null;
+
+        imageKeys.Sort(NaturalCompare);
+        return ExtractSingleEntry(path, wantLast ? imageKeys[^1] : imageKeys[0]);
     }
 
     //compares digit runs as numbers so "2.jpg" sorts before "10.jpg". Shared with
@@ -95,7 +129,7 @@ public class ArchiveService
         return partsA.Length.CompareTo(partsB.Length);
     }
 
-    //only used for "last page as cover" — needs its own pass since a
+    //only used for "last page as cover" - needs its own pass since a
     //sequential reader can't seek backward
     private byte[]? ExtractSingleEntry(string path, string key)
     {
@@ -129,7 +163,7 @@ public class ArchiveService
             using var fs = File.OpenRead(path);
             if (fs.Read(magic) >= 4)
             {
-                if (magic[0] == 0x50 && magic[1] == 0x4B) //"PK" — zip
+                if (magic[0] == 0x50 && magic[1] == 0x4B) //"PK" - zip
                     return ArchiveFormat.Cbz;
                 if (magic[0] == 0x52 && magic[1] == 0x61 && magic[2] == 0x72 && magic[3] == 0x21) //"Rar!"
                     return ArchiveFormat.Cbr;
@@ -369,7 +403,7 @@ public class ArchiveService
             throw new InvalidOperationException(
                 $"The archive tool reported an error (exit code {proc.ExitCode}).\n" +
                 $"{detail.Trim()}\n\n" +
-                "Note: only the real 'rar' tool can create RAR archives — 7-Zip can read " +
+                "Note: only the real 'rar' tool can create RAR archives - 7-Zip can read " +
                 "but not write them. Consider saving as CBZ instead.");
         }
     }

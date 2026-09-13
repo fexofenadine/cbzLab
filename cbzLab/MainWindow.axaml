@@ -3,7 +3,7 @@
         xmlns:vm="using:cbzLab.ViewModels"
         x:Class="cbzLab.MainWindow"
         x:DataType="vm:MainViewModel"
-        Title="cbzLab 2.0.3"
+        Title="cbzLab 2.0.4"
         Width="900" Height="640">
 
     <Window.Styles>
@@ -160,7 +160,12 @@
                         <DataTemplate x:DataType="vm:ComicFileViewModel">
                             <Grid ColumnDefinitions="30,*,Auto"
                                   Margin="{Binding $parent[ListBox].((vm:MainViewModel)DataContext).FileRowMargin}">
-                                <Border Grid.Column="0" Width="30" Height="40" CornerRadius="2" Background="{DynamicResource ThBg2}">
+                                <!--attach/detach drive lazy cover loading: the ListBox virtualises, so
+                                    only rows actually on screen ever hold a decoded thumbnail-->
+                                <Border Grid.Column="0" Width="30" Height="40" CornerRadius="2"
+                                        Background="{DynamicResource ThBg2}"
+                                        AttachedToVisualTree="OnCoverAttached"
+                                        DetachedFromVisualTree="OnCoverDetached">
                                     <Image Source="{Binding CoverImage}" Stretch="UniformToFill" IsVisible="{Binding HasCover}" />
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center">
