@@ -10,6 +10,22 @@
 
 ## cbzLab (Avalonia)
 
+### 2.0.5 - 2026-09-13
+
+- New File > Open Folder... (Ctrl+Shift+O, and an optional toolbar button):
+  opens every cbz/cbr/zip/rar under a folder, including subfolders, in one go.
+  An unreadable branch is skipped rather than aborting the scan, results are
+  natural-sorted so issue 10 follows issue 2, and opening more than 100 at once
+  asks first. Verified on a 2000-book tree spread across 17 subfolders: the scan
+  found all 2000 and the import completed in about 3 seconds.
+- Files opened this way save back to exactly where they came from. Each file
+  carries its own absolute path and every save path writes to it, so a book in
+  a nested subfolder is rewritten in place - confirmed by editing the most
+  deeply nested book in a test tree, saving, and checking that the file on disk
+  changed while the folder structure and every other book stayed untouched.
+- File rows now show their full path as a tooltip, since after a recursive open
+  two books in different subfolders can easily share a filename.
+
 ### 2.0.4 - 2026-09-13
 
 - Opening a large batch of archives is dramatically faster. Measured on 2000

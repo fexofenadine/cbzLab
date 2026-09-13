@@ -76,6 +76,44 @@ public class ArchiveService
         return new ArchiveReadResult(xml, pages, format, cover);
     }
 
+    /// <summary>Extensions this app will attempt to open as a comic archive.</summary>
+    public static bool IsSupportedArchive(string path) =>
+        Path.GetExtension(path).ToLowerInvariant() is ".cbz" or ".cbr" or ".zip" or ".rar";
+
+    /// <summary>
+    /// Every supported archive under <paramref name="root"/>, including subfolders, natural-sorted.
+    /// An unreadable branch (permissions, a broken junction) is skipped rather than aborting the
+    /// whole scan, which is what EnumerateFiles with AllDirectories would do on the first failure.
+    /// </summary>
+    public static List<string> FindArchivesUnder(string root)
+    {
+        var found = new List<string>();
+        var pending = new Stack<string>();
+        pending.Push(root);
+
+        while (pending.Count > 0)
+        {
+            var dir = pending.Pop();
+            try
+            {
+                foreach (var file in Directory.EnumerateFiles(dir))
+                {
+                    if (IsSupportedArchive(file))
+                        found.Add(file);
+                }
+                foreach (var sub in Directory.EnumerateDirectories(dir))
+                    pending.Push(sub);
+            }
+            catch (Exception)
+            {
+                //skip this branch, keep scanning the rest
+            }
+        }
+
+        found.Sort(NaturalCompare);
+        return found;
+    }
+
     /// <summary>Extracts just the cover bytes, for a file whose metadata is already open.</summary>
     public byte[]? ReadCoverBytes(string path)
     {

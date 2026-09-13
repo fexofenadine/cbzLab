@@ -3,7 +3,7 @@
         xmlns:vm="using:cbzLab.ViewModels"
         x:Class="cbzLab.MainWindow"
         x:DataType="vm:MainViewModel"
-        Title="cbzLab 2.0.4"
+        Title="cbzLab 2.0.5"
         Width="900" Height="640">
 
     <Window.Styles>
@@ -40,6 +40,7 @@
         <Menu Grid.Row="0">
             <MenuItem Header="_File">
                 <MenuItem Header="Open…" Click="OnOpen" HotKey="Ctrl+O" />
+                <MenuItem Header="Open Folder…" Click="OnOpenFolder" HotKey="Ctrl+Shift+O" />
                 <!--populated via RecentMenu.Items in code, see BuildRecentMenu-->
                 <MenuItem x:Name="RecentMenu" Header="Open Recent" />
                 <Separator />
@@ -158,7 +159,10 @@
                     </ListBox.Styles>
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:ComicFileViewModel">
+                            <!--full path on the row: after a recursive folder open, two books in
+                                different subfolders can easily share a filename-->
                             <Grid ColumnDefinitions="30,*,Auto"
+                                  ToolTip.Tip="{Binding Path}"
                                   Margin="{Binding $parent[ListBox].((vm:MainViewModel)DataContext).FileRowMargin}">
                                 <!--attach/detach drive lazy cover loading: the ListBox virtualises, so
                                     only rows actually on screen ever hold a decoded thumbnail-->

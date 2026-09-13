@@ -28,7 +28,7 @@ namespace cbzLab;
 public partial class MainWindow : Window
 {
     //keep in sync with cbzLab.csproj's Version
-    public const string DisplayVersion = "2.0.4";
+    public const string DisplayVersion = "2.0.5";
 
     private readonly LogService _log;
     private readonly SettingsService _settings;
@@ -286,6 +286,90 @@ public partial class MainWindow : Window
         await OpenPathsAsync(picked.Select(f => f.Path.LocalPath).ToList());
     }
 
+    //opens every archive under a folder, including subfolders. Each file keeps its own absolute
+    //path, and every save path writes back to that path, so a tree imported this way saves in
+    //place into its original folder without any extra bookkeeping.
+    private async void OnOpenFolder(object? sender, RoutedEventArgs e)
+    {
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel is null)
+            return;
+
+        IStorageFolder? startLocation = null;
+        var lastFolder = _settings.Settings.LastOpenFolder;
+        if (!string.IsNullOrEmpty(lastFolder))
+        {
+            try { startLocation = await topLevel.StorageProvider.TryGetFolderFromPathAsync(lastFolder); }
+            catch (System.Exception ex) { _log.Error("Could not resolve last open folder", ex); }
+        }
+
+        IReadOnlyList<IStorageFolder> picked;
+        try
+        {
+            picked = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = "Open every archive in a folder",
+                AllowMultiple = false,
+                SuggestedStartLocation = startLocation,
+            });
+        }
+        catch (System.Exception ex)
+        {
+            _log.Error("Folder picker failed", ex);
+            _viewModel.StatusText = $"Folder picker failed: {ex.Message}";
+            return;
+        }
+
+        if (picked.Count == 0)
+            return;
+
+        var root = picked[0].Path.LocalPath;
+        _viewModel.StatusText = $"Scanning {System.IO.Path.GetFileName(root.TrimEnd(System.IO.Path.DirectorySeparatorChar))}...";
+
+        List<string> found;
+        try
+        {
+            found = await Task.Run(() => ArchiveService.FindArchivesUnder(root));
+        }
+        catch (System.Exception ex)
+        {
+            _log.Error($"Could not scan '{root}'", ex);
+            await MessageDialog.ShowAsync(this, "Could not scan folder", ex.Message);
+            return;
+        }
+
+        if (found.Count == 0)
+        {
+            await MessageDialog.ShowAsync(this, "Open Folder",
+                $"No cbz, cbr, zip or rar archives were found under:\n{root}");
+            return;
+        }
+
+        //opening a few thousand files is supported, but it is still worth being asked first
+        if (found.Count >= LargeImportConfirmThreshold)
+        {
+            var proceed = await ConfirmDialog.ShowAsync(this, "Open folder",
+                $"Found {found.Count} archives under:\n{root}\n\nOpen all of them?", "Open All");
+            if (!proceed)
+            {
+                _viewModel.StatusText = "Ready";
+                return;
+            }
+        }
+
+        if (root != _settings.Settings.LastOpenFolder)
+        {
+            _settings.Settings.LastOpenFolder = root;
+            _settings.Save();
+        }
+
+        await OpenPathsAsync(found);
+    }
+
+    //asks before opening more than this many at once
+    private const int LargeImportConfirmThreshold = 100;
+
+
     //shared by the Open picker and drag-drop; already-open files are skipped, failures collected and shown together
     //built for bulk: archives are read in parallel, the view model is updated once at the end, and
     //the recent-files list is written once instead of per file. Covers are deliberately NOT decoded
@@ -432,11 +516,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private static bool IsSupportedArchive(string path)
-    {
-        var ext = System.IO.Path.GetExtension(path).ToLowerInvariant();
-        return ext is ".cbz" or ".cbr" or ".zip" or ".rar";
-    }
+    private static bool IsSupportedArchive(string path) => ArchiveService.IsSupportedArchive(path);
 
     private void OnDragOver(object? sender, DragEventArgs e) =>
         e.DragEffects = e.DataTransfer.Contains(DataFormat.File) ? DragDropEffects.Copy : DragDropEffects.None;
@@ -899,6 +979,7 @@ public partial class MainWindow : Window
     internal static readonly (string Id, string Label, int Group)[] ToolbarCatalog =
     {
         ("Open", "Open…", 0),
+        ("OpenFolder", "Open Folder…", 0),
         ("Save", "Save", 0),
         ("SaveAll", "Save All", 0),
         ("Remove", "Remove", 1),
@@ -942,6 +1023,8 @@ public partial class MainWindow : Window
     private Control? BuildToolbarButtonControl(string id) => id switch
     {
         "Open" => MakeToolButton("Open…", OnOpen, "Open archives"),
+        "OpenFolder" => MakeToolButton("Open Folder…", OnOpenFolder,
+            "Open every archive in a folder, including subfolders"),
         "Save" => MakeToolButton("Save", OnSave, "Save the selected file(s) in place"),
         "SaveAll" => BuildSaveAllButton(),
         "Remove" => MakeToolButton("Remove", OnRemove, "Remove the selected file(s) from the list (not from disk)"),
