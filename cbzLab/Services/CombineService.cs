@@ -21,7 +21,7 @@ public record CombineOutcome(string OutputPath, int TotalPages, int SourceCount)
 ///
 /// This is the one place the app writes page images - and it only ever writes a NEW archive, copying
 /// page bytes through verbatim without decoding or re-encoding them. Source archives are opened
-/// read-only and never modified. See CLAUDE.md's amended page-image constraint.
+/// read-only and never modified: page images are never altered in place.
 /// </summary>
 public class CombineService
 {

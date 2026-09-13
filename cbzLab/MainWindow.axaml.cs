@@ -28,7 +28,7 @@ namespace cbzLab;
 public partial class MainWindow : Window
 {
     //keep in sync with cbzLab.csproj's Version
-    public const string DisplayVersion = "2.0.6";
+    public const string DisplayVersion = "2.0.7";
 
     private readonly LogService _log;
     private readonly SettingsService _settings;
@@ -391,8 +391,6 @@ public partial class MainWindow : Window
         var opened = new ComicFileViewModel?[pending.Count];
         var failures = new System.Collections.Concurrent.ConcurrentBag<string>();
         var done = 0;
-        //read once here rather than per file: the parallel loop below must not touch settings
-        var parseHeaders = _settings.Settings.ParseSummaryHeader;
 
         try
         {
@@ -406,11 +404,8 @@ public partial class MainWindow : Window
                     {
                         var result = _archive.Read(path, includeCover: false);
                         var values = ComicInfoXml.Parse(result.ComicInfoXml);
-                        var file = new ComicFileViewModel(path, result.Format, result.ComicInfoXml,
+                        opened[index] = new ComicFileViewModel(path, result.Format, result.ComicInfoXml,
                             values, result.ImagePageCount);
-                        if (parseHeaders)
-                            ApplySummaryHeader(file);
-                        opened[index] = file;
                     }
                     catch (System.Exception ex)
                     {
@@ -450,17 +445,49 @@ public partial class MainWindow : Window
     //below this a progress window is more disruptive than the wait it reports on
     private const int BulkImportProgressThreshold = 25;
 
+    //scoped to the selection, or every open file when nothing is selected - same rule as
+    //Find and Replace, so the two tools behave consistently
+    private async void OnExtractSummaryHeader(object? sender, RoutedEventArgs e)
+    {
+        var targets = _viewModel.SelectedFiles.Count > 0
+            ? _viewModel.SelectedFiles.ToList()
+            : _viewModel.OpenFiles.ToList();
+
+        if (targets.Count == 0)
+        {
+            await MessageDialog.ShowAsync(this, "Extract Publisher/Year from Summary",
+                "Open an archive first.");
+            return;
+        }
+
+        var changed = targets.Count(ApplySummaryHeader);
+        _viewModel.RefreshEditor();
+
+        if (changed == 0)
+        {
+            await MessageDialog.ShowAsync(this, "Extract Publisher/Year from Summary",
+                $"No \"Publisher - Year\" header was found in {targets.Count} file(s).\n\n"
+                + "This looks for a line like \"DC Comics - 1995\" that stands alone at the top of "
+                + "the summary, followed by a blank line.");
+            return;
+        }
+
+        _viewModel.StatusText = changed == 1
+            ? "Extracted a publisher/year header from 1 file - not yet saved"
+            : $"Extracted publisher/year headers from {changed} files - not yet saved";
+    }
+
     /// <summary>
     /// Lifts a "Publisher - Year" header out of the Summary and into those fields. Only fields that
     /// are actually empty get filled, so existing metadata always wins; the header is stripped from
     /// the summary either way, since once the values are in their proper fields the line is noise.
-    /// Applied through SetValue rather than baked into the loaded values, which leaves the file
-    /// dirty so the change is visible in the editor and can be reverted.
+    /// Applied through SetValue, which leaves the file dirty so the change is visible in the editor
+    /// and can be reverted. Returns true if the file was changed.
     /// </summary>
-    private static void ApplySummaryHeader(ComicFileViewModel file)
+    private static bool ApplySummaryHeader(ComicFileViewModel file)
     {
         if (!SummaryHeaderParser.TryParse(file.GetValue("Summary"), out var header))
-            return;
+            return false;
 
         if (string.IsNullOrWhiteSpace(file.GetValue("Publisher")))
             file.SetValue("Publisher", header.Publisher);
@@ -468,6 +495,7 @@ public partial class MainWindow : Window
             file.SetValue("Year", header.Year);
 
         file.SetValue("Summary", header.Summary);
+        return true;
     }
 
     //---------------------------------------------------------------- lazy covers
@@ -1012,6 +1040,7 @@ public partial class MainWindow : Window
         ("CopyXml", "Copy XML", 2),
         ("PasteXml", "Paste XML", 2),
         ("GuessFromFilename", "Guess from Filename", 3),
+        ("ExtractSummaryHeader", "Extract Publisher/Year from Summary", 3),
         ("Combine", "Combine Archives…", 3),
         ("TrimFooters", "Trim Branding Footers…", 3),
         ("SearchComicVine", "Search ComicVine…", 4),
@@ -1058,6 +1087,8 @@ public partial class MainWindow : Window
         "PasteXml" => MakeToolButton("Paste XML", OnPasteXml, "Replace the current file's metadata from clipboard XML"),
         "GuessFromFilename" => MakeToolButton("Guess from Filename", OnGuessFromFilename,
             "Fill empty Series/Number/Volume/Year fields from the filename and folder"),
+        "ExtractSummaryHeader" => MakeToolButton("Extract Pub/Year", OnExtractSummaryHeader,
+            "Move a \"Publisher - Year\" line from the top of the summary into those fields"),
         "Combine" => MakeToolButton("Combine…", OnCombineArchives,
             "Join the selected archives into one new CBZ (for reassembling a split TPB)"),
         "TrimFooters" => MakeToolButton("Trim Footers…", OnTrimFooters,
@@ -1569,7 +1600,7 @@ public partial class MainWindow : Window
     //---------------------------------------------------------------- footer trimming
 
     //the only path in the app that re-encodes page images; it always writes a new archive and
-    //leaves the source untouched - see CLAUDE.md's amended page-image constraint
+    //leaves the source untouched: page images are never modified in place
     private async void OnTrimFooters(object? sender, RoutedEventArgs e)
     {
         var file = _viewModel.CurrentFile;

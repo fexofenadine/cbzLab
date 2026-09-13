@@ -19,7 +19,7 @@ public record FooterScan(int BandHeight, int PagesScanned, IReadOnlyList<FooterP
 /// nothing needs configuring per source and no reference images are stored.
 ///
 /// Unlike every other page-touching path in the app this one genuinely re-encodes the pages it
-/// cuts - see CLAUDE.md's amended page-image constraint. Pages without a footer are copied through
+/// cuts, and only those. Pages without a footer are copied through
 /// byte-for-byte untouched, and the result is always written to a NEW archive.
 /// </summary>
 public class FooterTrimService

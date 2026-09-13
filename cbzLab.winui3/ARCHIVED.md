@@ -14,7 +14,7 @@ This folder is kept for historical reference only:
 - Its own internal project references (paths, namespaces, etc.) were left
   exactly as they were before the rename — this folder was moved, not edited.
 - Full commit history and the WinUI-era changelog remain in place — see
-  `CHANGELOG.md` at the repo root for that history, and `CLAUDE.md` for the
+  `CHANGELOG.md` at the repo root for that history, and the project notes for the
   Avalonia port's own development log.
 
 If you're looking to build or run cbzLab today, use the repo root `cbzLab/`

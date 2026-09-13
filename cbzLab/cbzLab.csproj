@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!--avalonia rewrite skeleton (step 1 of the port, see CLAUDE.md): plain
+    <!--avalonia rewrite skeleton (step 1 of the port): plain
         net8.0, no windows-specific tfm suffix, targeting windows + linux
         desktop from one build-->
     <!--WinExe, not Exe: plain Exe allocates a console window on Windows (the
@@ -31,9 +31,9 @@
         2.0.1: the rename above, plus a verified SharpCompress bump and first-ever
         confirmed macOS publish - also the first release actually cut via release.yml
         rather than by hand.-->
-    <Version>2.0.6</Version>
-    <AssemblyVersion>2.0.6.0</AssemblyVersion>
-    <FileVersion>2.0.6.0</FileVersion>
+    <Version>2.0.7</Version>
+    <AssemblyVersion>2.0.7.0</AssemblyVersion>
+    <FileVersion>2.0.7.0</FileVersion>
   </PropertyGroup>
 
   <!--scoped to Release only, not the main PropertyGroup above: SelfContained
@@ -43,8 +43,8 @@
       net8.0/win-x64/ (a full self-contained framework copy) instead of the
       normal bin/Debug/net8.0/ single-dll output, and a stale pre-existing
       exe at the old path kept getting tested instead of the real new build.
-      Every publish command actually used for this project passes -c Release
-      (see CLAUDE.md), so gating on Configuration keeps `dotnet build`'s
+      Every publish command actually used for this project passes -c Release,
+      so gating on Configuration keeps `dotnet build`'s
       default Debug config fast and framework-dependent while Release
       publishes still get the single-file bundle below.-->
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">

@@ -58,6 +58,6 @@ msbuild.log
 msbuild.err
 msbuild.wrn
 
-#claude code
+#local working notes and editor/tool config, not part of the project
 CLAUDE.md
 .claude/

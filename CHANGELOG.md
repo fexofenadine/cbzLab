@@ -10,6 +10,18 @@
 
 ## cbzLab (Avalonia)
 
+### 2.0.7 - 2026-09-13
+
+- Extracting a "Publisher - Year" header from the summary is now a Tools
+  command rather than something that happens on open. Running on every open
+  meant a folder import could mark hundreds of files dirty at once, before
+  anyone had asked for it. Tools > Extract Publisher/Year from Summary applies
+  it to the selected files, or to every open file when nothing is selected,
+  the same scope rule Find and Replace uses, and reports how many it changed.
+- Dropped the settings toggle that went with the old behaviour. A command you
+  choose to run needs no switch, and a switch that gates nothing is just
+  another setting that appears to do something and does not.
+
 ### 2.0.6 - 2026-09-13
 
 - Some sources put the publisher and year at the top of the Summary instead of
@@ -84,8 +96,7 @@
   narrower rather than gone: both only ever write a *new* archive and leave
   every source file untouched on disk. Combining additionally copies page bytes
   verbatim without decoding them; footer trimming is the one path that genuinely
-  re-encodes, and only for the pages actually being cropped. See CLAUDE.md for
-  the amended wording.
+  re-encodes, and only for the pages actually being cropped.
 
 ### 2.0.2 - 2026-08-31
 

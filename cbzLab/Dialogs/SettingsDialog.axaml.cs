@@ -46,7 +46,6 @@ public partial class SettingsDialog : Window
         FormatCombo.SelectedIndex = s.DefaultSaveFormat.Equals("cbr", System.StringComparison.OrdinalIgnoreCase) ? 1 : 0;
         ConfirmBatchCheck.IsChecked = s.ConfirmBatchSave;
         AutoPageCheck.IsChecked = s.AutoPageCount;
-        ParseSummaryHeaderCheck.IsChecked = s.ParseSummaryHeader;
         RecentFilesBox.Value = s.MaxRecentFiles;
         AutoSelectCheck.IsChecked = s.AutoSelectFirstOnOpen;
         ClearFilterCheck.IsChecked = s.ClearFilterOnOpen;
@@ -278,7 +277,6 @@ public partial class SettingsDialog : Window
         s.DefaultSaveFormat = dlg.FormatCombo.SelectedIndex == 1 ? "cbr" : "cbz";
         s.ConfirmBatchSave = dlg.ConfirmBatchCheck.IsChecked == true;
         s.AutoPageCount = dlg.AutoPageCheck.IsChecked == true;
-        s.ParseSummaryHeader = dlg.ParseSummaryHeaderCheck.IsChecked == true;
         s.MaxRecentFiles = (int)(dlg.RecentFilesBox.Value ?? s.MaxRecentFiles);
         s.AutoSelectFirstOnOpen = dlg.AutoSelectCheck.IsChecked == true;
         s.ClearFilterOnOpen = dlg.ClearFilterCheck.IsChecked == true;
@@ -300,7 +298,7 @@ public partial class SettingsDialog : Window
 internal readonly record struct AppSettingsSnapshot(
     string Theme, double EditorFontSize, string EditorFontFamily, string CoverSource, bool EditorFieldsFillWidth,
     bool RememberLastTab, bool CompactDensity, bool ShowAllFieldsDefault, bool ShowExtraFieldsDefault,
-    string DefaultSaveFormat, bool ConfirmBatchSave, bool AutoPageCount, bool ParseSummaryHeader, int MaxRecentFiles,
+    string DefaultSaveFormat, bool ConfirmBatchSave, bool AutoPageCount, int MaxRecentFiles,
     bool AutoSelectFirstOnOpen, bool ClearFilterOnOpen, string LiveValidationMode, int MaxRecentValues,
     string RarToolPath, bool ComicVineEnabled, string ComicVineApiKey, bool ComicVineAlwaysReview,
     bool CheckForUpdatesOnStartup, bool AutoUpdateEnabled)
@@ -308,7 +306,7 @@ internal readonly record struct AppSettingsSnapshot(
     public AppSettingsSnapshot(Models.AppSettings s) : this(
         s.Theme, s.EditorFontSize, s.EditorFontFamily, s.CoverSource, s.EditorFieldsFillWidth,
         s.RememberLastTab, s.CompactDensity, s.ShowAllFieldsDefault, s.ShowExtraFieldsDefault,
-        s.DefaultSaveFormat, s.ConfirmBatchSave, s.AutoPageCount, s.ParseSummaryHeader, s.MaxRecentFiles,
+        s.DefaultSaveFormat, s.ConfirmBatchSave, s.AutoPageCount, s.MaxRecentFiles,
         s.AutoSelectFirstOnOpen, s.ClearFilterOnOpen, s.LiveValidationMode, s.MaxRecentValues,
         s.RarToolPath, s.ComicVineEnabled, s.ComicVineApiKey, s.ComicVineAlwaysReview,
         s.CheckForUpdatesOnStartup, s.AutoUpdateEnabled)

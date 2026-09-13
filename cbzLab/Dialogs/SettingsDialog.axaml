@@ -55,9 +55,6 @@
 
                 <CheckBox x:Name="ConfirmBatchCheck" Content="Confirm before batch save operations" />
                 <CheckBox x:Name="AutoPageCheck" Content="Auto-detect page count on open" />
-                <CheckBox x:Name="ParseSummaryHeaderCheck"
-                          Content="Move a &quot;Publisher - Year&quot; line from the summary into those fields on open"
-                          ToolTip.Tip="Some sources put the publisher and year at the top of the summary instead of in the proper fields. Only empty fields are filled, and the change is left unsaved so you can review it." />
 
                 <StackPanel Spacing="4">
                     <TextBlock Text="Max recent files" />
