@@ -28,7 +28,7 @@ namespace cbzLab;
 public partial class MainWindow : Window
 {
     //keep in sync with cbzLab.csproj's Version
-    public const string DisplayVersion = "2.0.5";
+    public const string DisplayVersion = "2.0.6";
 
     private readonly LogService _log;
     private readonly SettingsService _settings;
@@ -391,6 +391,8 @@ public partial class MainWindow : Window
         var opened = new ComicFileViewModel?[pending.Count];
         var failures = new System.Collections.Concurrent.ConcurrentBag<string>();
         var done = 0;
+        //read once here rather than per file: the parallel loop below must not touch settings
+        var parseHeaders = _settings.Settings.ParseSummaryHeader;
 
         try
         {
@@ -404,8 +406,11 @@ public partial class MainWindow : Window
                     {
                         var result = _archive.Read(path, includeCover: false);
                         var values = ComicInfoXml.Parse(result.ComicInfoXml);
-                        opened[index] = new ComicFileViewModel(path, result.Format, result.ComicInfoXml,
+                        var file = new ComicFileViewModel(path, result.Format, result.ComicInfoXml,
                             values, result.ImagePageCount);
+                        if (parseHeaders)
+                            ApplySummaryHeader(file);
+                        opened[index] = file;
                     }
                     catch (System.Exception ex)
                     {
@@ -444,6 +449,26 @@ public partial class MainWindow : Window
 
     //below this a progress window is more disruptive than the wait it reports on
     private const int BulkImportProgressThreshold = 25;
+
+    /// <summary>
+    /// Lifts a "Publisher - Year" header out of the Summary and into those fields. Only fields that
+    /// are actually empty get filled, so existing metadata always wins; the header is stripped from
+    /// the summary either way, since once the values are in their proper fields the line is noise.
+    /// Applied through SetValue rather than baked into the loaded values, which leaves the file
+    /// dirty so the change is visible in the editor and can be reverted.
+    /// </summary>
+    private static void ApplySummaryHeader(ComicFileViewModel file)
+    {
+        if (!SummaryHeaderParser.TryParse(file.GetValue("Summary"), out var header))
+            return;
+
+        if (string.IsNullOrWhiteSpace(file.GetValue("Publisher")))
+            file.SetValue("Publisher", header.Publisher);
+        if (string.IsNullOrWhiteSpace(file.GetValue("Year")))
+            file.SetValue("Year", header.Year);
+
+        file.SetValue("Summary", header.Summary);
+    }
 
     //---------------------------------------------------------------- lazy covers
 

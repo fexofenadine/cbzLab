@@ -27,6 +27,11 @@ public class AppSettings
     [JsonPropertyName("auto_page_count")]
     public bool AutoPageCount { get; set; } = true;
 
+    //moves a "Publisher - Year" header out of the Summary and into the real fields on open,
+    //filling only fields that are empty. The edit is left unsaved so it can be reviewed.
+    [JsonPropertyName("parse_summary_header")]
+    public bool ParseSummaryHeader { get; set; } = true;
+
     [JsonPropertyName("max_recent_files")]
     public int MaxRecentFiles { get; set; } = 8;
 

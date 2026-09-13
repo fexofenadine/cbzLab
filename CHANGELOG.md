@@ -10,6 +10,21 @@
 
 ## cbzLab (Avalonia)
 
+### 2.0.6 - 2026-09-13
+
+- Some sources put the publisher and year at the top of the Summary instead of
+  in the proper fields, as a "Publisher - Year" line followed by a blank line.
+  On open, that line is now read: the publisher and year go into those fields
+  if they are empty, and the line is removed from the summary along with the
+  blank line and any surrounding whitespace. Fields that already have a value
+  are never overwritten, and the edit is left unsaved so it shows in the editor
+  and can be reverted. Controlled by a new Settings toggle, on by default.
+- The match is deliberately fussy, because getting it wrong would eat someone's
+  prose: the line must stand alone, end in a four digit year, and be followed
+  by a blank line or nothing. A summary opening "Batman - 1939 was the year it
+  all began." is left completely alone. Any of the three dash characters works
+  as the separator, since the summary was written by whoever packaged the book.
+
 ### 2.0.5 - 2026-09-13
 
 - New File > Open Folder... (Ctrl+Shift+O, and an optional toolbar button):
