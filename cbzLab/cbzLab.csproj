@@ -84,7 +84,7 @@
         directly costs no extra payload - pinned to the same version Avalonia.Skia resolves.
         Used by FooterTrimService for the one job Avalonia's own Bitmap can't do: decoding a
         page, cropping it, and re-encoding as jpeg at a chosen quality.-->
-    <PackageReference Include="SkiaSharp" Version="3.119.4" />
+    <PackageReference Include="SkiaSharp" Version="4.152.1" />
   </ItemGroup>
 
   <ItemGroup>
