@@ -10,6 +10,17 @@
 
 ## cbzLab (Avalonia)
 
+### 2.0.8 - 2026-09-21
+
+- Fixed the CI build, which had been failing since SkiaSharp was auto-bumped
+  from 3.119.4 to 4.152.1. The app compiled fine, but every FooterTrimService
+  test crashed at runtime: the managed SkiaSharp had jumped to 152 while the
+  native libSkiaSharp bundled by Avalonia.Skia stayed at 119, and the two
+  refuse to run together. SkiaSharp is pinned back to 3.119.4, the version
+  Avalonia.Skia actually resolves, and told to move only when Avalonia does.
+- Told Dependabot to leave SkiaSharp alone, so the same incompatible bump
+  cannot land again on its own.
+
 ### 2.0.7 - 2026-09-13
 
 - Extracting a "Publisher - Year" header from the summary is now a Tools

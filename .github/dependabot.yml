@@ -6,6 +6,11 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    ignore:
+      #SkiaSharp's managed version must match the native libSkiaSharp that Avalonia.Skia
+      #bundles - bumping it on its own throws at runtime (see the note in cbzLab.csproj).
+      #it moves only when Avalonia does, so keep Dependabot's hands off it.
+      - dependency-name: "SkiaSharp"
 
   #keeps actions/checkout, actions/setup-dotnet etc. current in both workflows
   - package-ecosystem: "github-actions"

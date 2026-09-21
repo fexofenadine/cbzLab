@@ -31,9 +31,9 @@
         2.0.1: the rename above, plus a verified SharpCompress bump and first-ever
         confirmed macOS publish - also the first release actually cut via release.yml
         rather than by hand.-->
-    <Version>2.0.7</Version>
-    <AssemblyVersion>2.0.7.0</AssemblyVersion>
-    <FileVersion>2.0.7.0</FileVersion>
+    <Version>2.0.8</Version>
+    <AssemblyVersion>2.0.8.0</AssemblyVersion>
+    <FileVersion>2.0.8.0</FileVersion>
   </PropertyGroup>
 
   <!--scoped to Release only, not the main PropertyGroup above: SelfContained
@@ -83,8 +83,13 @@
     <!--already present transitively as Avalonia's own rendering backend, so referencing it
         directly costs no extra payload - pinned to the same version Avalonia.Skia resolves.
         Used by FooterTrimService for the one job Avalonia's own Bitmap can't do: decoding a
-        page, cropping it, and re-encoding as jpeg at a chosen quality.-->
-    <PackageReference Include="SkiaSharp" Version="4.152.1" />
+        page, cropping it, and re-encoding as jpeg at a chosen quality.
+        Must NOT be bumped independently of Avalonia: the managed SkiaSharp version has to
+        match the native libSkiaSharp that Avalonia.Skia bundles, or it throws at runtime
+        (native 119 vs managed 152 is exactly what broke CI when this was auto-bumped to
+        4.152.1). Move it only when Avalonia's own Skia dependency moves. Dependabot is told
+        to leave it alone in .github/dependabot.yml.-->
+    <PackageReference Include="SkiaSharp" Version="3.119.4" />
   </ItemGroup>
 
   <ItemGroup>
