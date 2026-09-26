@@ -71,6 +71,43 @@ public class JunkEntryTests : IDisposable
     }
 }
 
+public class SavePlannerTests
+{
+    [Theory]
+    [InlineData("C:/c/X.cbr", ArchiveFormat.Cbr, ArchiveFormat.Cbz, "C:/c/X.cbz")]
+    [InlineData("C:/c/X.cbz", ArchiveFormat.Cbz, ArchiveFormat.Cbz, "C:/c/X.cbz")]
+    //a rar misnamed .cbz, converted to real cbz: same path, so no new file
+    [InlineData("C:/c/X.cbz", ArchiveFormat.Cbr, ArchiveFormat.Cbz, "C:/c/X.cbz")]
+    public void DestinationKeepsTheNameUnlessTheFormatChanges(string path, ArchiveFormat current, ArchiveFormat to, string expected) =>
+        Assert.Equal(expected, SavePlanner.DestinationFor(path, current, to).Replace('\\', '/'));
+
+    //the bug: converting X.cbr silently overwrote an unrelated X.cbz beside it
+    [Fact]
+    public void AConversionOntoAnExistingFileIsAClash()
+    {
+        var clashes = SavePlanner.Clashes(new List<(string, string)> { ("C:/c/X.cbr", "C:/c/X.cbz") }, _ => true);
+        Assert.Equal(new[] { "C:/c/X.cbz" }, clashes);
+    }
+
+    [Fact]
+    public void SavingInPlaceIsNeverAClash()
+    {
+        var clashes = SavePlanner.Clashes(new List<(string, string)> { ("C:/c/X.cbz", "C:/c/X.cbz") }, _ => true);
+        Assert.Empty(clashes);
+    }
+
+    [Fact]
+    public void TwoSavesOntoTheSameNewFileClashEvenIfItDoesntExistYet()
+    {
+        var clashes = SavePlanner.Clashes(new List<(string, string)>
+        {
+            ("C:/c/X.cbr", "C:/c/X.cbz"),
+            ("C:/c/X.rar", "C:/c/X.cbz"),
+        }, _ => false);
+        Assert.Equal(new[] { "C:/c/X.cbz" }, clashes);
+    }
+}
+
 public class PathComparisonTests
 {
     //linux filesystems are case-sensitive, so two books differing only in case are two books

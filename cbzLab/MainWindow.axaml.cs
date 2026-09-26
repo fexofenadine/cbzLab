@@ -383,6 +383,10 @@ public partial class MainWindow : Window
         if (pending.Count == 0)
             return;
 
+        //cleared first, so a book about to be opened can't be hidden by an old filter
+        if (_settings.Settings.ClearFilterOnOpen && _viewModel.FileFilterText.Length > 0)
+            _viewModel.FileFilterText = "";
+
         var progress = pending.Count >= BulkImportProgressThreshold
             ? new ProgressDialog("Opening archives", pending.Count)
             : null;
@@ -390,6 +394,8 @@ public partial class MainWindow : Window
 
         var opened = new ComicFileViewModel?[pending.Count];
         var failures = new System.Collections.Concurrent.ConcurrentBag<string>();
+        var unreadableXml = new System.Collections.Concurrent.ConcurrentBag<string>();
+        var autoPageCount = _settings.Settings.AutoPageCount;
         var done = 0;
 
         try
@@ -404,8 +410,16 @@ public partial class MainWindow : Window
                     {
                         var result = _archive.Read(path, includeCover: false);
                         var values = ComicInfoXml.Parse(result.ComicInfoXml);
-                        opened[index] = new ComicFileViewModel(path, result.Format, result.ComicInfoXml,
+                        if (ComicInfoXml.IsUnreadable(result.ComicInfoXml))
+                            unreadableXml.Add(System.IO.Path.GetFileName(path));
+                        var file = new ComicFileViewModel(path, result.Format, result.ComicInfoXml,
                             values, result.ImagePageCount);
+                        //seeded into the baseline, like the winui original, so filling an empty Page
+                        //Count on open never marks a file unsaved by itself - it's written along with
+                        //the next real edit
+                        if (autoPageCount && result.ImagePageCount > 0 && file.GetValue("PageCount").Length == 0)
+                            file.SeedValue("PageCount", result.ImagePageCount.ToString());
+                        opened[index] = file;
                     }
                     catch (System.Exception ex)
                     {
@@ -435,10 +449,26 @@ public partial class MainWindow : Window
         _settings.AddRecentFiles(loaded.Select(f => f.Path));
         BuildRecentMenu();
 
+        //only when it's actually listed - a book hidden by the filter can't be selected, and
+        //trying would just clear the current selection
+        if (loaded.Count > 0 && _settings.Settings.AutoSelectFirstOnOpen && _viewModel.DisplayedFiles.Contains(loaded[0]))
+            FileList.SelectedItem = loaded[0];
+
         if (!failures.IsEmpty)
         {
             await MessageDialog.ShowAsync(this, "Some files could not be opened",
                 string.Join("\n", failures));
+        }
+
+        //opened with an empty form rather than refused, but the file's own metadata is unreadable
+        //and a save would replace it with only what's typed here - worth knowing before editing
+        if (!unreadableXml.IsEmpty)
+        {
+            await MessageDialog.ShowAsync(this, "Unreadable ComicInfo.xml",
+                "The ComicInfo.xml in these files isn't valid XML, so no metadata could be read from it:\n\n"
+                + string.Join("\n", unreadableXml.OrderBy(n => n))
+                + "\n\nSaving one of them replaces that ComicInfo.xml with a new one holding only the fields "
+                + "filled in here. Leave it unsaved if you want to repair the original by hand.");
         }
     }
 
@@ -661,30 +691,56 @@ public partial class MainWindow : Window
             return false;
         }
 
+        var targets = plan
+            .Select(p => (p.File, p.Format, Dest: SavePlanner.DestinationFor(p.File.Path, p.File.Format, p.Format)))
+            .ToList();
+
+        //a conversion onto another book that's open here would leave that open copy describing a
+        //file that no longer exists - refused rather than asked about
+        var openClash = targets
+            .Where(t => SavePlanner.IsConversion(t.File.Path, t.Dest)
+                        && _viewModel.FindByPath(t.Dest) is { } other && !ReferenceEquals(other, t.File))
+            .Select(t => System.IO.Path.GetFileName(t.Dest))
+            .ToList();
+        if (openClash.Count > 0)
+        {
+            await MessageDialog.ShowAsync(this, "Can't convert",
+                "Converting would overwrite these files, which are also open here:\n\n"
+                + string.Join("\n", openClash) + "\n\nClose them first, or keep the current format.");
+            return false;
+        }
+
+        var clashes = SavePlanner.Clashes(targets.Select(t => (t.File.Path, t.Dest)).ToList(), File.Exists);
+        if (clashes.Count > 0 && !await ConfirmDialog.ShowAsync(this, "Replace existing files?",
+                "Converting to the new format writes a new file beside each original, and these already exist:\n\n"
+                + string.Join("\n", clashes.Select(System.IO.Path.GetFileName))
+                + "\n\nReplace them? Nothing is saved if you cancel.", "Replace"))
+            return false;
+
         ProgressDialog? progress = plan.Count > 1 ? new ProgressDialog("Saving files", plan.Count) : null;
         progress?.ShowNonBlocking(this);
 
         var failures = new List<string>();
         var saved = 0;
+        var converted = 0;
         var i = 0;
-        foreach (var (file, format) in plan)
+        foreach (var (file, format, dest) in targets)
         {
             if (progress?.IsCancelled == true)
                 break;
             i++;
             progress?.Report(i, plan.Count, file.FileName);
 
-            var dest = format == file.Format
-                ? file.Path
-                : System.IO.Path.ChangeExtension(file.Path, format == ArchiveFormat.Cbz ? ".cbz" : ".cbr");
-
+            var sourcePath = file.Path;
             var xml = ComicInfoXml.Build(file.RawXml, file.BuildWriteValues());
             try
             {
-                await Task.Run(() => _archive.Save(file.Path, dest, format, xml));
-                _autosave.Clear(file.Path);
+                await Task.Run(() => _archive.Save(sourcePath, dest, format, xml));
+                _autosave.Clear(sourcePath);
                 file.MarkSaved(xml, dest, format);
                 saved++;
+                if (SavePlanner.IsConversion(sourcePath, dest))
+                    converted++;
             }
             catch (System.Exception ex)
             {
@@ -702,7 +758,8 @@ public partial class MainWindow : Window
             return false;
         }
 
-        _viewModel.StatusText = saved == 1 ? "Saved 1 file" : $"Saved {saved} files";
+        _viewModel.StatusText = (saved == 1 ? "Saved 1 file" : $"Saved {saved} files")
+            + (converted == 0 ? "" : $" - {converted} converted to a new file, original kept");
         return true;
     }
 
@@ -745,6 +802,14 @@ public partial class MainWindow : Window
 
         var path = target.Path.LocalPath;
         var format = path.EndsWith(".cbr", System.StringComparison.OrdinalIgnoreCase) ? ArchiveFormat.Cbr : ArchiveFormat.Cbz;
+
+        //the picker already confirms replacing a file on disk, but not one that's open here
+        if (_viewModel.FindByPath(path) is { } openElsewhere && !ReferenceEquals(openElsewhere, file))
+        {
+            await MessageDialog.ShowAsync(this, "Can't save there",
+                $"{System.IO.Path.GetFileName(path)} is also open here. Close it first, or choose another name.");
+            return;
+        }
 
         if (format == ArchiveFormat.Cbr && _archive.FindRarTool() is null)
         {
