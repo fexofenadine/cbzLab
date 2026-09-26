@@ -10,6 +10,19 @@
 
 ## cbzLab (Avalonia)
 
+### 2.0.9 - 2026-09-27
+
+- GitHub releases no longer bundle debug symbols into the main download. Each
+  release now ships four assets: a plain Windows exe and a plain Linux binary
+  (no `.pdb`, no zip - the executable is the whole download), plus a
+  win-x64/linux-x64 debug zip for each platform containing the executable
+  together with its `.pdb`, for anyone who actually needs to debug a crash.
+- Fixed a version-string drift bug: 2.0.8's release bumped `cbzLab.csproj`'s
+  `<Version>` but missed `MainWindow.axaml.cs`'s `DisplayVersion` constant and
+  `MainWindow.axaml`'s `Title`, so the title bar and the About/Check for
+  Updates dialogs kept reporting 2.0.7 even after 2.0.8 shipped. All three are
+  back in sync as of this release.
+
 ### 2.0.8 - 2026-09-21
 
 - Fixed the CI build, which had been failing since SkiaSharp was auto-bumped

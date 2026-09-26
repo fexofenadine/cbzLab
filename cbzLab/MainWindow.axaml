@@ -3,7 +3,7 @@
         xmlns:vm="using:cbzLab.ViewModels"
         x:Class="cbzLab.MainWindow"
         x:DataType="vm:MainViewModel"
-        Title="cbzLab 2.0.7"
+        Title="cbzLab 2.0.9"
         Width="900" Height="640">
 
     <Window.Styles>

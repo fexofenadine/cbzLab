@@ -28,7 +28,7 @@ namespace cbzLab;
 public partial class MainWindow : Window
 {
     //keep in sync with cbzLab.csproj's Version
-    public const string DisplayVersion = "2.0.7";
+    public const string DisplayVersion = "2.0.9";
 
     private readonly LogService _log;
     private readonly SettingsService _settings;

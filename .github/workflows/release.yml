@@ -78,15 +78,29 @@ jobs:
       - name: Make the Linux binary executable
         run: chmod +x publish/linux-x64/cbzLab
 
-      - name: Package Windows build
+      #the publish folders contain just the single-file executable plus this
+      #project's own cbzLab.pdb (third-party native pdbs are already stripped
+      #by cbzLab.csproj's RemoveThirdPartyNativePdbsFromPublish target) - the
+      #main release download should be exactly the executable, nothing else,
+      #so it's copied out on its own rather than zipped. A one-file asset
+      #needs no archive at all.
+      - name: Copy release executables (no debug symbols)
+        run: |
+          cp publish/win-x64/cbzLab.exe "cbzLab-${{ steps.version.outputs.version }}-win-x64.exe"
+          cp publish/linux-x64/cbzLab "cbzLab-${{ steps.version.outputs.version }}-linux-x64"
+          chmod +x "cbzLab-${{ steps.version.outputs.version }}-linux-x64"
+
+      #a separate, optional download for anyone who actually needs to debug a
+      #crash - the executable plus cbzLab.pdb, zipped together, per platform.
+      - name: Package Windows debug build (exe + pdb)
         run: |
           cd publish/win-x64
-          zip -r "../../cbzLab-${{ steps.version.outputs.version }}-win-x64.zip" .
+          zip -r "../../cbzLab-${{ steps.version.outputs.version }}-win-x64-debug.zip" .
 
-      - name: Package Linux build
+      - name: Package Linux debug build (binary + pdb)
         run: |
           cd publish/linux-x64
-          tar -czf "../../cbzLab-${{ steps.version.outputs.version }}-linux-x64.tar.gz" .
+          zip -r "../../cbzLab-${{ steps.version.outputs.version }}-linux-x64-debug.zip" .
 
       #pulls out just this version's own section (between its "### x.y.z - date"
       #heading and the next one) so the release notes carry the actual human-written
@@ -114,8 +128,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "${{ github.ref_name }}" \
-            "cbzLab-${{ steps.version.outputs.version }}-win-x64.zip" \
-            "cbzLab-${{ steps.version.outputs.version }}-linux-x64.tar.gz" \
+            "cbzLab-${{ steps.version.outputs.version }}-win-x64.exe" \
+            "cbzLab-${{ steps.version.outputs.version }}-linux-x64" \
+            "cbzLab-${{ steps.version.outputs.version }}-win-x64-debug.zip" \
+            "cbzLab-${{ steps.version.outputs.version }}-linux-x64-debug.zip" \
             --title "cbzLab ${{ steps.version.outputs.version }}" \
             --notes "$(cat changelog-notes.md)" \
             --generate-notes
