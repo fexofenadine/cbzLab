@@ -45,10 +45,16 @@ public class SettingsService
         Load();
     }
 
+    //fingerprints of the bundled versions this app installed into the config folder - see RefreshBundled
+    public string BundledStatePath => Path.Combine(ConfigDir, "bundled_state.json");
+
     private void SeedBundledAssets()
     {
-        SeedFile("schema.json", SchemaPath);
-        SeedFile("themes.json", ThemesJsonPath);
+        var state = JsonFileStore.Load(BundledStatePath, _log, () => new Dictionary<string, string>());
+        var stateChanged = RefreshBundled("schema.json", SchemaPath, BundledAssetMerge.MergeSchema, state);
+        stateChanged |= RefreshBundled("themes.json", ThemesJsonPath, BundledAssetMerge.MergeThemes, state);
+        if (stateChanged)
+            JsonFileStore.Save(BundledStatePath, state, _log);
 
         var bundledThemes = Path.Combine(BundledAssetsDir, "themes");
         if (Directory.Exists(bundledThemes))
@@ -62,13 +68,82 @@ public class SettingsService
         }
     }
 
-    private void SeedFile(string bundledName, string destination)
+    /// <summary>
+    /// Keeps a config-folder copy of a bundled file current. These used to be copied once on first
+    /// run and never again, so an existing install never received new themes, fields or fixes:
+    /// - missing: copied in, and its fingerprint recorded as what this app installed
+    /// - unchanged since the recorded install: nobody edited it, so it's replaced by the new version
+    /// - edited, or installed before fingerprints were recorded: only what's missing is added
+    ///   (BundledAssetMerge), since the file is documented as hand-editable and an edit can't be told
+    ///   apart from an old default. Deleting the file gets the current version on next launch
+    /// - unparseable: left completely alone
+    /// Returns true if the recorded state changed.
+    /// </summary>
+    private bool RefreshBundled(string name, string destination,
+        Func<System.Text.Json.Nodes.JsonObject, System.Text.Json.Nodes.JsonObject, List<string>> merge,
+        Dictionary<string, string> state)
     {
-        if (File.Exists(destination))
-            return;
-        var src = Path.Combine(BundledAssetsDir, bundledName);
-        if (File.Exists(src))
-            File.Copy(src, destination);
+        try
+        {
+            var src = Path.Combine(BundledAssetsDir, name);
+            if (!File.Exists(src))
+                return false;
+            var bundledText = File.ReadAllText(src);
+            var bundledPrint = BundledAssetMerge.Fingerprint(bundledText);
+
+            if (!File.Exists(destination))
+            {
+                File.Copy(src, destination);
+                return Record(bundledPrint);
+            }
+
+            var userText = File.ReadAllText(destination);
+            var userPrint = BundledAssetMerge.Fingerprint(userText);
+            if (userPrint is null || bundledPrint is null)
+                return false;
+            if (userPrint == bundledPrint)
+                return Record(bundledPrint);
+
+            if (state.TryGetValue(name, out var installed) && installed == userPrint)
+            {
+                WriteAtomic(destination, bundledText);
+                _log.Info($"Updated {name} to the version bundled with this release");
+                return Record(bundledPrint);
+            }
+
+            if (BundledAssetMerge.TryParse(userText) is System.Text.Json.Nodes.JsonObject user
+                && BundledAssetMerge.TryParse(bundledText) is System.Text.Json.Nodes.JsonObject bundled)
+            {
+                var added = merge(user, bundled);
+                if (added.Count > 0)
+                {
+                    WriteAtomic(destination, user.ToJsonString(JsonFileStore.JsonOpts));
+                    _log.Info($"Added to {name} from this release: {string.Join(", ", added)}");
+                }
+            }
+            return false;
+        }
+        catch (Exception ex)
+        {
+            //a stale config copy must never stop the app starting
+            _log.Warning($"Could not refresh {name} from the bundled copy: {ex.Message}");
+            return false;
+        }
+
+        bool Record(string? print)
+        {
+            if (print is null || (state.TryGetValue(name, out var old) && old == print))
+                return false;
+            state[name] = print;
+            return true;
+        }
+    }
+
+    private static void WriteAtomic(string path, string text)
+    {
+        var temp = path + ".tmp";
+        File.WriteAllText(temp, text);
+        File.Move(temp, path, overwrite: true);
     }
 
     public void Load() =>

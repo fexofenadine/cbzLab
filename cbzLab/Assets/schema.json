@@ -22,7 +22,7 @@
       "header": "📅  Publication Date",
       "first_tag": "Year",
       "fields": [
-        {"tag": "Year",  "label": "Publication Date",  "widget": "entry", "tooltip": "Publication date. Type a full date, a year alone, or 'MM/yyyy' for year and month - a full date can also be picked from the calendar button. Combines the underlying Year/Month/Day fields into one."},
+        {"tag": "Year",  "label": "Publication Date",  "widget": "entry", "tooltip": "Publication date. Type a full date, a month and year (03/2019, March 2019 or 2019-03), or a year alone. Combines the underlying Year/Month/Day fields into one."},
         {"tag": "Month", "label": "Month", "widget": "entry", "tooltip": "Publication month as a number, 1-12."},
         {"tag": "Day",   "label": "Day",   "widget": "entry", "tooltip": "Publication day of the month, 1-31."}
       ]
