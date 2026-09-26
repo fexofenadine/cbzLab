@@ -95,7 +95,10 @@ public class UpdateServiceTests
         Directory.CreateDirectory(dir);
         try
         {
-            var marker = Path.Combine(dir, "relaunched.txt");
+            //the marker sits outside the accented folder: cmd.exe reads a batch file in the OEM code
+            //page, so an "ö" in the fake build's own echo target gets garbled on a non-UTF-8 machine.
+            //What's under test - the script copying and relaunching an exe at the accented path - isn't
+            var marker = Path.Combine(Path.GetDirectoryName(dir)!, "relaunched.txt");
             var windows = OperatingSystem.IsWindows();
             var oldExe = Path.Combine(dir, windows ? "old.cmd" : "old-app");
             var newExe = Path.Combine(dir, windows ? "new.cmd" : "new-app");

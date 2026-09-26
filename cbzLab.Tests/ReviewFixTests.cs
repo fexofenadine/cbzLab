@@ -175,11 +175,13 @@ public class RarToolTests : IDisposable
     private readonly TestConfig _cfg = new();
     public void Dispose() => _cfg.Dispose();
 
+    //forward slashes: both platforms read them as separators, while a backslash is just part of the
+    //file name on linux
     [Theory]
-    [InlineData(@"C:\Program Files\WinRAR\Rar.exe", true)]
+    [InlineData("C:/Program Files/WinRAR/Rar.exe", true)]
     [InlineData("/usr/bin/rar", true)]
-    [InlineData(@"C:\tools\UnRAR.exe", false)]
-    [InlineData(@"C:\ProgramData\chocolatey\bin\7z.exe", false)]
+    [InlineData("C:/tools/UnRAR.exe", false)]
+    [InlineData("C:/ProgramData/chocolatey/bin/7z.exe", false)]
     [InlineData("/usr/bin/7zz", false)]
     public void OnlyTheRealRarToolCountsAsAWriter(string path, bool expected) =>
         Assert.Equal(expected, ArchiveService.IsRealRar(path));
