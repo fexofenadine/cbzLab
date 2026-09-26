@@ -9,7 +9,7 @@ namespace cbzLab.Tests;
 public class FooterTrimServiceTests : IDisposable
 {
     private readonly string _dir = Path.Combine(Path.GetTempPath(), "cbzLabTests_footer_" + Guid.NewGuid().ToString("N"));
-    private readonly FooterTrimService _service = new(new LogService(), new[] { ".png", ".jpg" });
+    private readonly FooterTrimService _service = new(new LogService(Path.Combine(Path.GetTempPath(), "cbzLabTests_logs")), new[] { ".png", ".jpg", ".webp" });
 
     private const int Band = 100;
 

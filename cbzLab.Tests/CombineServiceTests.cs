@@ -10,7 +10,7 @@ namespace cbzLab.Tests;
 public class CombineServiceTests : IDisposable
 {
     private readonly string _dir = Path.Combine(Path.GetTempPath(), "cbzLabTests_combine_" + Guid.NewGuid().ToString("N"));
-    private readonly CombineService _combine = new(new LogService(), new[] { ".png", ".jpg", ".jpeg" });
+    private readonly CombineService _combine = new(new LogService(Path.Combine(Path.GetTempPath(), "cbzLabTests_logs")), new[] { ".png", ".jpg", ".jpeg" });
 
     public CombineServiceTests() => Directory.CreateDirectory(_dir);
 

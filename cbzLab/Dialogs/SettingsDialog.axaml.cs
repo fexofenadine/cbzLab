@@ -193,9 +193,10 @@ public partial class SettingsDialog : Window
 
         try
         {
-            _settings!.ImportBackup(picked[0].Path.LocalPath);
+            var skipped = _settings!.ImportBackup(picked[0].Path.LocalPath);
             Populate(new AppSettingsSnapshot(_settings.Settings));
-            BackupStatus.Text = "Imported - restart cbzLab for theme and schema changes to fully take effect.";
+            BackupStatus.Text = "Imported - restart cbzLab for theme and schema changes to fully take effect."
+                + (skipped == 0 ? "" : $" {skipped} file(s) pointing outside the settings folder were ignored.");
         }
         catch (System.Exception ex)
         {

@@ -76,47 +76,83 @@ public class SettingsService
 
     public void Save() => JsonFileStore.Save(SettingsPath, Settings, _log);
 
-    //zips everything under ConfigDir except logs/ (diagnostic output, not a setting or
-    //customization) - covers preferences, schema_extra.json, recent_values.json,
-    //comicvine_cache.json and the user's own themes/ folder in one file
+    //neither belongs in a backup: logs/ is diagnostic output, and autosave/ holds crash-recovery
+    //drafts tied to paths on this machine - restored elsewhere they'd prompt about files that
+    //don't exist there
+    private static readonly string[] NotBackedUp = { "logs", "autosave" };
+
+    //zips everything under ConfigDir except the folders above - covers preferences,
+    //schema_extra.json, recent_values.json, comicvine_cache.json and the user's own themes/
     public void ExportBackup(string zipPath)
     {
         if (File.Exists(zipPath))
             File.Delete(zipPath);
         using var zip = ZipFile.Open(zipPath, ZipArchiveMode.Create);
-        AddDirectoryToZip(zip, ConfigDir, "");
+        AddDirectoryToZip(zip, ConfigDir, "", Path.GetFullPath(zipPath));
     }
 
-    private static void AddDirectoryToZip(ZipArchive zip, string dir, string entryPrefix)
+    private static void AddDirectoryToZip(ZipArchive zip, string dir, string entryPrefix, string skipFile)
     {
         foreach (var file in Directory.GetFiles(dir))
+        {
+            //a backup saved into the config folder itself can't contain itself
+            if (string.Equals(Path.GetFullPath(file), skipFile, StringComparison.OrdinalIgnoreCase))
+                continue;
             zip.CreateEntryFromFile(file, entryPrefix + Path.GetFileName(file));
+        }
 
         foreach (var sub in Directory.GetDirectories(dir))
         {
             var name = Path.GetFileName(sub);
-            if (name.Equals("logs", StringComparison.OrdinalIgnoreCase))
+            if (entryPrefix.Length == 0 && NotBackedUp.Contains(name, StringComparer.OrdinalIgnoreCase))
                 continue;
-            AddDirectoryToZip(zip, sub, entryPrefix + name + "/");
+            AddDirectoryToZip(zip, sub, entryPrefix + name + "/", skipFile);
         }
     }
 
-    //overwrites matching files under ConfigDir from the zip, then reloads Settings so the
-    //in-memory copy reflects the imported cbzLab_settings.json immediately
-    public void ImportBackup(string zipPath)
+    /// <summary>
+    /// Overwrites matching files under ConfigDir from the zip, then reloads Settings so the in-memory
+    /// copy reflects the imported cbzLab_settings.json immediately. A backup is a file someone can
+    /// be handed, so every entry must resolve inside ConfigDir: anything climbing out with "..", or
+    /// rooted elsewhere, is refused rather than written (zip-slip). Returns how many entries were
+    /// skipped for that reason.
+    /// </summary>
+    public int ImportBackup(string zipPath)
     {
+        var root = Path.GetFullPath(ConfigDir + Path.DirectorySeparatorChar);
+        var skipped = 0;
         using var zip = ZipFile.OpenRead(zipPath);
         foreach (var entry in zip.Entries)
         {
             if (string.IsNullOrEmpty(entry.Name))
                 continue; //directory entry
-            var destPath = Path.Combine(ConfigDir, entry.FullName.Replace('/', Path.DirectorySeparatorChar));
-            var destDir = Path.GetDirectoryName(destPath);
-            if (destDir is not null)
-                Directory.CreateDirectory(destDir);
+
+            var relative = entry.FullName.Replace('\\', '/');
+            var top = relative.Split('/')[0];
+            if (NotBackedUp.Contains(top, StringComparer.OrdinalIgnoreCase))
+                continue;
+
+            string destPath;
+            try
+            {
+                destPath = Path.GetFullPath(Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar)));
+            }
+            catch (Exception)
+            {
+                destPath = "";
+            }
+            if (Path.IsPathRooted(relative) || !destPath.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+            {
+                _log.Warning($"Backup import skipped an entry outside the config folder: '{entry.FullName}'");
+                skipped++;
+                continue;
+            }
+
+            Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
             entry.ExtractToFile(destPath, overwrite: true);
         }
         Load();
+        return skipped;
     }
 
     public void AddRecentFile(string path) => AddRecentFiles(new[] { path });

@@ -76,7 +76,9 @@ public class ComicVineService
         return volumes;
     }
 
-    //paginates 100 at a time (ComicVine's page cap); capped at 500 issues total
+    //paginates 100 at a time (ComicVine's page cap). The cap is a runaway guard, set above the
+    //longest real runs (Detective Comics is past 1000 issues) - at 500 their later issues were
+    //unreachable. A full 2000 is 20 requests, about 22 seconds at the request pacing below
     public async Task<List<ComicVineIssueSummary>> GetIssuesForVolumeAsync(int volumeId)
     {
         EnsureConfigured();
@@ -87,7 +89,7 @@ public class ComicVineService
         var issues = new List<ComicVineIssueSummary>();
         var offset = 0;
         const int pageSize = 100;
-        const int hardCap = 500;
+        const int hardCap = 2000;
 
         while (issues.Count < hardCap)
         {

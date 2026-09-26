@@ -18,10 +18,28 @@ public class LogService
         try
         {
             Directory.CreateDirectory(_logDir);
+            PruneOldLogs(DateTime.Now);
         }
         catch
         {
             //logging must never be the thing that crashes the app
+        }
+    }
+
+    //one file per day otherwise accumulates forever
+    public const int KeepLogDays = 30;
+
+    //dated by the name rather than the file time, since copying a logs folder resets file times
+    public void PruneOldLogs(DateTime now)
+    {
+        foreach (var file in Directory.GetFiles(_logDir, "cbzLab-*.log"))
+        {
+            var stamp = Path.GetFileNameWithoutExtension(file)["cbzLab-".Length..];
+            if (DateTime.TryParseExact(stamp, "yyyyMMdd", null, System.Globalization.DateTimeStyles.None, out var day)
+                && day < now.Date.AddDays(-KeepLogDays))
+            {
+                try { File.Delete(file); } catch { /* in use or read-only - try again next launch */ }
+            }
         }
     }
 

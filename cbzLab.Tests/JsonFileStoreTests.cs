@@ -9,9 +9,13 @@ public class JsonFileStoreTests : IDisposable
     private record Widget(string Name, int Count);
 
     private readonly string _dir = Path.Combine(Path.GetTempPath(), "cbzLabTests_" + Guid.NewGuid());
-    private readonly LogService _log = new();
+    private readonly LogService _log;
 
-    public JsonFileStoreTests() => Directory.CreateDirectory(_dir);
+    public JsonFileStoreTests()
+    {
+        Directory.CreateDirectory(_dir);
+        _log = new LogService(Path.Combine(_dir, "logs"));
+    }
     public void Dispose() => Directory.Delete(_dir, recursive: true);
 
     private string TempPath() => Path.Combine(_dir, Guid.NewGuid() + ".json");
@@ -45,6 +49,33 @@ public class JsonFileStoreTests : IDisposable
         var loaded = JsonFileStore.Load(path, _log, () => new Widget("fallback", -1));
 
         Assert.Equal(new Widget("fallback", -1), loaded);
+    }
+
+    //the unreadable file used to stay in place and get overwritten by the next save
+    [Fact]
+    public void Load_CorruptFile_IsSetAsideRatherThanLost()
+    {
+        var path = TempPath();
+        const string handEdit = "{ \"Name\": \"Saga\", \"Count\": 72 oops }";
+        File.WriteAllText(path, handEdit);
+
+        JsonFileStore.Load(path, _log, () => new Widget("fallback", -1));
+        JsonFileStore.Save(path, new Widget("fallback", -1), _log);
+
+        var aside = Directory.GetFiles(_dir, Path.GetFileName(path) + ".unreadable-*");
+        Assert.Single(aside);
+        Assert.Equal(handEdit, File.ReadAllText(aside[0]));
+    }
+
+    [Fact]
+    public void Save_LeavesNoTempFileBehind()
+    {
+        var path = TempPath();
+        JsonFileStore.Save(path, new Widget("a", 1), _log);
+        JsonFileStore.Save(path, new Widget("b", 2), _log);
+
+        Assert.Equal(new Widget("b", 2), JsonFileStore.Load(path, _log, () => new Widget("", 0)));
+        Assert.Empty(Directory.GetFiles(_dir, "*.tmp"));
     }
 
     [Fact]
