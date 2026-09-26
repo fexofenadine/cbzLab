@@ -75,6 +75,64 @@ public class UpdateServiceTests
         Assert.Null(UpdateService.PickAsset(Release("2.0.10"), UpdateService.AssetSuffixesFor("")));
 
     [Theory]
+    [InlineData(@"C:\Users\O'Brien\cbzLab.exe", @"'C:\Users\O''Brien\cbzLab.exe'")]
+    [InlineData(@"C:\plain\cbzLab.exe", @"'C:\plain\cbzLab.exe'")]
+    public void PowerShellQuotingDoublesApostrophes(string path, string expected) =>
+        Assert.Equal(expected, UpdateService.PowerShellQuote(path));
+
+    [Theory]
+    [InlineData("/home/o'brien/cbzLab", "'/home/o'\\''brien/cbzLab'")]
+    [InlineData("/home/$USER/a \"b\"", "'/home/$USER/a \"b\"'")]
+    public void BashQuotingSurvivesApostrophesAndShellCharacters(string path, string expected) =>
+        Assert.Equal(expected, UpdateService.BashQuote(path));
+
+    //actually runs the swap script against a folder named like a real user's that used to break it -
+    //powershell on windows, bash elsewhere (ci covers both)
+    [Fact]
+    public void SwapScriptRunsWithAnApostropheAndAnAccentInThePath()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "cbzLabTests_swap_" + Guid.NewGuid().ToString("N"), "O'Brien Björn");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var marker = Path.Combine(dir, "relaunched.txt");
+            var windows = OperatingSystem.IsWindows();
+            var oldExe = Path.Combine(dir, windows ? "old.cmd" : "old-app");
+            var newExe = Path.Combine(dir, windows ? "new.cmd" : "new-app");
+            File.WriteAllText(oldExe, windows ? "@echo old>nul\r\n" : "#!/bin/sh\n");
+            //the "new build" proves it was both copied into place and relaunched by leaving a marker
+            File.WriteAllText(newExe, windows
+                ? $"@echo relaunched>\"{marker}\"\r\n"
+                : $"#!/bin/sh\necho relaunched > {UpdateService.BashQuote(marker)}\n");
+
+            //a pid that isn't running, so the wait-for-exit loop falls straight through
+            const int deadPid = 999_999;
+            var script = Path.Combine(dir, windows ? "apply.ps1" : "apply.sh");
+            if (windows)
+                File.WriteAllText(script, UpdateService.WindowsSwapScript(deadPid, oldExe, newExe), new System.Text.UTF8Encoding(true));
+            else
+                File.WriteAllText(script, UpdateService.UnixSwapScript(deadPid, oldExe, newExe));
+
+            var psi = new System.Diagnostics.ProcessStartInfo(windows ? "powershell.exe" : "/bin/bash") { UseShellExecute = false, CreateNoWindow = true };
+            if (windows)
+                foreach (var a in new[] { "-NoProfile", "-ExecutionPolicy", "Bypass", "-File" })
+                    psi.ArgumentList.Add(a);
+            psi.ArgumentList.Add(script);
+            using (var p = System.Diagnostics.Process.Start(psi)!)
+                Assert.True(p.WaitForExit(30_000), "swap script didn't finish");
+
+            for (var i = 0; i < 100 && !File.Exists(marker); i++)
+                Thread.Sleep(100);
+            Assert.Equal(File.ReadAllText(newExe), File.ReadAllText(oldExe));
+            Assert.True(File.Exists(marker), "the swapped-in build was never relaunched");
+        }
+        finally
+        {
+            try { Directory.Delete(Path.GetDirectoryName(dir)!, recursive: true); } catch { /* best effort */ }
+        }
+    }
+
+    [Theory]
     [InlineData("cbzLab-2.0.10-win-x64.zip", true)]
     [InlineData("cbzLab-2.0.10-linux-x64.tar.gz", true)]
     [InlineData("cbzLab-2.0.10-win-x64.exe", false)]

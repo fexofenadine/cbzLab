@@ -21,14 +21,23 @@ public class UpdateService
 {
     private const string ReleasesLatestUrl = "https://api.github.com/repos/fexofenadine/cbzLab/releases/latest";
 
+    //the whole download, not a per-read stall - generous, since a slow line is not a failure
+    private static readonly TimeSpan DownloadTimeout = TimeSpan.FromMinutes(20);
+
     private readonly LogService _log;
     private readonly HttpClient _http;
+    //separate client for the download itself: HttpClient.Timeout covers reading the whole body,
+    //so the 15s that suits the release-list check failed any ~49MB download below ~26 Mbit/s
+    private readonly HttpClient _downloadHttp;
 
     public UpdateService(LogService log, string currentDisplayVersion)
     {
         _log = log;
+        var agent = $"cbzLab/{currentDisplayVersion.Replace(" ", "")}";
         _http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
-        _http.DefaultRequestHeaders.UserAgent.ParseAdd($"cbzLab/{currentDisplayVersion.Replace(" ", "")}");
+        _http.DefaultRequestHeaders.UserAgent.ParseAdd(agent);
+        _downloadHttp = new HttpClient { Timeout = DownloadTimeout };
+        _downloadHttp.DefaultRequestHeaders.UserAgent.ParseAdd(agent);
     }
 
     public async Task<UpdateCheckResult> CheckAsync()
@@ -136,8 +145,14 @@ public class UpdateService
 
             var assetName = result.AssetName ?? "update.zip";
             var downloadPath = Path.Combine(workDir, assetName);
-            var bytes = await _http.GetByteArrayAsync(result.AssetDownloadUrl);
-            await File.WriteAllBytesAsync(downloadPath, bytes);
+            //streamed straight to disk rather than held whole in memory first
+            using (var response = await _downloadHttp.GetAsync(result.AssetDownloadUrl, HttpCompletionOption.ResponseHeadersRead))
+            {
+                response.EnsureSuccessStatusCode();
+                await using var body = await response.Content.ReadAsStreamAsync();
+                await using var file = File.Create(downloadPath);
+                await body.CopyToAsync(file);
+            }
 
             var currentExePath = Environment.ProcessPath
                 ?? throw new InvalidOperationException("Couldn't determine the running executable's path");
@@ -164,13 +179,17 @@ public class UpdateService
                 //already a dependency here for cbr (rar) reading, no new package needed.
                 //Same OpenEntryStream/manual-copy pattern ArchiveService.cs already uses,
                 //not WriteEntryToDirectory - that's not a member of IReader
+                var root = Path.GetFullPath(extractDir + Path.DirectorySeparatorChar);
                 using var stream = File.OpenRead(downloadPath);
                 using var reader = SharpCompress.Readers.ReaderFactory.OpenReader(stream);
                 while (reader.MoveToNextEntry())
                 {
-                    if (!reader.Entry.IsDirectory)
+                    if (!reader.Entry.IsDirectory && reader.Entry.Key is { } key)
                     {
-                        var destPath = Path.Combine(extractDir, reader.Entry.Key!);
+                        //same zip-slip guard as every other extraction in the app
+                        var destPath = Path.GetFullPath(Path.Combine(root, key.TrimStart('/')));
+                        if (!destPath.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+                            continue;
                         Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
                         using var entryStream = reader.OpenEntryStream();
                         using var fileStream = File.Create(destPath);
@@ -195,30 +214,40 @@ public class UpdateService
         }
     }
 
+    //a path like C:\Users\O'Brien\... used to end the quoted string early, so the script failed
+    //and the app closed without ever coming back. PowerShell single quotes escape by doubling;
+    //bash single quotes can't contain one at all, so it's closed, escaped and reopened
+    public static string PowerShellQuote(string s) => "'" + s.Replace("'", "''") + "'";
+    public static string BashQuote(string s) => "'" + s.Replace("'", "'\\''") + "'";
+
+    public static string WindowsSwapScript(int pid, string oldPath, string newPath) => $@"
+while (Get-Process -Id {pid} -ErrorAction SilentlyContinue) {{ Start-Sleep -Milliseconds 300 }}
+Start-Sleep -Milliseconds 500
+Copy-Item -LiteralPath {PowerShellQuote(newPath)} -Destination {PowerShellQuote(oldPath)} -Force
+Start-Process -FilePath {PowerShellQuote(oldPath)}
+";
+
+    public static string UnixSwapScript(int pid, string oldPath, string newPath) => $@"#!/bin/bash
+while kill -0 {pid} 2>/dev/null; do sleep 0.3; done
+sleep 0.5
+cp -f {BashQuote(newPath)} {BashQuote(oldPath)}
+chmod +x {BashQuote(oldPath)}
+{BashQuote(oldPath)} &
+";
+
     private static string WriteWindowsSwapScript(string workDir, int pid, string oldPath, string newPath)
     {
         var scriptPath = Path.Combine(workDir, "apply-update.ps1");
-        var script = $@"
-while (Get-Process -Id {pid} -ErrorAction SilentlyContinue) {{ Start-Sleep -Milliseconds 300 }}
-Start-Sleep -Milliseconds 500
-Copy-Item -Path '{newPath}' -Destination '{oldPath}' -Force
-Start-Process -FilePath '{oldPath}'
-";
-        File.WriteAllText(scriptPath, script);
+        //with a BOM: Windows PowerShell 5.1 reads a BOM-less script as the ANSI code page, which
+        //mangles any non-ASCII character in a path (a user folder like "Björn")
+        File.WriteAllText(scriptPath, WindowsSwapScript(pid, oldPath, newPath), new System.Text.UTF8Encoding(true));
         return scriptPath;
     }
 
     private static string WriteUnixSwapScript(string workDir, int pid, string oldPath, string newPath)
     {
         var scriptPath = Path.Combine(workDir, "apply-update.sh");
-        var script = $@"#!/bin/bash
-while kill -0 {pid} 2>/dev/null; do sleep 0.3; done
-sleep 0.5
-cp -f ""{newPath}"" ""{oldPath}""
-chmod +x ""{oldPath}""
-""{oldPath}"" &
-";
-        File.WriteAllText(scriptPath, script);
+        File.WriteAllText(scriptPath, UnixSwapScript(pid, oldPath, newPath));
         return scriptPath;
     }
 
@@ -226,20 +255,18 @@ chmod +x ""{oldPath}""
     //detached, so it survives this process ending
     public static void LaunchSwapScript(string scriptPath)
     {
-        var psi = OperatingSystem.IsWindows()
-            ? new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = "powershell.exe",
-                Arguments = $"-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"{scriptPath}\"",
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            }
-            : new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = "/bin/bash",
-                Arguments = $"\"{scriptPath}\"",
-                UseShellExecute = false,
-            };
+        var psi = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = OperatingSystem.IsWindows() ? "powershell.exe" : "/bin/bash",
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+        if (OperatingSystem.IsWindows())
+        {
+            foreach (var arg in new[] { "-NoProfile", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-File" })
+                psi.ArgumentList.Add(arg);
+        }
+        psi.ArgumentList.Add(scriptPath);
         System.Diagnostics.Process.Start(psi);
     }
 }
