@@ -10,6 +10,74 @@
 
 ## cbzLab (Avalonia)
 
+### 2.1.0 - 2026-09-27
+
+A review-driven fix release: safety, correctness, speed, and settings that had
+quietly stopped working.
+
+**Safety**
+
+- A settings backup can no longer write files outside the settings folder.
+  Import used to trust every path inside the `.cbzlab` file, so a crafted
+  backup could drop a file anywhere you can write; such entries are now
+  refused and counted.
+- Converting a book to the other format no longer silently overwrites a file
+  that already has the new name. You're asked first, a clash with another book
+  open in cbzLab is refused, and the status says the original was kept.
+- 7-Zip is no longer used to write CBR. Asked for a `.cbr`, it reports success
+  but writes its own 7z format, which cbzLab and most readers can't open. Only
+  WinRAR's rar tool is used (now also found in its default install folder), and
+  every CBR save is checked for the RAR signature before replacing anything.
+- Settings files are written atomically, so a crash mid-write can't truncate
+  them, and a hand-edited file with a typo is set aside rather than overwritten.
+- The ComicVine API key no longer ends up in the log.
+
+**Things that didn't work**
+
+- Auto Page Count on open, Auto-select first file and Clear filter on open
+  were in Settings but did nothing. All three work again.
+- Existing installs never received new themes or fields: `schema.json` and
+  `themes.json` were copied once on first run and never updated, so Tokyo
+  Night, Catppuccin, Gruvbox, True Black and High Contrast silently fell back
+  to Solarized Dark. They're now kept current - an untouched copy is replaced,
+  an edited one keeps your changes and gains what's missing.
+- ComicVine issue lists were cached forever, so an ongoing series never showed
+  its new issues. Cached answers now expire, the cache is capped, and series
+  longer than 500 issues are fully reachable.
+- A book with a macOS `__MACOSX` folder had its junk `._` files counted as
+  pages (inflating Page Count), possibly used as the cover, and joined into
+  combined books as broken pages. They're now ignored everywhere.
+- Update downloads timed out after 15 seconds, and the updater broke on a
+  user folder containing an apostrophe or accented letter.
+- On Linux, two books whose names differ only in case were treated as one.
+
+**Metadata**
+
+- Partial dates like `2019-03`, `March 2019` and `Mar 2019` no longer gain a
+  made-up day of 1, and a half-typed date no longer writes a wrong year while
+  you're still typing it.
+- Validation now enforces Month 1-12, Day 1-31, a four-digit Year and no
+  negative counts.
+- Guess from Filename reads "(of 12)" as Count and ignores release tags like
+  "(Digital)" in the series name.
+- A duplicated tag now shows the value a save actually edits, new elements are
+  written in the ComicInfo schema's order, and a book with unreadable
+  ComicInfo.xml says so when opened.
+- ComicVine's plain "artist" credit now fills Penciller and Inker.
+- Trim Footers keeps WebP pages as WebP.
+
+**Speed and polish**
+
+- Opening a CBZ and loading its cover read only what's needed instead of the
+  whole archive: 2 to 27 times faster per book on the files tested.
+- Batch edits in "Modified first" sort no longer freeze the app.
+- Autosave only rewrites changed files, in the background; covers decode off
+  the UI thread, a few at a time.
+- Covers are shown whole instead of cropped at the top and bottom, and field
+  boxes keep the same width on every tab.
+- Logs older than 30 days are pruned, and backups no longer include autosave
+  drafts.
+
 ### 2.0.10 - 2026-09-27
 
 - Fixed Check for Updates being unable to install anything since 2.0.9. The

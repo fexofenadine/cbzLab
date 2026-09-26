@@ -44,6 +44,11 @@
 - Fields not part of the official ComicInfo v2.0 schema that are found in your
   files are registered automatically, appear on the **Extras** tab, and are
   remembered between sessions. The **Extras** toggle shows/hides them.
+- **Publication Date** (Publication tab) is one box over ComicInfo's separate
+  Year, Month and Day. Type a full date in your own locale's order, a month and
+  year (`03/2019`, `March 2019` or `2019-03`), or a year alone - a partial date
+  stays partial rather than gaining a day of 1. The year needs all four digits,
+  so a half-typed date isn't applied until it's complete.
 - Single-line fields (Writer, Publisher, Imprint, and so on) remember what you've
   typed into them before. A small picker button appears beside the field once
   it has any history - click it to pick a recent value instead of retyping.
@@ -109,8 +114,11 @@ end to scroll it left/right rather than wrapping to a second row.
 - **Save As** (Ctrl+Shift+S) writes a single file to a new path, as CBZ or CBR.
 - **Save All** (Ctrl+Alt+S) writes every file with unsaved changes, showing a
   confirmation list with a per-file format selector first.
-- Values are validated on save (whole-number fields, Community Rating range and so
-  on). Problems are listed with suggested fixes and you can fix or save anyway.
+- Values are validated on save (whole-number fields, Month 1-12, Day 1-31, a
+  four-digit Year, no negative counts, the Community Rating range and so on).
+  Problems are listed with suggested fixes and you can fix or save anyway.
+- A file whose ComicInfo.xml isn't valid XML opens with an empty form and a
+  warning: saving it replaces that ComicInfo.xml with only what you've filled in.
 - Numeric fields also validate as you type: an invalid value gets a red outline
   and an inline message straight away, rather than waiting until you save.
 - Writes are atomic: the new archive is built as a temporary file and swapped in
@@ -123,24 +131,34 @@ end to scroll it left/right rather than wrapping to a second row.
 Reading CBR needs nothing extra. **Writing** CBR requires an external tool because
 the RAR format can only be created by WinRAR's own `rar.exe`:
 
-- If WinRAR is installed and `rar` is on your PATH (or you set the path in
-  Settings), CBR saves work fully - in-place updates and CBZ→CBR conversion.
-- 7-Zip (`7z`/`7za`/`7zz`) is accepted as a configured tool but **cannot create
-  RAR archives**; attempts will fail with the tool's own error message. Its
-  practical use is limited - if you don't have WinRAR, save as CBZ instead
-  (arguably the better format anyway).
+- If WinRAR is installed, CBR saves work fully - in-place updates and CBZ→CBR
+  conversion. cbzLab finds `rar` on your PATH or in WinRAR's default install
+  folder, or you can set the path in Settings (pointing it at `WinRAR.exe` uses
+  the `Rar.exe` beside it).
+- 7-Zip **can't create RAR archives**, so it isn't used even if configured -
+  asked to anyway, it quietly writes its own 7z format under a `.cbr` name.
+  Every CBR save is also checked for the RAR signature before it replaces
+  anything. If you don't have WinRAR, save as CBZ instead (arguably the better
+  format anyway).
+- Saving in the other format writes a **new file** beside the original, which
+  is kept. If a file with the new name already exists, you're asked before it's
+  replaced.
 
 ## Tools
 
 - **Guess from Filename** - parses Series, Number, Volume and Year out of the
-  selected file(s)' own filename, falling back to the parent folder name for
-  Series when the filename alone doesn't have enough to go on. Only fills
+  selected file(s)' own filename, plus Count from a miniseries marker like
+  "(of 12)", falling back to the parent folder name for Series when the filename
+  alone doesn't have enough to go on. Release tags such as "(Digital)" or
+  "[c2c]" are ignored rather than read as part of the series name. Only fills
   fields that are currently empty; never overwrites anything you've already
   set. Works across a whole batch selection, since each file's own path is
   used independently.
 - **Auto Page Count** - counts image files in the current archive and writes the
   result to the Page Count field. Also runs automatically on open (fills the field
-  only when it's empty; configurable in Settings).
+  only when it's empty, without marking the file unsaved - it's written along
+  with your next real edit; configurable in Settings). macOS leftovers such as
+  `__MACOSX` folders and `._` files are never counted as pages.
 - **Copy XML** - puts the current file's ComicInfo.xml (with your pending edits)
   on the clipboard.
 - **Paste XML** - replaces the current file's metadata from ComicInfo XML on the
@@ -209,13 +227,25 @@ Everything lives in `%APPDATA%\cbzLab`:
 | File / folder            | Purpose                                              |
 |--------------------------|------------------------------------------------------|
 | `cbzLab_settings.json`   | preferences and recent files                         |
-| `schema.json`            | field definitions - editable, seeded on first run    |
+| `schema.json`            | field definitions - editable, kept current (see below) |
 | `schema_extra.json`      | auto-registered unofficial fields                    |
 | `recent_values.json`     | recently typed values per field, for the picker      |
-| `comicvine_cache.json`   | cached ComicVine lookups (foundation only for now - see below) |
-| `themes.json`            | built-in theme definitions - editable                |
+| `comicvine_cache.json`   | cached ComicVine lookups - issue lists refresh daily, searches weekly |
+| `themes.json`            | built-in theme definitions - editable, kept current (see below) |
 | `themes\*.json`          | custom themes, one file per theme                    |
-| `logs\cbzLab-yyyyMMdd.log` | one plain-text log file per day (Settings → Open logs folder) |
+| `bundled_state.json`     | which bundled version of the two files above is installed |
+| `autosave\`              | crash-recovery drafts of unsaved edits               |
+| `logs\cbzLab-yyyyMMdd.log` | one plain-text log file per day, kept 30 days (Settings → Open logs folder) |
+
+`schema.json` and `themes.json` are updated from each new release. A copy you've
+never edited is replaced by the new version; one you have edited keeps your
+changes and only gains what's missing (new themes, new fields). To start over
+from the current defaults, delete the file - it's recreated on next launch.
+
+A settings file that won't parse (a typo in a hand edit, say) isn't overwritten:
+it's renamed aside as `<name>.unreadable-<date>` and defaults are used, so you
+can fix it and put it back. Settings → Export/Import backs up everything here
+except `autosave\` and `logs\`.
 
 To make your own theme, copy one of the files in `themes\` (e.g.
 `Synthwave Dark.json`), rename it - the filename becomes the theme name - and
