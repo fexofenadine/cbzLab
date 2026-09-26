@@ -255,9 +255,11 @@ public partial class SettingsDialog : Window
         dlg.Populate(new AppSettingsSnapshot(s));
 
         var found = archive.FindRarTool();
-        dlg.RarToolStatus.Text = found is null
-            ? "No RAR write tool found - CBR saving will be unavailable."
-            : $"Tool in use: {found}";
+        var problem = archive.ConfiguredToolProblem();
+        dlg.RarToolStatus.Text = (problem is null ? "" : problem + " ")
+            + (found is null
+                ? "No RAR write tool found - CBR saving will be unavailable. Install WinRAR, or save as CBZ."
+                : $"Tool in use: {found}");
 
         await dlg.ShowDialog(owner);
 

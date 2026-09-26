@@ -322,7 +322,7 @@ public class ArchiveService
             {
                 File.Copy(sourcePath, tempArchive);
                 File.WriteAllBytes(Path.Combine(workDir, ComicInfoName), xml);
-                RunTool(tool, BuildAddArgs(tool, tempArchive, ComicInfoName), workDir);
+                RunTool(tool, BuildAddArgs(tempArchive, ComicInfoName), workDir);
             }
             else
             {
@@ -330,8 +330,14 @@ public class ArchiveService
                 Directory.CreateDirectory(contentDir);
                 ExtractAll(sourcePath, contentDir);
                 File.WriteAllBytes(Path.Combine(contentDir, ComicInfoName), xml);
-                RunTool(tool, BuildPackArgs(tool, tempArchive), contentDir);
+                RunTool(tool, BuildPackArgs(tempArchive), contentDir);
             }
+
+            //checked before anything is replaced, whatever the tool claimed - a tool that reports
+            //success while writing some other format must never put a mislabelled file in place
+            if (!IsRarFile(tempArchive))
+                throw new InvalidOperationException(
+                    $"'{Path.GetFileName(tool)}' didn't produce a RAR archive, so nothing was saved. Save as CBZ instead.");
 
             File.Move(tempArchive, destPath, overwrite: true);
         }
@@ -391,20 +397,56 @@ public class ArchiveService
 
     //---------------------------------------------------------------- rar tool
 
-    /// <summary>Configured path first, then PATH discovery of rar/7z/7za/7zz.</summary>
+    /// <summary>
+    /// The tool CBR saves are written with: the configured path if it's a real RAR writer, else rar on
+    /// PATH, else WinRAR's default install folder (where it usually lives, off PATH). 7-Zip is never
+    /// accepted: it can't create RAR, and asked to anyway it reports success while writing a 7z-format
+    /// archive under the .cbr name - one this app, and most readers, then can't open.
+    /// </summary>
     public string? FindRarTool()
     {
         var configured = _settings.Settings.RarToolPath;
         if (!string.IsNullOrWhiteSpace(configured) && File.Exists(configured))
-            return configured;
-
-        foreach (var candidate in new[] { "rar", "7z", "7za", "7zz" })
         {
-            var found = FindOnPath(candidate);
-            if (found is not null)
-                return found;
+            if (IsRealRar(configured))
+                return configured;
+            //WinRAR.exe is the gui; its console Rar.exe sits beside it
+            var sibling = Path.Combine(Path.GetDirectoryName(configured) ?? "", OperatingSystem.IsWindows() ? "Rar.exe" : "rar");
+            if (Path.GetFileNameWithoutExtension(configured).Equals("winrar", StringComparison.OrdinalIgnoreCase) && File.Exists(sibling))
+                return sibling;
+        }
+
+        if (FindOnPath("rar") is { } onPath)
+            return onPath;
+
+        if (OperatingSystem.IsWindows())
+        {
+            foreach (var root in new[]
+            {
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+            })
+            {
+                var candidate = Path.Combine(root, "WinRAR", "Rar.exe");
+                if (root.Length > 0 && File.Exists(candidate))
+                    return candidate;
+            }
         }
         return null;
+    }
+
+    /// <summary>Why the configured tool path isn't being used, for Settings to show; null when it is (or none is set).</summary>
+    public string? ConfiguredToolProblem()
+    {
+        var configured = _settings.Settings.RarToolPath;
+        if (string.IsNullOrWhiteSpace(configured))
+            return null;
+        if (!File.Exists(configured))
+            return "The configured tool wasn't found.";
+        if (FindRarTool() == configured)
+            return null;
+        return $"'{Path.GetFileName(configured)}' can't create RAR archives, so it isn't used - only WinRAR's "
+            + "rar tool can (7-Zip reads RAR but writes its own 7z format).";
     }
 
     private static string? FindOnPath(string exeName)
@@ -423,18 +465,30 @@ public class ArchiveService
         return null;
     }
 
-    private static bool IsRealRar(string toolPath) =>
-        Path.GetFileNameWithoutExtension(toolPath).Contains("rar", StringComparison.OrdinalIgnoreCase);
+    //exactly "rar" - a name merely containing it ("unrar") can extract but not create
+    public static bool IsRealRar(string toolPath) =>
+        Path.GetFileNameWithoutExtension(toolPath).Equals("rar", StringComparison.OrdinalIgnoreCase);
 
-    private static IEnumerable<string> BuildAddArgs(string tool, string archive, string file) =>
-        IsRealRar(tool)
-            ? new[] { "a", "-ep", "-idq", "-y", "--", archive, file }
-            : new[] { "a", "-y", "--", archive, file };
+    //"Rar!" then 0x1A 0x07 opens both RAR4 and RAR5 archives
+    public static bool IsRarFile(string path)
+    {
+        try
+        {
+            Span<byte> magic = stackalloc byte[6];
+            using var fs = File.OpenRead(path);
+            return fs.Read(magic) == 6 && magic.SequenceEqual("Rar!\u001a\u0007"u8);
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
-    private static IEnumerable<string> BuildPackArgs(string tool, string archive) =>
-        IsRealRar(tool)
-            ? new[] { "a", "-r", "-idq", "-y", "--", archive, "*" }
-            : new[] { "a", "-r", "-y", "--", archive, "*" };
+    private static IEnumerable<string> BuildAddArgs(string archive, string file) =>
+        new[] { "a", "-ep", "-idq", "-y", "--", archive, file };
+
+    private static IEnumerable<string> BuildPackArgs(string archive) =>
+        new[] { "a", "-r", "-idq", "-y", "--", archive, "*" };
 
     private static void RunTool(string tool, IEnumerable<string> args, string workingDir)
     {
@@ -452,8 +506,11 @@ public class ArchiveService
 
         using var proc = Process.Start(psi)
             ?? throw new InvalidOperationException($"Failed to start the archive tool: {tool}");
-        var stderr = proc.StandardError.ReadToEnd();
+        //both pipes drained at once: reading one to the end first deadlocks if the tool fills the
+        //other's buffer while we wait
+        var stderrTask = proc.StandardError.ReadToEndAsync();
         var stdout = proc.StandardOutput.ReadToEnd();
+        var stderr = stderrTask.GetAwaiter().GetResult();
         proc.WaitForExit();
 
         if (proc.ExitCode != 0)

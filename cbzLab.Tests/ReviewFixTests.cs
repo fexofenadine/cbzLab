@@ -71,6 +71,50 @@ public class JunkEntryTests : IDisposable
     }
 }
 
+public class RarToolTests : IDisposable
+{
+    private readonly TestConfig _cfg = new();
+    public void Dispose() => _cfg.Dispose();
+
+    [Theory]
+    [InlineData(@"C:\Program Files\WinRAR\Rar.exe", true)]
+    [InlineData("/usr/bin/rar", true)]
+    [InlineData(@"C:\tools\UnRAR.exe", false)]
+    [InlineData(@"C:\ProgramData\chocolatey\bin\7z.exe", false)]
+    [InlineData("/usr/bin/7zz", false)]
+    public void OnlyTheRealRarToolCountsAsAWriter(string path, bool expected) =>
+        Assert.Equal(expected, ArchiveService.IsRealRar(path));
+
+    //7-zip exits 0 and writes a 7z-format file when asked for a .cbr - the signature check is what
+    //stops that being moved into place
+    [Theory]
+    [InlineData(new byte[] { 0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00 }, true)]
+    [InlineData(new byte[] { 0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00 }, true)]
+    [InlineData(new byte[] { 0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C }, false)]
+    [InlineData(new byte[] { 0x50, 0x4B, 0x03, 0x04, 0x00, 0x00 }, false)]
+    public void RecognisesARarArchiveBySignature(byte[] header, bool expected)
+    {
+        var path = _cfg.TempFile(Guid.NewGuid().ToString("N") + ".cbr");
+        File.WriteAllBytes(path, header);
+        Assert.Equal(expected, ArchiveService.IsRarFile(path));
+    }
+
+    [Fact]
+    public void AConfigured7ZipIsNotUsedAndSettingsSaysWhy()
+    {
+        var fake7z = _cfg.TempFile("7z.exe");
+        File.WriteAllText(fake7z, "");
+        _cfg.Settings.Settings.RarToolPath = fake7z;
+        var archive = new ArchiveService(_cfg.Settings, _cfg.Schema, _cfg.Log);
+
+        var found = archive.FindRarTool();
+
+        Assert.NotEqual(fake7z, found);
+        Assert.True(found is null || ArchiveService.IsRealRar(found));
+        Assert.Contains("can't create RAR", archive.ConfiguredToolProblem());
+    }
+}
+
 public class FilenameGuessFixTests
 {
     [Fact]
