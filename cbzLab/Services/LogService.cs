@@ -10,10 +10,11 @@ public class LogService
 
     public string LogDir => _logDir;
 
-    public LogService()
+    //logDir is for tests only - the app always uses the real config directory
+    public LogService(string? logDir = null)
     {
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        _logDir = Path.Combine(appData, SettingsService.AppFolderName, "logs");
+        _logDir = logDir ?? Path.Combine(appData, SettingsService.AppFolderName, "logs");
         try
         {
             Directory.CreateDirectory(_logDir);

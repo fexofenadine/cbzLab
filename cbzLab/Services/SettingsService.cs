@@ -28,11 +28,13 @@ public class SettingsService
     //directory the exe runs from, where bundled assets live
     public string BundledAssetsDir { get; }
 
-    public SettingsService(LogService log)
+    //configDir is for tests only, so they never touch a real user's settings - the app always
+    //passes nothing and gets %APPDATA%\cbzLab
+    public SettingsService(LogService log, string? configDir = null)
     {
         _log = log;
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        ConfigDir = Path.Combine(appData, AppFolderName);
+        ConfigDir = configDir ?? Path.Combine(appData, AppFolderName);
         ThemesDir = Path.Combine(ConfigDir, "themes");
         BundledAssetsDir = Path.Combine(AppContext.BaseDirectory, "Assets");
 
