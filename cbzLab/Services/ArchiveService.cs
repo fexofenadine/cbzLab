@@ -30,12 +30,69 @@ public class ArchiveService
 
     //cover is picked by natural-sorted filename, not archive storage order - storage order
     //doesn't reliably match page order on a repacked archive.
-    //includeCover: false skips the second pass entirely, which roughly halves the cost of
-    //opening a file - used by bulk imports, which fetch covers lazily per visible row instead
+    //includeCover: false skips reading the cover, used by bulk imports, which fetch covers lazily
+    //per visible row instead.
+    //A zip is read through its central directory, touching only ComicInfo.xml and the cover rather
+    //than streaming every page of the archive; anything that path can't handle (a damaged central
+    //directory, say) falls back to the full streaming read, which is also how rar is always read
     public ArchiveReadResult Read(string path, bool includeCover = true)
     {
-        var wantLast = _settings.Settings.CoverSource == "last";
         var format = SniffFormat(path);
+        if (format == ArchiveFormat.Cbz)
+        {
+            try
+            {
+                return ReadZip(path, includeCover);
+            }
+            catch (Exception ex)
+            {
+                _log.Warning($"Quick read of '{Path.GetFileName(path)}' failed, reading it in full instead: {ex.Message}");
+            }
+        }
+        return ReadStreaming(path, includeCover, format);
+    }
+
+    internal ArchiveReadResult ReadZip(string path, bool includeCover)
+    {
+        using var zip = ZipFile.OpenRead(path);
+        byte[]? xml = null;
+        var images = new List<ZipArchiveEntry>();
+        foreach (var entry in zip.Entries)
+        {
+            if (entry.Name.Length == 0)
+                continue; //directory entry
+
+            var name = Path.GetFileName(entry.FullName.Replace('\\', '/'));
+            if (xml is null && name.Equals(ComicInfoName, StringComparison.OrdinalIgnoreCase))
+                xml = ReadAll(entry);
+            else if (IsImage(name) && !IsJunkEntry(entry.FullName))
+                images.Add(entry);
+        }
+
+        byte[]? cover = null;
+        if (includeCover && images.Count > 0)
+            cover = ReadAll(PickCover(images, e => e.FullName));
+
+        return new ArchiveReadResult(xml, images.Count, ArchiveFormat.Cbz, cover);
+    }
+
+    private T PickCover<T>(List<T> candidates, Func<T, string> key)
+    {
+        candidates.Sort((a, b) => NaturalCompare(key(a), key(b)));
+        return _settings.Settings.CoverSource == "last" ? candidates[^1] : candidates[0];
+    }
+
+    private static byte[] ReadAll(ZipArchiveEntry entry)
+    {
+        using var stream = entry.Open();
+        using var ms = new MemoryStream();
+        stream.CopyTo(ms);
+        return ms.ToArray();
+    }
+
+    internal ArchiveReadResult ReadStreaming(string path, bool includeCover, ArchiveFormat format)
+    {
+        var wantLast = _settings.Settings.CoverSource == "last";
         byte[]? xml = null;
         var imageKeys = new List<string>();
         var pages = 0;
@@ -117,6 +174,19 @@ public class ArchiveService
     /// <summary>Extracts just the cover bytes, for a file whose metadata is already open.</summary>
     public byte[]? ReadCoverBytes(string path)
     {
+        //same quick central-directory read as Read(), with the same full-scan fallback
+        if (SniffFormat(path) == ArchiveFormat.Cbz)
+        {
+            try
+            {
+                return ReadZip(path, includeCover: true).CoverBytes;
+            }
+            catch (Exception ex)
+            {
+                _log.Warning($"Quick cover read of '{Path.GetFileName(path)}' failed, scanning it in full instead: {ex.Message}");
+            }
+        }
+
         var wantLast = _settings.Settings.CoverSource == "last";
         var imageKeys = new List<string>();
 
