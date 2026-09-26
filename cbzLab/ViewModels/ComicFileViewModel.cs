@@ -127,17 +127,41 @@ public class ComicFileViewModel : ViewModelBase
     /// <summary>Assigns a decoded cover, unless the request was superseded while it was decoding.</summary>
     public void ApplyCover(int token, byte[]? coverBytes)
     {
-        if (token != _coverToken || coverBytes is null || coverBytes.Length == 0)
+        if (token != _coverToken)
             return;
+        ApplyCover(token, DecodeCover(coverBytes));
+    }
 
+    /// <summary>
+    /// Assigns an already-decoded cover (decoded off the ui thread via <see cref="DecodeCover"/>). A
+    /// stale one - the row scrolled away or was re-requested meanwhile - is disposed, not kept.
+    /// </summary>
+    public void ApplyCover(int token, Bitmap? cover)
+    {
+        if (token != _coverToken)
+        {
+            cover?.Dispose();
+            return;
+        }
+        SetCover(cover);
+    }
+
+    //still wanted - checked before starting the archive read at all, not just after it
+    public bool IsCoverLoadCurrent(int token) => token == _coverToken;
+
+    /// <summary>Thumbnail-sized decode; safe on a background thread. Null for missing or undecodable bytes.</summary>
+    public static Bitmap? DecodeCover(byte[]? coverBytes)
+    {
+        if (coverBytes is null || coverBytes.Length == 0)
+            return null;
         try
         {
             using var stream = new MemoryStream(coverBytes);
-            SetCover(Bitmap.DecodeToWidth(stream, 200));
+            return Bitmap.DecodeToWidth(stream, 200);
         }
         catch
         {
-            SetCover(null);
+            return null;
         }
     }
 
@@ -204,9 +228,13 @@ public class ComicFileViewModel : ViewModelBase
         AfterValueChanged(tag);
     }
 
+    /// <summary>Bumped on every change to CurrentValues, so autosave can skip files it already has a current draft of.</summary>
+    public int EditVersion { get; private set; }
+
     //shared tail for every single-field mutation above
     private void AfterValueChanged(string tag)
     {
+        EditVersion++;
         RecomputeDirty();
         if (tag is "Series" or "Number" or "Volume")
             UpdateSubtitle();
@@ -219,6 +247,7 @@ public class ComicFileViewModel : ViewModelBase
     public void ReplaceCurrentValues(Dictionary<string, string> values)
     {
         CurrentValues = new Dictionary<string, string>(values, StringComparer.Ordinal);
+        EditVersion++;
         RecomputeDirty();
         UpdateSubtitle();
     }
@@ -250,6 +279,7 @@ public class ComicFileViewModel : ViewModelBase
         SavedValues = new Dictionary<string, string>(values, StringComparer.Ordinal);
         CurrentValues = new Dictionary<string, string>(values, StringComparer.Ordinal);
         DetectedPageCount = detectedPageCount;
+        EditVersion++;
         RecomputeDirty();
         UpdateSubtitle();
     }

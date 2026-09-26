@@ -89,6 +89,12 @@ public partial class MainWindow : Window
 
         DataContext = _viewModel;
         FieldList.ItemTemplate = BuildFieldTemplateSelector();
+        ApplyFieldColumnWidth();
+        _viewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(MainViewModel.EditorFieldsMaxWidth))
+                ApplyFieldColumnWidth();
+        };
         RebuildGridColumns();
         RebuildToolbar();
         BuildRecentMenu();
@@ -110,6 +116,10 @@ public partial class MainWindow : Window
         UpdateElementTheme();
         BuildThemeMenu();
     }
+
+    //the field column takes the editor's width up to this cap (none when fields fill the width)
+    private void ApplyFieldColumnWidth() =>
+        FieldGrid.ColumnDefinitions[0].MaxWidth = _viewModel.EditorFieldsMaxWidth;
 
     //loose sanity bounds, not real multi-monitor awareness - same thresholds as the winui original
     private void RestoreWindowGeometry()
@@ -154,10 +164,61 @@ public partial class MainWindow : Window
         }
     }
 
-    private void SnapshotDirtyFiles()
+    //EditVersion each file's current draft was written at
+    private readonly Dictionary<ComicFileViewModel, int> _autosavedVersion = new();
+    private bool _autosaveRunning;
+    //the background write itself, so exit can wait for it before clearing drafts
+    private Task? _autosaveWrite;
+
+    /// <summary>
+    /// Writes a crash-recovery draft for each unsaved file changed since its last draft. Used to
+    /// rewrite every unsaved file every tick, on the ui thread: after a batch edit of a thousand
+    /// books that was a thousand file writes every 30 seconds, whether anything had changed or not.
+    /// Values are copied here on the ui thread; only the writing happens in the background.
+    /// </summary>
+    private async void SnapshotDirtyFiles()
     {
-        foreach (var file in _viewModel.OpenFiles.Where(f => f.IsDirty))
-            _autosave.Save(file.Path, file.CurrentValues);
+        if (_autosaveRunning)
+            return;
+
+        var batch = _viewModel.OpenFiles
+            .Where(f => f.IsDirty && (!_autosavedVersion.TryGetValue(f, out var v) || v != f.EditVersion))
+            .Select(f => (File: f, Path: f.Path, Version: f.EditVersion,
+                Values: new Dictionary<string, string>(f.CurrentValues, StringComparer.Ordinal)))
+            .ToList();
+        if (batch.Count == 0)
+            return;
+
+        _autosaveRunning = true;
+        try
+        {
+            _autosaveWrite = Task.Run(() =>
+            {
+                foreach (var item in batch)
+                    _autosave.Save(item.Path, item.Values);
+            });
+            await _autosaveWrite;
+
+            //a file saved, reverted or closed while its draft was being written must not keep one
+            var open = _viewModel.OpenFiles.ToHashSet();
+            foreach (var item in batch)
+            {
+                if (item.File.IsDirty && open.Contains(item.File) && PathComparison.Same(item.File.Path, item.Path))
+                    _autosavedVersion[item.File] = item.Version;
+                else
+                    _autosave.Clear(item.Path);
+            }
+            foreach (var gone in _autosavedVersion.Keys.Where(f => !open.Contains(f)).ToList())
+                _autosavedVersion.Remove(gone);
+        }
+        catch (Exception ex)
+        {
+            _log.Warning($"Autosave failed: {ex.Message}");
+        }
+        finally
+        {
+            _autosaveRunning = false;
+        }
     }
 
     //leftover drafts mean the last session ended uncleanly (crash, force-kill, power loss) -
@@ -553,22 +614,36 @@ public partial class MainWindow : Window
         file.ReleaseCover();
     }
 
+    //a fast scroll through a big list attaches dozens of rows at once; unthrottled, each started its own
+    //read of a whole archive, which thrashes a spinning disk or a NAS
+    private static readonly System.Threading.SemaphoreSlim CoverLoadGate = new(4);
+
     private async Task EnsureCoverAsync(ComicFileViewModel file)
     {
         if (file.HasCover)
             return;
 
         var token = file.BeginCoverLoad();
+        await CoverLoadGate.WaitAsync();
         try
         {
+            //scrolled past while waiting its turn - skip the archive read entirely
+            if (!file.IsCoverLoadCurrent(token))
+                return;
+
+            //read and decode both off the ui thread - decoding a full-size page there caused scroll jank
             var path = file.Path;
-            var bytes = await Task.Run(() => _archive.ReadCoverBytes(path));
-            //the token check inside ApplyCover discards this if the row was released meanwhile
-            file.ApplyCover(token, bytes);
+            var cover = await Task.Run(() => ComicFileViewModel.DecodeCover(_archive.ReadCoverBytes(path)));
+            //discarded (and disposed) if the row was released meanwhile
+            file.ApplyCover(token, cover);
         }
         catch (System.Exception ex)
         {
             _log.Warning($"Could not load cover for '{file.Path}': {ex.Message}");
+        }
+        finally
+        {
+            CoverLoadGate.Release();
         }
     }
 
@@ -1325,7 +1400,10 @@ public partial class MainWindow : Window
         _settings.Save();
 
         //everything remaining is either saved or a deliberately-discarded edit by this point -
-        //nothing left over needs offering back as crash recovery on the next launch
+        //nothing left over needs offering back as crash recovery on the next launch. A draft still
+        //being written would land after the clear and be offered back anyway, so it's let finish first
+        _autosaveTimer.Stop();
+        try { _autosaveWrite?.Wait(TimeSpan.FromSeconds(5)); } catch { /* its failure is already logged */ }
         _autosave.ClearAll();
 
         //only launched here, right before an actual close - never earlier, so a

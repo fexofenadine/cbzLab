@@ -29,17 +29,34 @@ public class AutosaveService
     public void Save(string originalPath, Dictionary<string, string> values) =>
         JsonFileStore.Save(PathFor(originalPath), new AutosaveDraft(originalPath, values), _log);
 
-    public void Clear(string originalPath)
-    {
-        var path = PathFor(originalPath);
-        if (File.Exists(path))
-            File.Delete(path);
-    }
+    //never throws: these run right after a successful save, and a draft locked by a virus scanner
+    //or indexer mustn't turn that save into a reported failure
+    public void Clear(string originalPath) => TryDelete(PathFor(originalPath));
 
     public void ClearAll()
     {
-        foreach (var file in Directory.GetFiles(_dir, "*.json"))
-            File.Delete(file);
+        try
+        {
+            foreach (var file in Directory.GetFiles(_dir, "*.json"))
+                TryDelete(file);
+        }
+        catch (Exception ex)
+        {
+            _log.Warning($"Could not list autosave drafts to clear: {ex.Message}");
+        }
+    }
+
+    private void TryDelete(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+        catch (Exception ex)
+        {
+            _log.Warning($"Could not delete autosave draft '{Path.GetFileName(path)}': {ex.Message}");
+        }
     }
 
     public List<AutosaveDraft> LoadAll()

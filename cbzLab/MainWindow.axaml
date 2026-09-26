@@ -162,16 +162,18 @@
                         <DataTemplate x:DataType="vm:ComicFileViewModel">
                             <!--full path on the row: after a recursive folder open, two books in
                                 different subfolders can easily share a filename-->
-                            <Grid ColumnDefinitions="30,*,Auto"
+                            <Grid ColumnDefinitions="28,*,Auto"
                                   ToolTip.Tip="{Binding Path}"
                                   Margin="{Binding $parent[ListBox].((vm:MainViewModel)DataContext).FileRowMargin}">
                                 <!--attach/detach drive lazy cover loading: the ListBox virtualises, so
-                                    only rows actually on screen ever hold a decoded thumbnail-->
-                                <Border Grid.Column="0" Width="30" Height="40" CornerRadius="2"
+                                    only rows actually on screen ever hold a decoded thumbnail.
+                                    2:3 like a printed comic, and Uniform rather than UniformToFill: the
+                                    old 3:4 fill cropped the top off every cover, masthead included-->
+                                <Border Grid.Column="0" Width="28" Height="42" CornerRadius="2"
                                         Background="{DynamicResource ThBg2}"
                                         AttachedToVisualTree="OnCoverAttached"
                                         DetachedFromVisualTree="OnCoverDetached">
-                                    <Image Source="{Binding CoverImage}" Stretch="UniformToFill" IsVisible="{Binding HasCover}" />
+                                    <Image Source="{Binding CoverImage}" Stretch="Uniform" IsVisible="{Binding HasCover}" />
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
@@ -217,8 +219,9 @@
                 <Border Grid.Row="0" Padding="16,12" BorderBrush="{DynamicResource ThSep}"
                         BorderThickness="0,0,0,1" IsVisible="{Binding IsSingleFileMode}">
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Border Width="84" Height="112" CornerRadius="3" Background="{DynamicResource ThBg2}">
-                            <Image Source="{Binding CurrentFile.CoverImage}" Stretch="UniformToFill"
+                        <!--same 2:3 + Uniform as the sidebar thumbnail, so the whole cover shows-->
+                        <Border Width="76" Height="114" CornerRadius="3" Background="{DynamicResource ThBg2}">
+                            <Image Source="{Binding CurrentFile.CoverImage}" Stretch="Uniform"
                                    IsVisible="{Binding CurrentFile.HasCover}" />
                         </Border>
                         <StackPanel VerticalAlignment="Center">
@@ -259,9 +262,14 @@
                 </TabControl>
 
                 <ScrollViewer Grid.Row="3" Padding="16,10">
-                    <ItemsControl x:Name="FieldList" ItemsSource="{Binding VisibleFields}"
-                                  FontSize="{Binding EditorFontSize}" FontFamily="{Binding EditorFontFamily}"
-                                  MaxWidth="{Binding EditorFieldsMaxWidth}" HorizontalAlignment="Left" />
+                    <!--the width cap lives on a star column, not on the list: MaxWidth with Left alignment
+                        sized the list to its widest value, so field boxes changed width from tab to tab
+                        (and Stretch would centre it once capped). Column 0's MaxWidth is set from
+                        EditorFieldsMaxWidth in code, see ApplyFieldColumnWidth-->
+                    <Grid x:Name="FieldGrid" ColumnDefinitions="*">
+                        <ItemsControl x:Name="FieldList" ItemsSource="{Binding VisibleFields}"
+                                      FontSize="{Binding EditorFontSize}" FontFamily="{Binding EditorFontFamily}" />
+                    </Grid>
                 </ScrollViewer>
                 <TextBlock Grid.Row="3" Text="Open a comic archive to begin" Opacity="0.5" FontSize="16"
                            HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding !HasSelection}" />
