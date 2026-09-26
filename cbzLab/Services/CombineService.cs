@@ -135,7 +135,7 @@ public class CombineService
                 continue;
             }
 
-            if (!IsImage(name))
+            if (!IsImage(name) || ArchiveService.IsJunkEntry(key))
                 continue;
 
             //entry paths are attacker-controlled; anything escaping the extraction root is

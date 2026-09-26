@@ -57,7 +57,7 @@ public class ArchiveService
                     es.CopyTo(ms);
                     xml = ms.ToArray();
                 }
-                else if (IsImage(name))
+                else if (IsImage(name) && !IsJunkEntry(entry.Key))
                 {
                     pages++;
                     imageKeys.Add(entry.Key);
@@ -129,7 +129,7 @@ public class ArchiveService
                 var entry = reader.Entry;
                 if (entry.IsDirectory || entry.Key is null)
                     continue;
-                if (IsImage(Path.GetFileName(entry.Key.Replace('\\', '/'))))
+                if (IsImage(Path.GetFileName(entry.Key.Replace('\\', '/'))) && !IsJunkEntry(entry.Key))
                     imageKeys.Add(entry.Key);
             }
         }
@@ -219,6 +219,27 @@ public class ArchiveService
             ".cbr" or ".rar" => ArchiveFormat.Cbr,
             _ => ArchiveFormat.Unknown,
         };
+    }
+
+    /// <summary>
+    /// Files an OS left in the archive that are never pages, even with an image extension: macOS's
+    /// __MACOSX folder and its "._name.jpg" AppleDouble resource forks (metadata, not images), plus
+    /// Finder/Explorer droppings. Counting them inflated page counts, could pick one as the cover,
+    /// and Combine renumbered them into the joined book as broken pages. Shared by every service
+    /// that decides what counts as a page.
+    /// </summary>
+    public static bool IsJunkEntry(string key)
+    {
+        var parts = key.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0)
+            return false;
+        if (parts.Any(p => p.Equals("__MACOSX", StringComparison.OrdinalIgnoreCase)))
+            return true;
+        var name = parts[^1];
+        return name.StartsWith("._", StringComparison.Ordinal)
+            || name.Equals(".DS_Store", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Thumbs.db", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("desktop.ini", StringComparison.OrdinalIgnoreCase);
     }
 
     private bool IsImage(string fileName)

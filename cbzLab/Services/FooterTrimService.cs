@@ -360,7 +360,7 @@ public class FooterTrimService
                 continue;
 
             var key = entry.Key.Replace('\\', '/');
-            if (!IsImage(Path.GetFileName(key)))
+            if (!IsImage(Path.GetFileName(key)) || ArchiveService.IsJunkEntry(key))
                 continue;
 
             using var entryStream = reader.OpenEntryStream();
