@@ -144,6 +144,48 @@ public class FooterTrimServiceTests : IDisposable
             () => _service.Trim(book, Path.Combine(_dir, "out.cbz"), new HashSet<string>(), Band, 95));
     }
 
+    //a cropped webp page used to come out as jpeg bytes still named .webp
+    [Fact]
+    public void Trim_WebpPageStaysWebp()
+    {
+        var path = Path.Combine(_dir, "webp.cbz");
+        using (var stream = File.Create(path))
+        using (var zip = new ZipArchive(stream, ZipArchiveMode.Create))
+        {
+            foreach (var (name, bar) in new[] { ("000.webp", false), ("001.webp", true) })
+            {
+                using var bmp = SKBitmap.Decode(RenderPage(bar, false, false));
+                using var webp = bmp.Encode(SKEncodedImageFormat.Webp, 95);
+                using var entry = zip.CreateEntry(name).Open();
+                entry.Write(webp.ToArray());
+            }
+        }
+        var dest = Path.Combine(_dir, "webp-out.cbz");
+
+        _service.Trim(path, dest, new HashSet<string> { "001.webp" }, Band, 95);
+
+        var bytes = ReadEntryBytes(dest, "001.webp");
+        Assert.Equal("RIFF", System.Text.Encoding.ASCII.GetString(bytes, 0, 4));
+        Assert.Equal("WEBP", System.Text.Encoding.ASCII.GetString(bytes, 8, 4));
+        using var cropped = SKBitmap.Decode(bytes);
+        Assert.Equal(600 - Band, cropped.Height);
+    }
+
+    [Theory]
+    [InlineData("p/001.jpg", "p/001.jpg", SKEncodedImageFormat.Jpeg)]
+    [InlineData("001.JPEG", "001.JPEG", SKEncodedImageFormat.Jpeg)]
+    [InlineData("001.png", "001.png", SKEncodedImageFormat.Png)]
+    [InlineData("001.webp", "001.webp", SKEncodedImageFormat.Webp)]
+    [InlineData("p/001.gif", "p/001.png", SKEncodedImageFormat.Png)]
+    [InlineData("001.bmp", "001.png", SKEncodedImageFormat.Png)]
+    [InlineData("001.tif", "001.png", SKEncodedImageFormat.Png)]
+    public void OutputFor_ExtensionAlwaysMatchesTheBytes(string key, string expectedKey, SKEncodedImageFormat expectedFormat)
+    {
+        var (format, newKey) = FooterTrimService.OutputFor(key);
+        Assert.Equal(expectedFormat, format);
+        Assert.Equal(expectedKey, newKey);
+    }
+
     //---------------------------------------------------------------- fixtures
 
     private string MakeBook(string fileName, IReadOnlyList<bool> branded, string? xml = null,

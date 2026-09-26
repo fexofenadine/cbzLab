@@ -263,7 +263,7 @@ public class FooterTrimService
                         continue;
                     }
 
-                    var cropped = CropBottom(bytes, key, bandHeight, jpegQuality);
+                    var cropped = CropBottom(bytes, key, bandHeight, jpegQuality, out var outputKey);
                     if (cropped is null)
                     {
                         //a page that won't decode is copied untouched rather than dropped
@@ -272,7 +272,7 @@ public class FooterTrimService
                         continue;
                     }
 
-                    using var target = zip.CreateEntry(key, CompressionLevel.NoCompression).Open();
+                    using var target = zip.CreateEntry(outputKey, CompressionLevel.NoCompression).Open();
                     target.Write(cropped, 0, cropped.Length);
                     trimmed++;
                 }
@@ -289,10 +289,26 @@ public class FooterTrimService
         }
     }
 
-    //png stays png (lossless); everything else re-encodes as jpeg, which is what these pages
-    //already are in practice
-    private byte[]? CropBottom(byte[] bytes, string key, int bandHeight, int jpegQuality)
+    /// <summary>
+    /// How a cropped page is re-encoded, and under what name. Readers trust the extension, so the
+    /// bytes must match it: jpeg, png and webp keep their own format; gif, bmp and tiff (which Skia
+    /// can decode but not encode) become png, renamed to say so.
+    /// </summary>
+    public static (SKEncodedImageFormat Format, string Key) OutputFor(string key)
     {
+        var ext = Path.GetExtension(key).ToLowerInvariant();
+        return ext switch
+        {
+            ".jpg" or ".jpeg" => (SKEncodedImageFormat.Jpeg, key),
+            ".png" => (SKEncodedImageFormat.Png, key),
+            ".webp" => (SKEncodedImageFormat.Webp, key),
+            _ => (SKEncodedImageFormat.Png, Path.ChangeExtension(key, ".png").Replace('\\', '/')),
+        };
+    }
+
+    private byte[]? CropBottom(byte[] bytes, string key, int bandHeight, int jpegQuality, out string outputKey)
+    {
+        outputKey = key;
         using var src = Decode(bytes, key);
         if (src is null || bandHeight >= src.Height)
             return null;
@@ -305,10 +321,12 @@ public class FooterTrimService
             canvas.DrawBitmap(src, rect, rect);
         }
 
-        var isPng = Path.GetExtension(key).Equals(".png", StringComparison.OrdinalIgnoreCase);
-        var format = isPng ? SKEncodedImageFormat.Png : SKEncodedImageFormat.Jpeg;
-        using var data = cropped.Encode(format, isPng ? 100 : jpegQuality);
-        return data?.ToArray();
+        var (format, newKey) = OutputFor(key);
+        using var data = cropped.Encode(format, format == SKEncodedImageFormat.Png ? 100 : jpegQuality);
+        if (data is null)
+            return null;
+        outputKey = newKey;
+        return data.ToArray();
     }
 
     private static byte[] EncodeBandPreview(SKBitmap bmp, int band)

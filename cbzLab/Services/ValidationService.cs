@@ -38,10 +38,15 @@ public class ValidationService
 
         if (c.IntFields.Contains(tag))
         {
-            if (long.TryParse(value.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
-                return null;
             var hint = c.IntHints.TryGetValue(tag, out var h) ? h : "a whole number";
-            return ($"'{value}' is not a whole number.", $"Enter {hint}.");
+            if (!long.TryParse(value.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var number))
+                return ($"'{value}' is not a whole number.", $"Enter {hint}.");
+            if (c.IntRanges.TryGetValue(tag, out var r) && r.Count == 2 && (number < r[0] || number > r[1]))
+            {
+                var allowed = r[1] >= int.MaxValue ? $"{r[0]} or more" : $"a value from {r[0]} to {r[1]}";
+                return ($"{number} is outside the allowed range.", $"Enter {allowed}.");
+            }
+            return null;
         }
 
         if (c.FloatFields.Contains(tag))

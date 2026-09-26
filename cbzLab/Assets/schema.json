@@ -106,6 +106,15 @@
       "Month":          "publication month, 1-12 (e.g. 3 for March)",
       "Day":            "publication day of the month, 1-31 (e.g. 15)",
       "PageCount":      "total number of pages (e.g. 24, 48)"
+    },
+    "int_ranges": {
+      "Year":           [1000, 9999],
+      "Month":          [1, 12],
+      "Day":            [1, 31],
+      "Count":          [0, 2147483647],
+      "Volume":         [0, 2147483647],
+      "AlternateCount": [0, 2147483647],
+      "PageCount":      [0, 2147483647]
     }
   }
 }

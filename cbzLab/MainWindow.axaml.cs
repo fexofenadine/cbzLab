@@ -1360,6 +1360,7 @@ public partial class MainWindow : Window
         TryApply("Number", guess.Number);
         TryApply("Volume", guess.Volume);
         TryApply("Year", guess.Year);
+        TryApply("Count", guess.Count);
         return filled;
     }
 

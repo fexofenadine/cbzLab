@@ -23,10 +23,12 @@ public static class ComicInfoXml
             if (doc.Root is null)
                 return values;
 
+            //first occurrence wins, matching Build(), which edits the first matching element - taking
+            //the last here showed one duplicate while saving to another, so edits seemed not to stick
             foreach (var el in doc.Root.Elements())
             {
                 if (!el.HasElements)
-                    values[el.Name.LocalName] = el.Value;
+                    values.TryAdd(el.Name.LocalName, el.Value);
             }
         }
         catch
@@ -67,11 +69,57 @@ public static class ComicInfoXml
             }
             else
             {
-                root.Add(new XElement(ns + tag, value));
+                InsertInSchemaOrder(root, new XElement(ns + tag, value));
             }
         }
 
         return Serialise(doc);
+    }
+
+    /// <summary>
+    /// The ComicInfo v2.0 schema's element sequence. The xsd declares these as an xs:sequence, so
+    /// a strict reader can reject a file whose elements are out of order; new elements are placed
+    /// by this list rather than appended after everything (including &lt;Pages&gt;).
+    /// </summary>
+    private static readonly string[] SchemaOrder =
+    {
+        "Title", "Series", "Number", "Count", "Volume", "AlternateSeries", "AlternateNumber", "AlternateCount",
+        "Summary", "Notes", "Year", "Month", "Day", "Writer", "Penciller", "Inker", "Colorist", "Letterer",
+        "CoverArtist", "Editor", "Publisher", "Imprint", "Genre", "Web", "PageCount", "LanguageISO", "Format",
+        "BlackAndWhite", "Manga", "Characters", "Teams", "Locations", "ScanInformation", "StoryArc", "SeriesGroup",
+        "AgeRating", "Pages", "CommunityRating", "MainCharacterOrTeam", "Review",
+    };
+
+    //existing elements are never moved - only the new one is placed, just before the first existing
+    //element that belongs after it. Tags outside the schema (unofficial extras) go at the end.
+    private static void InsertInSchemaOrder(XElement root, XElement element)
+    {
+        var position = Array.IndexOf(SchemaOrder, element.Name.LocalName);
+        if (position >= 0)
+        {
+            var next = root.Elements().FirstOrDefault(e => Array.IndexOf(SchemaOrder, e.Name.LocalName) > position);
+            if (next is not null)
+            {
+                next.AddBeforeSelf(element);
+                return;
+            }
+        }
+        root.Add(element);
+    }
+
+    /// <summary>True when there are ComicInfo.xml bytes but they can't be parsed as xml at all.</summary>
+    public static bool IsUnreadable(byte[]? raw)
+    {
+        if (raw is null || raw.Length == 0)
+            return false;
+        try
+        {
+            return LoadSafe(raw).Root is null;
+        }
+        catch
+        {
+            return true;
+        }
     }
 
     public static string ToDisplayString(byte[]? raw, IReadOnlyDictionary<string, string> values) =>

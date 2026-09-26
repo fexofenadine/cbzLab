@@ -201,19 +201,24 @@ public class ComicVineService
             if (role.Contains("writer")) writer.Add(credit.Name);
             if (role.Contains("pencil")) penciller.Add(credit.Name);
             if (role.Contains("ink")) inker.Add(credit.Name);
+            //comicvine's plain "artist" credit means one person did pencils and inks together
+            //matched as a whole role, so something like "cover artist" can't be mistaken for it
+            if (role.Split(',').Any(r => r.Trim() == "artist")) { penciller.Add(credit.Name); inker.Add(credit.Name); }
             if (role.Contains("color") || role.Contains("colour")) colorist.Add(credit.Name);
             if (role.Contains("letter")) letterer.Add(credit.Name);
             if (role.Contains("cover")) coverArtist.Add(credit.Name);
             if (role.Contains("editor")) editor.Add(credit.Name);
         }
 
-        if (writer.Count > 0) Set("Writer", string.Join(", ", writer));
-        if (penciller.Count > 0) Set("Penciller", string.Join(", ", penciller));
-        if (inker.Count > 0) Set("Inker", string.Join(", ", inker));
-        if (colorist.Count > 0) Set("Colorist", string.Join(", ", colorist));
-        if (letterer.Count > 0) Set("Letterer", string.Join(", ", letterer));
-        if (coverArtist.Count > 0) Set("CoverArtist", string.Join(", ", coverArtist));
-        if (editor.Count > 0) Set("Editor", string.Join(", ", editor));
+        //distinct, since "artist, penciler" would otherwise list the same person twice
+        static string Names(List<string> names) => string.Join(", ", names.Distinct(StringComparer.Ordinal));
+        if (writer.Count > 0) Set("Writer", Names(writer));
+        if (penciller.Count > 0) Set("Penciller", Names(penciller));
+        if (inker.Count > 0) Set("Inker", Names(inker));
+        if (colorist.Count > 0) Set("Colorist", Names(colorist));
+        if (letterer.Count > 0) Set("Letterer", Names(letterer));
+        if (coverArtist.Count > 0) Set("CoverArtist", Names(coverArtist));
+        if (editor.Count > 0) Set("Editor", Names(editor));
 
         return values;
     }
@@ -282,6 +287,11 @@ public class ComicVineService
         return $"{BaseUrl}/{resource}/?{string.Join('&', qs)}";
     }
 
+    //request urls carry the key as a query parameter; logs get shared in bug reports, so it never
+    //goes into one
+    public static string RedactApiKey(string url) =>
+        Regex.Replace(url, @"(?<=[?&]api_key=)[^&]*", "REDACTED", RegexOptions.IgnoreCase);
+
     private async Task ThrottleAsync()
     {
         await _throttleGate.WaitAsync();
@@ -337,7 +347,7 @@ public class ComicVineService
         catch (JsonException ex)
         {
             var preview = body.Length > 2000 ? body[..2000] + "…(truncated)" : body;
-            _log.Warning($"Failed to parse ComicVine response from {url}: {ex.Message}\nRaw body: {preview}");
+            _log.Warning($"Failed to parse ComicVine response from {RedactApiKey(url)}: {ex.Message}\nRaw body: {preview}");
             throw new ComicVineException(ComicVineErrorKind.ApiError, "ComicVine's response could not be parsed.", ex);
         }
 

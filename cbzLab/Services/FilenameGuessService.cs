@@ -5,7 +5,7 @@ namespace cbzLab.Services;
 /// <summary>Best-effort Series/Number/Volume/Year extraction from a file's path. Pure parsing, no i/o.</summary>
 public static class FilenameGuessService
 {
-    public record Guess(string? Series, string? Number, string? Volume, string? Year);
+    public record Guess(string? Series, string? Number, string? Volume, string? Year, string? Count = null);
 
     public static Guess FromPath(string fullPath)
     {
@@ -16,14 +16,28 @@ public static class FilenameGuessService
         //regex, so "Saga_012" has no \b before the digits until it's gone
         working = NormalizeSeparators(working);
 
-        //year: four digits in parentheses, e.g. "(1940)"
+        //year: four digits in parentheses or square brackets, e.g. "(1940)"
         string? year = null;
-        var yearMatch = Regex.Match(working, @"\((19|20)\d{2}\)");
+        var yearMatch = Regex.Match(working, @"[\(\[](19|20)\d{2}[\)\]]");
         if (yearMatch.Success)
         {
-            year = yearMatch.Value.Trim('(', ')');
+            year = yearMatch.Value.Trim('(', ')', '[', ']');
             working = working.Remove(yearMatch.Index, yearMatch.Length);
         }
+
+        //miniseries length, "Watchmen 01 (of 12)" - taken before the issue number, since its
+        //number would otherwise be the last numeric token and win
+        string? count = null;
+        var countMatch = Regex.Match(working, @"\(\s*of\s*(\d+)\s*\)", RegexOptions.IgnoreCase);
+        if (countMatch.Success)
+        {
+            count = NormalizeNumber(countMatch.Groups[1].Value);
+            working = working.Remove(countMatch.Index, countMatch.Length);
+        }
+
+        //every other bracketed group is release noise - "(Digital)", "(Zone-Empire)", "[c2c]" -
+        //never part of the series name
+        working = Regex.Replace(working, @"\([^()]*\)|\[[^\[\]]*\]|\{[^{}]*\}", " ");
 
         //explicit "Vol"/"Volume" prefix only - a bare "V2" is too ambiguous (e.g. "V for Vendetta")
         string? volume = null;
@@ -61,7 +75,7 @@ public static class FilenameGuessService
             series = IsUsableSeries(folderCandidate) ? folderCandidate : null;
         }
 
-        return new Guess(series, number, volume, year);
+        return new Guess(series, number, volume, year, count);
     }
 
     private static string NormalizeSeparators(string raw) =>

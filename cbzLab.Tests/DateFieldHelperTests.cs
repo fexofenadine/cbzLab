@@ -50,9 +50,44 @@ public class DateFieldHelperTests : IDisposable
         Assert.Equal(("2021", "7", ""), result);
     }
 
+    //same bug class as "03/2019": .NET completes each of these to the 1st of the month
+    [Theory]
+    [InlineData("2019-03")]
+    [InlineData("2019/3")]
+    [InlineData("March 2019")]
+    [InlineData("Mar 2019")]
+    [InlineData("mar. 2019")]
+    [InlineData("Sept 2019", "9")]
+    public void Parse_OtherMonthYearForms_DoNotFabricateADay(string input, string month = "3")
+    {
+        Assert.Equal(("2019", month, ""), DateFieldHelper.Parse(input));
+    }
+
+    [Theory]
+    [InlineData("15 March 2019")]
+    [InlineData("March 15, 2019")]
+    [InlineData("2019-03-15")]
+    public void Parse_OtherFullDateForms_StillReadFully(string input)
+    {
+        Assert.Equal(("2019", "3", "15"), DateFieldHelper.Parse(input));
+    }
+
+    //the date box parses on every keystroke - these are the states "15/03/2019" passes through
+    //while being typed, and none of them may write a year
+    [Theory]
+    [InlineData("15/03")]
+    [InlineData("15/03/2")]
+    [InlineData("15/03/20")]
+    [InlineData("15/03/201")]
+    public void Parse_HalfTypedDate_IsIgnoredRatherThanGuessed(string input)
+    {
+        Assert.Null(DateFieldHelper.Parse(input));
+    }
+
     [Theory]
     [InlineData("not a date")]
     [InlineData("banana")]
+    [InlineData("Smarch 2019")]
     public void Parse_Unparseable_ReturnsNull(string input)
     {
         Assert.Null(DateFieldHelper.Parse(input));

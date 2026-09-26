@@ -1,9 +1,59 @@
+using System.Text;
 using cbzLab.Services;
 
 namespace cbzLab.Tests;
 
 public class ComicInfoXmlTests
 {
+    private static string Built(string original, Dictionary<string, string> values) =>
+        Encoding.UTF8.GetString(ComicInfoXml.Build(Encoding.UTF8.GetBytes(original), values));
+
+    //Build() edits the first matching element, so Parse() has to show that same one
+    [Fact]
+    public void Parse_DuplicateTag_ShowsTheOneThatSaveEdits()
+    {
+        var raw = Encoding.UTF8.GetBytes("<ComicInfo><Series>First</Series><Series>Second</Series></ComicInfo>");
+        Assert.Equal("First", ComicInfoXml.Parse(raw)["Series"]);
+
+        var saved = ComicInfoXml.Build(raw, new Dictionary<string, string> { ["Series"] = "Edited" });
+        Assert.Equal("Edited", ComicInfoXml.Parse(saved)["Series"]);
+    }
+
+    [Fact]
+    public void Build_NewElement_GoesInSchemaOrderNotAfterPages()
+    {
+        var xml = Built("<ComicInfo><Title>T</Title><Pages><Page Image=\"0\" /></Pages></ComicInfo>",
+            new Dictionary<string, string> { ["Series"] = "S", ["Writer"] = "W" });
+        Assert.True(xml.IndexOf("<Series>") < xml.IndexOf("<Writer>"));
+        Assert.True(xml.IndexOf("<Title>") < xml.IndexOf("<Series>"));
+        Assert.True(xml.IndexOf("<Writer>") < xml.IndexOf("<Pages>"));
+    }
+
+    [Fact]
+    public void Build_NeverReordersExistingElements()
+    {
+        var xml = Built("<ComicInfo><Writer>W</Writer><Title>T</Title></ComicInfo>",
+            new Dictionary<string, string> { ["Writer"] = "W2" });
+        Assert.True(xml.IndexOf("<Writer>") < xml.IndexOf("<Title>"));
+    }
+
+    [Fact]
+    public void Build_UnofficialTag_GoesLast()
+    {
+        var xml = Built("<ComicInfo><Title>T</Title><Review>R</Review></ComicInfo>",
+            new Dictionary<string, string> { ["MyCustomTag"] = "x" });
+        Assert.True(xml.IndexOf("<Review>") < xml.IndexOf("<MyCustomTag>"));
+    }
+
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData("", false)]
+    [InlineData("<ComicInfo><Series>S</Series></ComicInfo>", false)]
+    [InlineData("<ComicInfo><Series>S & B</Series></ComicInfo>", true)]
+    [InlineData("not xml at all", true)]
+    public void IsUnreadable_OnlyForBytesThatArentXml(string? text, bool expected) =>
+        Assert.Equal(expected, ComicInfoXml.IsUnreadable(text is null ? null : Encoding.UTF8.GetBytes(text)));
+
     [Fact]
     public void Parse_NullBytes_ReturnsEmptyDictionary()
     {

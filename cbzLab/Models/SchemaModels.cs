@@ -53,6 +53,20 @@ public class SchemaConstraints
 
     [JsonPropertyName("int_hints")]
     public Dictionary<string, string> IntHints { get; set; } = new();
+
+    //defaults live here as well as in schema.json, so installs whose schema.json predates this
+    //key still get them - a schema.json that does carry the key replaces these outright
+    [JsonPropertyName("int_ranges")]
+    public Dictionary<string, List<long>> IntRanges { get; set; } = new()
+    {
+        ["Year"] = new() { 1000, 9999 },
+        ["Month"] = new() { 1, 12 },
+        ["Day"] = new() { 1, 31 },
+        ["Count"] = new() { 0, int.MaxValue },
+        ["Volume"] = new() { 0, int.MaxValue },
+        ["AlternateCount"] = new() { 0, int.MaxValue },
+        ["PageCount"] = new() { 0, int.MaxValue },
+    };
 }
 
 public class SchemaDocument
