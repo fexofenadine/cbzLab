@@ -10,6 +10,17 @@
 
 ## cbzLab (Avalonia)
 
+### 2.0.10 - 2026-09-27
+
+- Fixed Check for Updates being unable to install anything since 2.0.9. The
+  updater only looked for a `.zip` (Windows) or `.tar.gz` (Linux) download,
+  and 2.0.9 stopped publishing those in favour of the bare executable, so it
+  could only offer a link. The updater now prefers the bare executable, falls
+  back to the archive, and never mistakes a debug zip for an update.
+- Releases publish the `.zip`/`.tar.gz` archives again, containing just the
+  executable, so installs older than this one can still update themselves.
+- Release notes now open with a short guide to which download to pick.
+
 ### 2.0.9 - 2026-09-27
 
 - GitHub releases no longer bundle debug symbols into the main download. Each

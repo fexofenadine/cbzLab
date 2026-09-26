@@ -102,6 +102,15 @@ jobs:
           cd publish/linux-x64
           zip -r "../../cbzLab-${{ steps.version.outputs.version }}-linux-x64-debug.zip" .
 
+      #for the in-app updater in installs older than 2.0.10, which only knows to look for a
+      #"-win-x64.zip" or "-linux-x64.tar.gz" asset and expects the executable at the archive's
+      #root. Executable only, no pdb - same contents as the bare download, just wrapped. Newer
+      #installs prefer the bare executable and only fall back to these.
+      - name: Package updater archives for older installs
+        run: |
+          zip -j "cbzLab-${{ steps.version.outputs.version }}-win-x64.zip" publish/win-x64/cbzLab.exe
+          tar -czf "cbzLab-${{ steps.version.outputs.version }}-linux-x64.tar.gz" -C publish/linux-x64 cbzLab
+
       #pulls out just this version's own section (between its "### x.y.z - date"
       #heading and the next one) so the release notes carry the actual human-written
       #changelog entry, not just the auto-generated merged-PR list below. Matches on
@@ -119,6 +128,18 @@ jobs:
             echo "::warning::No CHANGELOG.md section found for $VERSION - release notes will only have the auto-generated PR list."
           fi
 
+      #six assets is enough to make "which one do I want?" a fair question
+      - name: Add a download guide to the release notes
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          {
+            echo "**Downloads:** \`cbzLab-$VERSION-win-x64.exe\` for Windows, \`cbzLab-$VERSION-linux-x64\` for Linux"
+            echo "(run \`chmod +x\` on it first). The \`-debug.zip\` files add debug symbols for crash reports;"
+            echo "the \`.zip\`/\`.tar.gz\` files are for the in-app updater in older versions."
+            echo
+            cat changelog-notes.md
+          } > release-notes.md
+
       #--notes supplies the changelog section as-is; --generate-notes then appends
       #GitHub's own auto-generated merged-PR/commit summary after it (documented
       #gh behavior: "Additional release notes can be prepended to automatically
@@ -132,6 +153,8 @@ jobs:
             "cbzLab-${{ steps.version.outputs.version }}-linux-x64" \
             "cbzLab-${{ steps.version.outputs.version }}-win-x64-debug.zip" \
             "cbzLab-${{ steps.version.outputs.version }}-linux-x64-debug.zip" \
+            "cbzLab-${{ steps.version.outputs.version }}-win-x64.zip" \
+            "cbzLab-${{ steps.version.outputs.version }}-linux-x64.tar.gz" \
             --title "cbzLab ${{ steps.version.outputs.version }}" \
-            --notes "$(cat changelog-notes.md)" \
+            --notes "$(cat release-notes.md)" \
             --generate-notes

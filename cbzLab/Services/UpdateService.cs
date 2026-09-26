@@ -59,17 +59,12 @@ public class UpdateService
             string? assetName = null;
             if (isNewer && doc.RootElement.TryGetProperty("assets", out var assets))
             {
-                var suffix = PlatformAssetSuffix();
-                foreach (var asset in assets.EnumerateArray())
-                {
-                    var name = asset.GetProperty("name").GetString() ?? "";
-                    if (suffix.Length > 0 && name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
-                    {
-                        assetName = name;
-                        assetUrl = asset.GetProperty("browser_download_url").GetString();
-                        break;
-                    }
-                }
+                var available = assets.EnumerateArray()
+                    .Select(a => (Name: a.GetProperty("name").GetString() ?? "",
+                                  Url: a.GetProperty("browser_download_url").GetString() ?? ""))
+                    .ToList();
+                if (PickAsset(available, AssetSuffixesFor(CurrentPlatform())) is { } picked)
+                    (assetName, assetUrl) = picked;
             }
 
             return new UpdateCheckResult(isNewer, tag, htmlUrl, assetUrl, assetName, null);
@@ -81,18 +76,51 @@ public class UpdateService
         }
     }
 
-    private static string PlatformAssetSuffix()
+    public static string CurrentPlatform()
     {
         if (OperatingSystem.IsWindows())
-            return "-win-x64.zip";
+            return "win-x64";
         if (OperatingSystem.IsMacOS())
-            return RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "-osx-arm64.tar.gz" : "-osx-x64.tar.gz";
+            return RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "osx-arm64" : "osx-x64";
         if (OperatingSystem.IsLinux())
-            return "-linux-x64.tar.gz";
+            return "linux-x64";
         return "";
     }
 
-    //downloads and extracts the release asset, then writes (but does not run) a small
+    /// <summary>
+    /// Release-asset name endings this platform can install from, most preferred first. Since
+    /// 2.0.9 the main download is the bare executable; the zip/tar.gz archives are still
+    /// published for installs older than 2.0.10, whose updater only knows to look for those.
+    /// A "-debug.zip" matches neither ending, so debug symbols are never picked as an update.
+    /// </summary>
+    public static string[] AssetSuffixesFor(string platform) => platform switch
+    {
+        "win-x64" => new[] { "-win-x64.exe", "-win-x64.zip" },
+        "linux-x64" => new[] { "-linux-x64", "-linux-x64.tar.gz" },
+        "osx-arm64" => new[] { "-osx-arm64.tar.gz" },
+        "osx-x64" => new[] { "-osx-x64.tar.gz" },
+        _ => Array.Empty<string>(),
+    };
+
+    //first asset matching the most preferred suffix, not simply the first asset matching any
+    public static (string Name, string Url)? PickAsset(IReadOnlyList<(string Name, string Url)> assets, IReadOnlyList<string> suffixes)
+    {
+        foreach (var suffix in suffixes)
+        {
+            foreach (var asset in assets)
+            {
+                if (asset.Name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                    return asset;
+            }
+        }
+        return null;
+    }
+
+    public static bool IsArchive(string assetName) =>
+        assetName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)
+        || assetName.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase);
+
+    //downloads the release asset (extracting it first if it's an archive), then writes (but does not run) a small
     //helper script that will wait for this process to exit, replace the running
     //executable with the new one, and relaunch it. Returns the script path to hand to
     //LaunchSwapScript right before the app actually closes, or null on failure.
@@ -106,9 +134,23 @@ public class UpdateService
             var workDir = Path.Combine(Path.GetTempPath(), "cbzLab-update-" + Guid.NewGuid());
             Directory.CreateDirectory(workDir);
 
-            var downloadPath = Path.Combine(workDir, result.AssetName ?? "update.zip");
+            var assetName = result.AssetName ?? "update.zip";
+            var downloadPath = Path.Combine(workDir, assetName);
             var bytes = await _http.GetByteArrayAsync(result.AssetDownloadUrl);
             await File.WriteAllBytesAsync(downloadPath, bytes);
+
+            var currentExePath = Environment.ProcessPath
+                ?? throw new InvalidOperationException("Couldn't determine the running executable's path");
+            var pid = Environment.ProcessId;
+
+            //a bare executable is the new build itself; the swap script copies it into place and
+            //sets the executable bit on Linux, so there's nothing to extract
+            if (!IsArchive(assetName))
+            {
+                return OperatingSystem.IsWindows()
+                    ? WriteWindowsSwapScript(workDir, pid, currentExePath, downloadPath)
+                    : WriteUnixSwapScript(workDir, pid, currentExePath, downloadPath);
+            }
 
             var extractDir = Path.Combine(workDir, "extracted");
             Directory.CreateDirectory(extractDir);
@@ -141,10 +183,6 @@ public class UpdateService
             var newExePath = Path.Combine(extractDir, exeName);
             if (!File.Exists(newExePath))
                 throw new FileNotFoundException("Downloaded update didn't contain the expected executable", newExePath);
-
-            var currentExePath = Environment.ProcessPath
-                ?? throw new InvalidOperationException("Couldn't determine the running executable's path");
-            var pid = Environment.ProcessId;
 
             return OperatingSystem.IsWindows()
                 ? WriteWindowsSwapScript(workDir, pid, currentExePath, newExePath)
