@@ -180,7 +180,7 @@ public partial class MainWindow : Window
             foreach (var draft in drafts)
             {
                 var file = _viewModel.OpenFiles.FirstOrDefault(
-                    f => string.Equals(f.Path, draft.OriginalPath, StringComparison.OrdinalIgnoreCase));
+                    f => PathComparison.Same(f.Path, draft.OriginalPath));
                 file?.ReplaceCurrentValues(draft.Values);
             }
             _viewModel.RefreshEditor();
@@ -378,7 +378,7 @@ public partial class MainWindow : Window
     private async Task OpenPathsAsync(IReadOnlyList<string> paths)
     {
         var pending = paths.Where(p => _viewModel.FindByPath(p) is null)
-                           .Distinct(System.StringComparer.OrdinalIgnoreCase)
+                           .Distinct(PathComparison.Comparer)
                            .ToList();
         if (pending.Count == 0)
             return;
@@ -848,7 +848,7 @@ public partial class MainWindow : Window
 
     private void PushRecentlyClosed(string path)
     {
-        _recentlyClosedPaths.RemoveAll(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase));
+        _recentlyClosedPaths.RemoveAll(p => PathComparison.Same(p, path));
         _recentlyClosedPaths.Insert(0, path);
         if (_recentlyClosedPaths.Count > MaxRecentlyClosed)
             _recentlyClosedPaths.RemoveRange(MaxRecentlyClosed, _recentlyClosedPaths.Count - MaxRecentlyClosed);

@@ -24,7 +24,7 @@ public class AutosaveService
     //hashed rather than a sanitized filename, since an original path can contain characters
     //no filesystem allows and two different real paths could otherwise collide once sanitized
     private string PathFor(string originalPath) =>
-        Path.Combine(_dir, Convert.ToHexString(SHA1.HashData(Encoding.UTF8.GetBytes(originalPath.ToLowerInvariant()))) + ".json");
+        Path.Combine(_dir, Convert.ToHexString(SHA1.HashData(Encoding.UTF8.GetBytes(PathComparison.Key(originalPath)))) + ".json");
 
     public void Save(string originalPath, Dictionary<string, string> values) =>
         JsonFileStore.Save(PathFor(originalPath), new AutosaveDraft(originalPath, values), _log);

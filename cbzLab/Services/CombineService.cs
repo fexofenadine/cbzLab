@@ -257,7 +257,7 @@ public class CombineService
     {
         try
         {
-            return string.Equals(Path.GetFullPath(a), Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase);
+            return PathComparison.Same(Path.GetFullPath(a), Path.GetFullPath(b));
         }
         catch
         {
@@ -270,7 +270,7 @@ public class CombineService
         try
         {
             var target = Path.GetFullPath(Path.Combine(root, key.TrimStart('/')));
-            if (target.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+            if (target.StartsWith(root, PathComparison.Comparison))
                 return target;
             _log.Warning($"Skipped archive entry escaping the extraction root: '{key}'");
             return null;

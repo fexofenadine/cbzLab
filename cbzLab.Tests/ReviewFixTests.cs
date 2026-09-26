@@ -71,6 +71,18 @@ public class JunkEntryTests : IDisposable
     }
 }
 
+public class PathComparisonTests
+{
+    //linux filesystems are case-sensitive, so two books differing only in case are two books
+    [Fact]
+    public void CaseMattersExactlyWhereTheFilesystemSaysItDoes()
+    {
+        var same = PathComparison.Same("/comics/Saga.cbz", "/comics/saga.cbz");
+        Assert.Equal(!OperatingSystem.IsLinux(), same);
+        Assert.True(PathComparison.Same("/comics/Saga.cbz", "/comics/Saga.cbz"));
+    }
+}
+
 public class RarToolTests : IDisposable
 {
     private readonly TestConfig _cfg = new();

@@ -171,7 +171,7 @@ public class SettingsService
         foreach (var file in Directory.GetFiles(dir))
         {
             //a backup saved into the config folder itself can't contain itself
-            if (string.Equals(Path.GetFullPath(file), skipFile, StringComparison.OrdinalIgnoreCase))
+            if (PathComparison.Same(Path.GetFullPath(file), skipFile))
                 continue;
             zip.CreateEntryFromFile(file, entryPrefix + Path.GetFileName(file));
         }
@@ -216,7 +216,7 @@ public class SettingsService
             {
                 destPath = "";
             }
-            if (Path.IsPathRooted(relative) || !destPath.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+            if (Path.IsPathRooted(relative) || !destPath.StartsWith(root, PathComparison.Comparison))
             {
                 _log.Warning($"Backup import skipped an entry outside the config folder: '{entry.FullName}'");
                 skipped++;
@@ -252,7 +252,7 @@ public class SettingsService
 
         foreach (var path in ordered)
         {
-            Settings.RecentFiles.RemoveAll(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase));
+            Settings.RecentFiles.RemoveAll(p => PathComparison.Same(p, path));
             Settings.RecentFiles.Insert(0, path);
         }
 

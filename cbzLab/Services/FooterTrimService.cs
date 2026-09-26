@@ -225,7 +225,7 @@ public class FooterTrimService
     {
         if (keysToTrim.Count == 0)
             throw new ArgumentException("No pages were selected for trimming.");
-        if (string.Equals(Path.GetFullPath(sourcePath), Path.GetFullPath(destPath), StringComparison.OrdinalIgnoreCase))
+        if (PathComparison.Same(Path.GetFullPath(sourcePath), Path.GetFullPath(destPath)))
             throw new ArgumentException("The trimmed archive must be written to a different file than the source.");
 
         var tempPath = destPath + ".cbzlab-tmp";

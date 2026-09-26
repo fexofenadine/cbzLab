@@ -188,7 +188,7 @@ public class UpdateService
                     {
                         //same zip-slip guard as every other extraction in the app
                         var destPath = Path.GetFullPath(Path.Combine(root, key.TrimStart('/')));
-                        if (!destPath.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+                        if (!destPath.StartsWith(root, PathComparison.Comparison))
                             continue;
                         Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
                         using var entryStream = reader.OpenEntryStream();

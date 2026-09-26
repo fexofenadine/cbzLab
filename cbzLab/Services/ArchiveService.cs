@@ -308,8 +308,7 @@ public class ArchiveService
             ?? throw new InvalidOperationException(
                 "No RAR write tool was found. Set the tool path in Settings, or save as CBZ instead.");
 
-        var samePath = string.Equals(Path.GetFullPath(sourcePath), Path.GetFullPath(destPath),
-            StringComparison.OrdinalIgnoreCase);
+        var samePath = PathComparison.Same(Path.GetFullPath(sourcePath), Path.GetFullPath(destPath));
         var sourceIsRar = SniffFormat(sourcePath) == ArchiveFormat.Cbr;
 
         var workDir = Path.Combine(Path.GetTempPath(), "cbzLab-" + Guid.NewGuid().ToString("N"));
@@ -383,7 +382,7 @@ public class ArchiveService
         try
         {
             var target = Path.GetFullPath(Path.Combine(root, key.TrimStart('/')));
-            if (target.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+            if (target.StartsWith(root, PathComparison.Comparison))
                 return target;
             _log.Warning($"Skipped archive entry escaping the extraction root: '{key}'");
             return null;

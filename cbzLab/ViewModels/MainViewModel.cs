@@ -512,7 +512,7 @@ public class MainViewModel : ViewModelBase
 
     public ComicFileViewModel? FindByPath(string path) =>
         OpenFiles.FirstOrDefault(f =>
-            string.Equals(f.Path, path, StringComparison.OrdinalIgnoreCase));
+            PathComparison.Same(f.Path, path));
 
     public List<ComicFileViewModel> DirtyFiles() => OpenFiles.Where(f => f.IsDirty).ToList();
 
