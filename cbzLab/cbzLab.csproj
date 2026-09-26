@@ -93,6 +93,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!--test-only hooks (e.g. MainViewModel.DisplayRefreshCount) stay internal rather than public-->
+    <InternalsVisibleTo Include="cbzLab.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!--ported schema.json/themes.json/theme files, same seeding pattern as
         cbzLab.winui3/cbzLab.csproj - see Services/SettingsService.cs SeedBundledAssets()-->
     <Content Include="Assets\**">

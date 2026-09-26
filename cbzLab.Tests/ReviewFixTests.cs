@@ -71,6 +71,56 @@ public class JunkEntryTests : IDisposable
     }
 }
 
+public class BatchEditPerformanceTests : IDisposable
+{
+    private readonly TestConfig _cfg = new();
+    public void Dispose() => _cfg.Dispose();
+
+    //the bug: in Modified first sort every file whose dirty state flipped re-sorted the whole list,
+    //so one keystroke across 1000 of 2000 books was 1000 full rebuilds
+    [Fact]
+    public void BatchEditRefreshesTheSidebarOnceAndStillSortsDirtyFirst()
+    {
+        var vm = new cbzLab.ViewModels.MainViewModel(_cfg.Schema, _cfg.Settings, _cfg.Validation,
+            new RecentValuesService(_cfg.Settings, _cfg.Log));
+        vm.SortMode = cbzLab.ViewModels.FileSortMode.ModifiedFirst;
+        var books = Enumerable.Range(0, 2000).Select(i => new cbzLab.ViewModels.ComicFileViewModel(
+            $"C:/c/{i:d4}.cbz", ArchiveFormat.Cbz, null,
+            new Dictionary<string, string>(StringComparer.Ordinal) { ["Series"] = "S" }, 1)).ToList();
+        vm.AddFiles(books);
+        var selected = books.Where((_, i) => i % 2 == 1).ToList();
+        vm.SetSelection(selected);
+
+        var before = vm.DisplayRefreshCount;
+        vm.AllFields.First(f => f.Tag == "Series").Value = "Edited";
+
+        Assert.Equal(before + 1, vm.DisplayRefreshCount);
+        Assert.All(vm.DisplayedFiles.Take(selected.Count), f => Assert.True(f.IsDirty));
+        Assert.Equal(1000, vm.DirtyCount);
+    }
+
+    [Fact]
+    public void NestedDeferralsRefreshOnceAtTheOutermostEnd()
+    {
+        var vm = new cbzLab.ViewModels.MainViewModel(_cfg.Schema, _cfg.Settings, _cfg.Validation,
+            new RecentValuesService(_cfg.Settings, _cfg.Log));
+        vm.SortMode = cbzLab.ViewModels.FileSortMode.ModifiedFirst;
+        var book = new cbzLab.ViewModels.ComicFileViewModel("C:/c/a.cbz", ArchiveFormat.Cbz, null,
+            new Dictionary<string, string>(StringComparer.Ordinal), 1);
+        vm.AddFiles(new[] { book });
+
+        var before = vm.DisplayRefreshCount;
+        using (vm.DeferRefresh())
+        {
+            using (vm.DeferRefresh())
+                book.SetValue("Series", "X");
+            Assert.Equal(before, vm.DisplayRefreshCount);
+        }
+        Assert.Equal(before + 1, vm.DisplayRefreshCount);
+        Assert.Equal(1, vm.DirtyCount);
+    }
+}
+
 public class SavePlannerTests
 {
     [Theory]

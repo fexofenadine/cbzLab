@@ -177,11 +177,14 @@ public partial class MainWindow : Window
         if (restore)
         {
             await OpenPathsAsync(drafts.Select(d => d.OriginalPath).ToList());
-            foreach (var draft in drafts)
+            using (_viewModel.DeferRefresh())
             {
-                var file = _viewModel.OpenFiles.FirstOrDefault(
-                    f => PathComparison.Same(f.Path, draft.OriginalPath));
-                file?.ReplaceCurrentValues(draft.Values);
+                foreach (var draft in drafts)
+                {
+                    var file = _viewModel.OpenFiles.FirstOrDefault(
+                        f => PathComparison.Same(f.Path, draft.OriginalPath));
+                    file?.ReplaceCurrentValues(draft.Values);
+                }
             }
             _viewModel.RefreshEditor();
             _viewModel.StatusText = $"Restored unsaved changes for {drafts.Count} file(s)";
@@ -490,7 +493,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        var changed = targets.Count(ApplySummaryHeader);
+        int changed;
+        using (_viewModel.DeferRefresh())
+            changed = targets.Count(ApplySummaryHeader);
         _viewModel.RefreshEditor();
 
         if (changed == 0)
@@ -1082,9 +1087,12 @@ public partial class MainWindow : Window
         if (tags is null || tags.Count == 0)
             return;
 
-        foreach (var target in targets)
-            foreach (var tag in tags)
-                target.SetValue(tag, source.GetValue(tag));
+        using (_viewModel.DeferRefresh())
+        {
+            foreach (var target in targets)
+                foreach (var tag in tags)
+                    target.SetValue(tag, source.GetValue(tag));
+        }
 
         _viewModel.RefreshEditor();
         _viewModel.StatusText = $"Copied {tags.Count} field{(tags.Count == 1 ? "" : "s")} "
@@ -1401,8 +1409,11 @@ public partial class MainWindow : Window
             return;
 
         var filled = 0;
-        foreach (var file in _viewModel.SelectedFiles)
-            filled += ApplyGuess(file, FilenameGuessService.FromPath(file.Path));
+        using (_viewModel.DeferRefresh())
+        {
+            foreach (var file in _viewModel.SelectedFiles)
+                filled += ApplyGuess(file, FilenameGuessService.FromPath(file.Path));
+        }
 
         _viewModel.RefreshEditor();
         _viewModel.StatusText = filled == 0
@@ -1500,8 +1511,11 @@ public partial class MainWindow : Window
         if (_viewModel.OpenFiles.Count == 0)
             return;
 
-        var changed = await FindReplaceDialog.ShowAsync(
-            this, _schema, _viewModel.SelectedFiles.ToList(), _viewModel.OpenFiles.ToList());
+        //the dialog edits the files itself, possibly thousands of them in one go
+        int changed;
+        using (_viewModel.DeferRefresh())
+            changed = await FindReplaceDialog.ShowAsync(
+                this, _schema, _viewModel.SelectedFiles.ToList(), _viewModel.OpenFiles.ToList());
         if (changed == 0)
             return;
 
@@ -1932,19 +1946,22 @@ public partial class MainWindow : Window
             }
 
             var appliedFileCount = 0;
-            foreach (var (file, proposed) in perFileProposed)
+            using (_viewModel.DeferRefresh())
             {
-                var appliedToThisFile = false;
-                foreach (var tag in tagsToApply)
+                foreach (var (file, proposed) in perFileProposed)
                 {
-                    if (proposed.TryGetValue(tag, out var value))
+                    var appliedToThisFile = false;
+                    foreach (var tag in tagsToApply)
                     {
-                        file.SetValue(tag, value);
-                        appliedToThisFile = true;
+                        if (proposed.TryGetValue(tag, out var value))
+                        {
+                            file.SetValue(tag, value);
+                            appliedToThisFile = true;
+                        }
                     }
+                    if (appliedToThisFile)
+                        appliedFileCount++;
                 }
-                if (appliedToThisFile)
-                    appliedFileCount++;
             }
 
             _viewModel.RefreshEditor();

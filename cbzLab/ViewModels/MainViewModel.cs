@@ -278,8 +278,11 @@ public class MainViewModel : ViewModelBase
     private void OnFieldEdited(FieldViewModel field, string value)
     {
         //applies to every selected file immediately - "edit to override all" in batch mode
-        foreach (var file in SelectedFiles)
-            file.SetValue(field.Tag, value);
+        using (DeferRefresh())
+        {
+            foreach (var file in SelectedFiles)
+                file.SetValue(field.Tag, value);
+        }
 
         if (IsBatchMode)
             RefreshDistinctValues(field);
@@ -520,12 +523,52 @@ public class MainViewModel : ViewModelBase
     {
         if (e.PropertyName != nameof(ComicFileViewModel.IsDirty))
             return;
+        if (_deferDepth > 0)
+        {
+            _refreshPending = true;
+            return;
+        }
         UpdateStatus();
         //Modified-first reacts live to dirty state; Name/Series-Number deliberately don't
         //re-sort mid-edit (see RefreshDisplayedFiles) - IsDirty only flips once per edit, not per keystroke
         if (_sortMode == FileSortMode.ModifiedFirst)
             RefreshDisplayedFiles();
     }
+
+    private int _deferDepth;
+    private bool _refreshPending;
+
+    /// <summary>
+    /// Holds sidebar/status refreshes until disposed, then does one. A batch edit flips the dirty
+    /// state of every file it touches, and each flip used to refresh the whole list: in Modified
+    /// first sort, one keystroke across 1000 of 2000 open books was a thousand full re-sorts.
+    /// </summary>
+    public IDisposable DeferRefresh()
+    {
+        _deferDepth++;
+        return new Deferral(this);
+    }
+
+    private sealed class Deferral : IDisposable
+    {
+        private MainViewModel? _owner;
+        public Deferral(MainViewModel owner) => _owner = owner;
+
+        public void Dispose()
+        {
+            var owner = _owner;
+            _owner = null;
+            if (owner is null || --owner._deferDepth > 0 || !owner._refreshPending)
+                return;
+            owner._refreshPending = false;
+            owner.UpdateStatus();
+            if (owner._sortMode == FileSortMode.ModifiedFirst)
+                owner.RefreshDisplayedFiles();
+        }
+    }
+
+    //how many times the sidebar list has been rebuilt - for tests
+    internal int DisplayRefreshCount { get; private set; }
 
     private int _dirtyCount;
     public int DirtyCount
@@ -576,21 +619,31 @@ public class MainViewModel : ViewModelBase
         };
 
         var target = query.ToList();
+        DisplayRefreshCount++;
 
-        //iterate backwards since RemoveAt shifts indices
+        //iterate backwards since RemoveAt shifts indices; a set, not List.Contains, so this pass is linear
+        var keep = new HashSet<ComicFileViewModel>(target);
         for (var i = DisplayedFiles.Count - 1; i >= 0; i--)
         {
-            if (!target.Contains(DisplayedFiles[i]))
+            if (!keep.Contains(DisplayedFiles[i]))
                 DisplayedFiles.RemoveAt(i);
         }
 
+        var shown = new HashSet<ComicFileViewModel>(DisplayedFiles);
         for (var i = 0; i < target.Count; i++)
         {
             var file = target[i];
-            var current = DisplayedFiles.IndexOf(file);
-            if (current < 0)
+            //already in place is the common case - checked first so an unchanged order costs nothing
+            if (i < DisplayedFiles.Count && ReferenceEquals(DisplayedFiles[i], file))
+                continue;
+            if (!shown.Contains(file))
+            {
                 DisplayedFiles.Insert(i, file);
-            else if (current != i)
+                shown.Add(file);
+                continue;
+            }
+            var current = DisplayedFiles.IndexOf(file);
+            if (current != i)
                 DisplayedFiles.Move(current, i);
         }
     }
