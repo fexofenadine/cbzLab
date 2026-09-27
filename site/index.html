@@ -6,16 +6,18 @@
 <title>cbzLab</title>
 <meta name="description" content="A cross-platform ComicInfo.xml metadata editor for CBZ/CBR comic archives.">
 <link rel="icon" type="image/png" href="assets/logo-200.png">
+<link rel="preload" href="assets/fonts/yellowtail-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/audiowide-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
 <header class="top">
   <div class="wrap">
-    <div class="brand">
+    <a class="brand" href="index.html">
       <img src="assets/logo-200.png" alt="">
       <span>cbzLab</span>
-    </div>
+    </a>
     <nav>
       <a href="guide.html">User Guide</a>
       <a href="building.html">Building</a>
@@ -27,29 +29,32 @@
 
 <div class="hero">
   <div class="wrap">
-    <img class="logo" src="assets/logo-640.png" alt="cbzLab logo">
-    <h1>cbzLab</h1>
-    <p class="tag">A metadata editor for comic book archives. Open CBZ and CBR files, edit their
-      <code>ComicInfo.xml</code> - single files or whole batches at once - and write changes back
-      safely, without ever touching the page images.</p>
-    <div class="cta">
-      <a class="btn primary" href="https://github.com/fexofenadine/cbzLab/releases/latest">Download the latest build</a>
-      <a class="btn secondary" href="https://github.com/fexofenadine/cbzLab">View on GitHub</a>
-    </div>
-    <div class="badges">
-      <a href="https://github.com/fexofenadine/cbzLab/actions/workflows/build.yml">
-        <img src="https://github.com/fexofenadine/cbzLab/actions/workflows/build.yml/badge.svg" alt="build status">
-      </a>
-      <a href="https://github.com/fexofenadine/cbzLab/releases/latest">
-        <img src="https://img.shields.io/github/v/release/fexofenadine/cbzLab?label=latest%20release&color=ff2d9b" alt="latest release">
-      </a>
+    <div class="sign">
+      <img class="logo" src="assets/logo-640.png" alt="cbzLab logo">
+      <h1>cbzLab</h1>
+      <p class="tag">ComicInfo metadata editor</p>
+      <p class="intro">Open CBZ and CBR files, edit their <code>ComicInfo.xml</code> - single files or whole
+        batches at once - and write changes back safely, without ever touching the page images.</p>
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/fexofenadine/cbzLab/releases/latest">Download the latest build</a>
+        <a class="btn secondary" href="https://github.com/fexofenadine/cbzLab">View on GitHub</a>
+      </div>
+      <div class="badges">
+        <a href="https://github.com/fexofenadine/cbzLab/actions/workflows/build.yml">
+          <img src="https://github.com/fexofenadine/cbzLab/actions/workflows/build.yml/badge.svg" alt="build status">
+        </a>
+        <a href="https://github.com/fexofenadine/cbzLab/releases/latest">
+          <img src="https://img.shields.io/github/v/release/fexofenadine/cbzLab?label=latest%20release&color=ff2d9b" alt="latest release">
+        </a>
+      </div>
     </div>
   </div>
 </div>
 
 <section>
   <div class="wrap">
-    <h2>What it does</h2>
+    <h2><span class="num">01</span>What it does</h2>
+    <div class="bar"></div>
     <div class="features">
       <div class="feature">
         <h3>CBZ &amp; CBR, read and write</h3>
@@ -88,7 +93,8 @@
 
 <section>
   <div class="wrap">
-    <h2>A look at it</h2>
+    <h2><span class="num">02</span>A look at it</h2>
+    <div class="bar"></div>
     <div class="gallery">
       <figure>
         <img src="screenshots/editor-solarized-dark.png" alt="cbzLab editor in Solarized Dark" loading="lazy">
@@ -120,7 +126,8 @@
 
 <section>
   <div class="wrap">
-    <h2>Documentation</h2>
+    <h2><span class="num">03</span>Documentation</h2>
+    <div class="bar"></div>
     <div class="docs-grid">
       <a class="doc-card" href="guide.html">
         <h3>User Guide →</h3>

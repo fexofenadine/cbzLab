@@ -22,7 +22,7 @@ OUT = ROOT / "_site"
 NAV = """
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="index.html" style="text-decoration:none">
+    <a class="brand" href="index.html">
       <img src="assets/logo-200.png" alt="">
       <span>cbzLab</span>
     </a>
@@ -52,6 +52,8 @@ PAGE = """<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title} - cbzLab</title>
 <link rel="icon" type="image/png" href="assets/logo-200.png">
+<link rel="preload" href="assets/fonts/yellowtail-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/audiowide-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
