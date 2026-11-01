@@ -10,6 +10,18 @@
 
 ## cbzLab (Avalonia)
 
+### 2.1.1 - 2026-11-01
+
+A refreshed logo, and a browser edition.
+
+- **New logo**, redrawn so cbzLab and the new cbzLite match: the same neon sunset badge, now with a
+  magenta-to-yellow sun and a glowing green-to-blue grid, and a neon wordmark in the Oooh Baby
+  script. The window and taskbar icon is now the badge on its own, which stays clear at small sizes.
+  The website uses the same script for its headings.
+- **cbzLite**, the cbzLab editor running in a web browser, for quick CBZ edits without installing
+  anything: https://fexofenadine.github.io/cbzLab/lite/. It has its own changelog in `cbzLite/`.
+- Updated SharpCompress, the library that reads CBR (RAR) archives, to 0.50.7.
+
 ### 2.1.0 - 2026-09-27
 
 A review-driven fix release: safety, correctness, speed, and settings that had
