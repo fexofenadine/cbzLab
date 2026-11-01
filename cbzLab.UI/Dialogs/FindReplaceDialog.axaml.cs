@@ -9,7 +9,7 @@ using cbzLab.ViewModels;
 
 namespace cbzLab.Dialogs;
 
-//operates directly on the ComicFileViewModel instances passed in - the caller (MainWindow)
+//operates directly on the ComicFileViewModel instances passed in - the caller (MainView)
 //is responsible for calling RefreshEditor() afterward so the on-screen field picks up any
 //change to the file currently open in the editor (SetValue alone doesn't push to the ui)
 public partial class FindReplaceDialog : Window

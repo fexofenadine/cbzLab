@@ -24,10 +24,9 @@
     <!--2.0.0: parity with the winui original reached, beta tag dropped. This project itself
         was renamed from cbzLab.Avalonia/ to cbzLab/ once the winui original moved to
         cbzLab.winui3/ (see cbzLab.winui3/ARCHIVED.md) - this is now the primary and only
-        actively developed version. MainWindow.axaml.cs's DisplayVersion constant carries the
-        human-readable version string shown in the title bar/About - three places
-        (here, DisplayVersion, and MainWindow.axaml's XAML-declared Title) need bumping
-        together; nothing enforces that automatically yet.
+        actively developed version. Since 2.2.0 this <Version> is the only place the version is
+        written: the title bar, About box and update check all read it from the built app
+        (cbzLab.Core's AppVersion).
         2.0.1: the rename above, plus a verified SharpCompress bump and first-ever
         confirmed macOS publish - also the first release actually cut via release.yml
         rather than by hand.-->
@@ -70,20 +69,17 @@
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.1.4" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.4" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />
     <!--Avalonia.Diagnostics (dev-time f12 inspector) skipped for now: as of
         this writing it has no 12.x release yet (latest is 11.3.20, against
         core packages at 12.1.1) - add back once a compatible version ships-->
     <!--SharpCompress (cbr reading) and SkiaSharp (Trim Footers) come in through cbzLab.Core,
         which is where they're pinned - see the note on SkiaSharp there-->
-    <!--grid view (slice 2): one patch ahead of the 12.1.1 core packages above -
-        same avaloniaui-owned package family, no lower version published-->
-    <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.1.2" />
+    <!--Avalonia.Themes.Fluent and Avalonia.Controls.DataGrid come in through cbzLab.UI-->
   </ItemGroup>
 
   <ItemGroup>
-    <!--the services, view models and models shared with the Android app-->
-    <ProjectReference Include="..\cbzLab.Core\cbzLab.Core.csproj" />
+    <!--the shared view, dialogs and styles; it brings cbzLab.Core (services, view models, models) with it-->
+    <ProjectReference Include="..\cbzLab.UI\cbzLab.UI.csproj" />
   </ItemGroup>
 
   <ItemGroup>

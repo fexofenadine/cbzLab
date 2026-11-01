@@ -4,9 +4,8 @@
              RequestedThemeVariant="Default">
 
     <Application.Styles>
-        <FluentTheme />
-        <!--DataGrid ships its own styles separately from FluentTheme - without this it renders with no headers/rows/borders-->
-        <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+        <!--Fluent and the DataGrid's styles, shared with every cbzLab app-->
+        <StyleInclude Source="avares://cbzLab.UI/AppStyles.axaml" />
     </Application.Styles>
 
 </Application>

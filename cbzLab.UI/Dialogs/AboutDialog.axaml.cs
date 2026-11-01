@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media.Imaging;
+using cbzLab.Services;
 
 namespace cbzLab.Dialogs;
 
@@ -12,7 +13,7 @@ public partial class AboutDialog : Window
     public AboutDialog()
     {
         InitializeComponent();
-        VersionText.Text = MainWindow.DisplayVersion;
+        VersionText.Text = AppVersion.Display;
         KeyDown += OnKeyDown;
         LoadHeroImage();
     }

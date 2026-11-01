@@ -1,0 +1,9 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--the app-wide styles every cbzLab app includes, so they all look the same-->
+    <FluentTheme />
+    <!--DataGrid ships its own styles separately from FluentTheme - without this it renders with no headers/rows/borders-->
+    <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+
+</Styles>

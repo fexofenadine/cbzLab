@@ -133,9 +133,16 @@ include, toolbar and dialog styles). The desktop app keeps only what only a desk
 
 **Slices.**
 
-1. **Shared UI library and `MainView`.** Create `cbzLab.UI`, move the window's contents into
-   `MainView` and the dialogs and converters into the library, unchanged. Dialogs are still separate
-   windows at this point. No visible change at all.
+1. **Shared UI library and `MainView`.** Done (2026-11-02). `cbzLab.UI` holds `MainView`, the 18
+   dialogs, the converters and the shared app styles, all moved with their history. `MainWindow` is
+   now a thin desktop host: its size and position, icon, title, closing and the self-updater. The
+   view asks its host for anything only a window can do: it raises `QuitRequested` and
+   `CheckForUpdatesRequested` (the update item is hidden unless the host supports updates), answers
+   `ConfirmCloseAsync` before a close, and is told `OnShownAsync` and `PrepareForExit`. The version
+   now comes from `AppVersion` in Core, read from the running app. No visible change: builds without
+   warnings, all 254 tests pass, and the published app starts with a book, shows the theme, About
+   (version 2.2.0) and the update item, asks about unsaved edits on close (Cancel keeps it open,
+   Discard closes without touching the book), and saves the open tab and window position on exit.
 2. **The dialog host and the everyday dialogs:** message, confirm, validation, unsaved changes and
    progress. Together these cover nearly every dialog the app shows day to day.
 3. **The rest of the editing dialogs:** Settings, About, Choose Columns, Customize Toolbar, Find &

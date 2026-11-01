@@ -95,16 +95,20 @@ referenced - as of this writing it has no 12.x release compatible with the
 ## Project layout
 
 ```
-cbzLab/
+cbzLab/                    the desktop app
   cbzLab.csproj          project config: net10.0, WinExe, self-contained + single-file on Release
   Program.cs              entry point, AppBuilder setup
-  App.axaml / .cs         application-level styles, service construction order
-  MainWindow.axaml / .cs  the whole main UI: file list, editor, grid view, menu, toolbar
+  App.axaml / .cs         application start-up; includes cbzLab.UI's shared styles
+  MainWindow.axaml / .cs  the desktop window around MainView: its size and position, icon, title,
+                           closing, and the self-updater
   Assets/                 icon, logo, bundled schema.json/themes.json (seeded to %APPDATA% on first run)
   Assets/themes/          custom theme JSON files bundled with the app (Synthwave Dark, etc.)
   Services/UpdateService.cs  the desktop-only self-updater
-  Dialogs/                 one Window (.axaml + .cs) per dialog - Avalonia has no ContentDialog equivalent,
-                           so each dialog is its own Window shown via ShowDialog, not a shared static-method file
+cbzLab.UI/                  everything the apps show, shared with the Android app
+  MainView.axaml / .cs    the whole main UI: file list, editor, grid view, menu, toolbar. Never assumes
+                           a window exists - window-only jobs are left to its host
+  AppStyles.axaml         the Fluent theme and DataGrid styles every app includes
+  Dialogs/                 one dialog per .axaml + .cs pair
   Converters/              FieldTemplateSelector (widget dispatch) and FieldValueConverter (grid cell values)
 cbzLab.Core/                the code shared with the Android app (see docs/ANDROID_PLAN.md);
                            namespaces are unchanged, still cbzLab.Services etc.

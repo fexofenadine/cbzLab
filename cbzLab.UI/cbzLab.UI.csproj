@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--everything the cbzLab apps show: the main view, the dialogs, the converters and the shared
+      styles. hosted by a window on the desktop and directly by the activity on Android - so nothing
+      here may assume a Window exists; ask the view's host instead (see MainView's host members)-->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!--namespaces stay cbzLab, cbzLab.Dialogs and cbzLab.Converters, unchanged by the move-->
+    <RootNamespace>cbzLab</RootNamespace>
+    <AssemblyName>cbzLab.UI</AssemblyName>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.4" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />
+    <!--grid view's table: one patch ahead of the 12.1.1 core packages it was added against -
+        same avaloniaui-owned package family, no lower version published-->
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.1.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\cbzLab.Core\cbzLab.Core.csproj" />
+  </ItemGroup>
+
+</Project>
