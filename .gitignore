@@ -57,3 +57,4 @@ Thumbs.db
 msbuild.log
 msbuild.err
 msbuild.wrn
+*.code-workspace
