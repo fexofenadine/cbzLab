@@ -79,10 +79,18 @@ port was done slice by slice.
 
 ### Phase 1 - shared core
 
-- New `cbzLab.Core` library holding `Services/`, `ViewModels/`, `Models/` and the bundled assets.
-  `cbzLab` (desktop) and `cbzLab.Tests` reference it. No behaviour change on desktop.
-- Anything that touches the desktop directly (process launching, `UpdateService`'s swap scripts,
-  the RAR tool search) moves behind small interfaces so Core stays platform-free.
+- Done (2026-11-02): `cbzLab.Core` holds `Services/`, `ViewModels/` and `Models/` (27 files, moved
+  with their history; namespaces unchanged). The desktop app and the tests reference it, and it
+  grants the tests the same internal access the desktop project does. Builds with no warnings, all
+  254 tests pass, and the desktop app behaves the same. Not released on its own; it ships with the
+  next desktop change.
+  - `UpdateService` (the self-updater) stayed in the desktop app, since Android won't use it.
+  - The RAR tool search stayed in `ArchiveService`; it simply finds nothing on Android. Interfaces
+    for platform differences arrive with the storage work in phase 3, where they're needed.
+  - The bundled `schema.json` and themes stayed in `cbzLab/Assets`: the website build, cbzLite, the
+    branding script, the Pages workflow and the tests all read them there, and the shared code reads
+    them from beside the app at run time, not from a source folder. Where they live is decided in
+    phase 4, when the Android app needs them packaged.
 
 ### Phase 2 - shared main view and overlay dialogs
 

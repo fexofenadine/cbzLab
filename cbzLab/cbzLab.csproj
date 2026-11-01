@@ -74,32 +74,26 @@
     <!--Avalonia.Diagnostics (dev-time f12 inspector) skipped for now: as of
         this writing it has no 12.x release yet (latest is 11.3.20, against
         core packages at 12.1.1) - add back once a compatible version ships-->
-    <!--matches the version pinned in cbzLab.csproj; needed by the ported
-        ArchiveService.cs for cbr (rar) reading-->
-    <PackageReference Include="SharpCompress" Version="0.50.7" />
+    <!--SharpCompress (cbr reading) and SkiaSharp (Trim Footers) come in through cbzLab.Core,
+        which is where they're pinned - see the note on SkiaSharp there-->
     <!--grid view (slice 2): one patch ahead of the 12.1.1 core packages above -
         same avaloniaui-owned package family, no lower version published-->
     <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.1.2" />
-    <!--already present transitively as Avalonia's own rendering backend, so referencing it
-        directly costs no extra payload - pinned to the same version Avalonia.Skia resolves.
-        Used by FooterTrimService for the one job Avalonia's own Bitmap can't do: decoding a
-        page, cropping it, and re-encoding as jpeg at a chosen quality.
-        Must NOT be bumped independently of Avalonia: the managed SkiaSharp version has to
-        match the native libSkiaSharp that Avalonia.Skia bundles, or it throws at runtime
-        (native 119 vs managed 152 is exactly what broke CI when this was auto-bumped to
-        4.152.1). Move it only when Avalonia's own Skia dependency moves. Dependabot is told
-        to leave it alone in .github/dependabot.yml.-->
-    <PackageReference Include="SkiaSharp" Version="3.119.4" />
   </ItemGroup>
 
   <ItemGroup>
-    <!--test-only hooks (e.g. MainViewModel.DisplayRefreshCount) stay internal rather than public-->
+    <!--the services, view models and models shared with the Android app-->
+    <ProjectReference Include="..\cbzLab.Core\cbzLab.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--test-only hooks stay internal rather than public (cbzLab.Core grants the same for its own)-->
     <InternalsVisibleTo Include="cbzLab.Tests" />
   </ItemGroup>
 
   <ItemGroup>
     <!--ported schema.json/themes.json/theme files, same seeding pattern as
-        cbzLab.winui3/cbzLab.csproj - see Services/SettingsService.cs SeedBundledAssets()-->
+        cbzLab.winui3/cbzLab.csproj - see cbzLab.Core/Services/SettingsService.cs SeedBundledAssets()-->
     <Content Include="Assets\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

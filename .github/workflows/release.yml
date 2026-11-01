@@ -78,8 +78,8 @@ jobs:
       - name: Make the Linux binary executable
         run: chmod +x publish/linux-x64/cbzLab
 
-      #the publish folders contain just the single-file executable plus this
-      #project's own cbzLab.pdb (third-party native pdbs are already stripped
+      #the publish folders contain just the single-file executable plus the
+      #project's own cbzLab.pdb and cbzLab.Core.pdb (third-party native pdbs are already stripped
       #by cbzLab.csproj's RemoveThirdPartyNativePdbsFromPublish target) - the
       #main release download should be exactly the executable, nothing else,
       #so it's copied out on its own rather than zipped. A one-file asset
@@ -91,7 +91,7 @@ jobs:
           chmod +x "cbzLab-${{ steps.version.outputs.version }}-linux-x64"
 
       #a separate, optional download for anyone who actually needs to debug a
-      #crash - the executable plus cbzLab.pdb, zipped together, per platform.
+      #crash - the executable plus cbzLab.pdb and cbzLab.Core.pdb, zipped together, per platform.
       - name: Package Windows debug build (exe + pdb)
         run: |
           cd publish/win-x64

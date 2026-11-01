@@ -83,9 +83,10 @@ can test isn't worth the CI time.
 
 | Package | Version | Used for |
 |---|---|---|
-| `Avalonia` / `Avalonia.Desktop` / `Avalonia.Themes.Fluent` | 12.1.1 | the UI framework itself, desktop windowing, and the Fluent theme (default light/dark chrome - cbzLab's own themes layer on top via `ThemeService`) |
+| `Avalonia` / `Avalonia.Desktop` / `Avalonia.Themes.Fluent` | 12.1.4 | the UI framework itself, desktop windowing, and the Fluent theme (default light/dark chrome - cbzLab's own themes layer on top via `ThemeService`) |
 | `Avalonia.Controls.DataGrid` | 12.1.2 | grid view's table control - needs its own `StyleInclude` in `App.axaml`, since `FluentTheme` alone doesn't style it |
-| `SharpCompress` | 0.50.4 | reading `.cbr`/RAR archives (`ArchiveService`) |
+| `SharpCompress` | 0.50.7 | reading `.cbr`/RAR archives (`ArchiveService`, in `cbzLab.Core`) |
+| `SkiaSharp` | 3.119.4 | cropping and re-encoding pages for Trim Branding Footers (`FooterTrimService`, in `cbzLab.Core`) - pinned to the version Avalonia's own renderer uses; never bump it on its own |
 
 `Avalonia.Diagnostics` (the F12 dev-time inspector) is deliberately not
 referenced - as of this writing it has no 12.x release compatible with the
@@ -101,12 +102,15 @@ cbzLab/
   MainWindow.axaml / .cs  the whole main UI: file list, editor, grid view, menu, toolbar
   Assets/                 icon, logo, bundled schema.json/themes.json (seeded to %APPDATA% on first run)
   Assets/themes/          custom theme JSON files bundled with the app (Synthwave Dark, etc.)
-  Services/               settings, schema, themes, xml, archives, validation, ComicVine, autosave, updates
-  ViewModels/              main/file/field view models - data flow, dirty tracking, composite fields
-  Models/                  settings, schema, and ComicVine data classes
+  Services/UpdateService.cs  the desktop-only self-updater
   Dialogs/                 one Window (.axaml + .cs) per dialog - Avalonia has no ContentDialog equivalent,
                            so each dialog is its own Window shown via ShowDialog, not a shared static-method file
   Converters/              FieldTemplateSelector (widget dispatch) and FieldValueConverter (grid cell values)
+cbzLab.Core/                the code shared with the Android app (see docs/ANDROID_PLAN.md);
+                           namespaces are unchanged, still cbzLab.Services etc.
+  Services/               settings, schema, themes, xml, archives, validation, ComicVine, autosave
+  ViewModels/              main/file/field view models - data flow, dirty tracking, composite fields
+  Models/                  settings, schema, and ComicVine data classes
 cbzLab.Tests/              xUnit tests for the pure/injectable services and helpers
 ```
 

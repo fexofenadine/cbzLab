@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--the code shared by every cbzLab app: services, view models and models. kept free of anything
+      desktop-only (no Avalonia.Desktop, no windows, no process launching beyond what Android also
+      tolerates) so the Android app can use it too - see docs/ANDROID_PLAN.md-->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!--namespaces stay cbzLab.Services/ViewModels/Models, unchanged by the move into this library-->
+    <RootNamespace>cbzLab</RootNamespace>
+    <AssemblyName>cbzLab.Core</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--Avalonia's core only: the view models use its Bitmap (covers) and Thickness (spacing), and
+        ThemeService its resource brushes, all of which run on every platform Avalonia does-->
+    <PackageReference Include="Avalonia" Version="12.1.4" />
+    <!--cbr (rar) reading in ArchiveService-->
+    <PackageReference Include="SharpCompress" Version="0.50.7" />
+    <!--already present transitively as Avalonia's own rendering backend, so referencing it
+        directly costs no extra payload - pinned to the same version Avalonia.Skia resolves.
+        Used by FooterTrimService for the one job Avalonia's own Bitmap can't do: decoding a
+        page, cropping it, and re-encoding as jpeg at a chosen quality.
+        Must NOT be bumped independently of Avalonia: the managed SkiaSharp version has to
+        match the native libSkiaSharp that Avalonia.Skia bundles, or it throws at runtime
+        (native 119 vs managed 152 is exactly what broke CI when this was auto-bumped to
+        4.152.1). Move it only when Avalonia's own Skia dependency moves. Dependabot is told
+        to leave it alone in .github/dependabot.yml.-->
+    <PackageReference Include="SkiaSharp" Version="3.119.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--test-only hooks (e.g. MainViewModel.DisplayRefreshCount) stay internal rather than public-->
+    <InternalsVisibleTo Include="cbzLab.Tests" />
+  </ItemGroup>
+
+</Project>

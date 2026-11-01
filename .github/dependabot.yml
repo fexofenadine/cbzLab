@@ -1,6 +1,6 @@
 version: 2
 updates:
-  #covers every .csproj under the repo root in one entry - cbzLab, cbzLab.Tests,
+  #covers every .csproj under the repo root in one entry - cbzLab, cbzLab.Core, cbzLab.Tests,
   #and the archived cbzLab.winui3/cbzLab.csproj alike
   - package-ecosystem: "nuget"
     directory: "/"
@@ -8,7 +8,7 @@ updates:
       interval: "weekly"
     ignore:
       #SkiaSharp's managed version must match the native libSkiaSharp that Avalonia.Skia
-      #bundles - bumping it on its own throws at runtime (see the note in cbzLab.csproj).
+      #bundles - bumping it on its own throws at runtime (see the note in cbzLab.Core.csproj).
       #it moves only when Avalonia does, so keep Dependabot's hands off it.
       - dependency-name: "SkiaSharp"
 
