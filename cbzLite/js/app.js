@@ -2,7 +2,7 @@
 (function () {
     "use strict";
 
-    const VERSION = "0.5.1";
+    const VERSION = "0.5.2";
     const DESKTOP_URL = "https://github.com/fexofenadine/cbzLab/releases";
     const SITE_URL = "https://fexofenadine.github.io/cbzLab/lite/";
     const SETTINGS_KEY = "cbzlite.settings";
@@ -2186,6 +2186,60 @@
         toolbarRight: () => $("toolbarScroll").scrollBy({ left: 200 }),
     };
 
+    function openMenu(menu) {
+        menu.classList.add("open");
+        fitFlyout(menu.querySelector(":scope > .menu-flyout"));
+    }
+
+    function openSub(sub) {
+        sub.classList.add("open");
+        fitFlyout(sub.querySelector(":scope > .menu-flyout"));
+    }
+
+    //keeps a flyout on screen: nudged left when it would run off the right edge, and capped in
+    //height with its own scrolling when it's too tall. a submenu sits beside its item, or to the
+    //left of it when there's no room; on narrow screens it opens inline instead (see styles.css)
+    function fitFlyout(flyout) {
+        if (!flyout)
+            return;
+        const margin = 8;
+        flyout.style.left = "";
+        flyout.style.right = "";
+        flyout.style.top = "";
+        flyout.style.maxHeight = "";
+        const inline = getComputedStyle(flyout).position === "static";
+        if (inline) {
+            flyout.scrollIntoView({ block: "nearest" });
+            return;
+        }
+        //a submenu is fixed to the screen, beside its item, since its parent menu scrolls and
+        //would otherwise clip it
+        if (flyout.classList.contains("sub")) {
+            const item = flyout.parentElement.querySelector(".has-sub").getBoundingClientRect();
+            const width = flyout.offsetWidth;
+            const left = item.right + 2 + width <= innerWidth - margin ? item.right + 2 : Math.max(margin, item.left - 2 - width);
+            const maxHeight = innerHeight - 2 * margin;
+            flyout.style.maxHeight = `${maxHeight}px`;
+            const top = Math.max(margin, Math.min(item.top - 5, innerHeight - margin - Math.min(flyout.scrollHeight + 2, maxHeight)));
+            flyout.style.left = `${left}px`;
+            flyout.style.top = `${top}px`;
+            //opens showing the current choice, wherever it falls in a long list
+            const current = flyout.querySelector(".on");
+            if (current)
+                current.scrollIntoView({ block: "nearest" });
+            return;
+        }
+        let r = flyout.getBoundingClientRect();
+        if (r.right > innerWidth - margin) {
+            flyout.style.left = `${Math.min(0, innerWidth - margin - r.right)}px`;
+            r = flyout.getBoundingClientRect();
+            if (r.left < margin)
+                flyout.style.left = `${parseFloat(getComputedStyle(flyout).left) + (margin - r.left)}px`;
+        }
+        r = flyout.getBoundingClientRect();
+        flyout.style.maxHeight = `${Math.max(120, innerHeight - margin - r.top)}px`;
+    }
+
     function closeMenus() {
         for (const m of document.querySelectorAll(".menu.open, .menu-sub.open"))
             m.classList.remove("open");
@@ -2200,13 +2254,13 @@
                 const wasOpen = menu.classList.contains("open");
                 closeMenus();
                 if (!wasOpen)
-                    menu.classList.add("open");
+                    openMenu(menu);
             });
             //like a desktop menu bar, hovering another header while one is open switches to it
             header.addEventListener("pointerenter", () => {
                 if (menus.some((m) => m.classList.contains("open")) && !menu.classList.contains("open")) {
                     closeMenus();
-                    menu.classList.add("open");
+                    openMenu(menu);
                 }
             });
         }
@@ -2235,7 +2289,7 @@
             const open = () => {
                 for (const other of sub.parentElement.querySelectorAll(".menu-sub.open"))
                     other.classList.remove("open");
-                sub.classList.add("open");
+                openSub(sub);
             };
             sub.addEventListener("pointerenter", open);
             sub.querySelector(".has-sub").addEventListener("click", (e) => {
@@ -2277,7 +2331,7 @@
                 e.preventDefault();
                 closeMenus();
                 const index = ["f", "v", "t", "h"].indexOf(key);
-                document.querySelectorAll("[data-menu]")[index].classList.add("open");
+                openMenu(document.querySelectorAll("[data-menu]")[index]);
             }
             $("menubar").classList.toggle("mnemonics", e.altKey);
         });
@@ -2377,7 +2431,11 @@
         $("gridScroll").addEventListener("scroll", closePopups);
         //popups are placed in viewport coordinates, so they'd drift away from their field
         $("fieldScroll").addEventListener("scroll", closePopups);
-        window.addEventListener("resize", closePopups);
+        //rotating the screen (or resizing the window) closes anything placed for the old size
+        window.addEventListener("resize", () => {
+            closePopups();
+            closeMenus();
+        });
         $("searchBox").addEventListener("input", (e) => {
             state.search = e.target.value;
             renderEditor();

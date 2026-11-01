@@ -124,6 +124,8 @@ button, input, select, textarea {
 .menu-flyout {
     display: none;
     position: absolute;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     top: calc(100% + 2px);
     left: 0;
     z-index: 50;
@@ -148,9 +150,11 @@ button, input, select, textarea {
     white-space: nowrap;
 }
 
+/*fixed rather than absolute, so the scrolling parent menu can't clip it - placed by fitFlyout*/
 .menu-flyout.sub {
-    top: -5px;
-    left: calc(100% + 2px);
+    position: fixed;
+    top: 0;
+    left: 0;
     min-width: 200px;
     max-height: 70vh;
     overflow-y: auto;
@@ -1178,6 +1182,8 @@ label.setting:has(.wide) {
 
 .about {
     width: min(460px, calc(100vw - 32px));
+    max-height: calc(100dvh - 16px);
+    overflow-y: auto;
     padding: 0;
     background: #0d0221;
     color: #e8d9ff;
@@ -1191,9 +1197,10 @@ label.setting:has(.wide) {
     background: rgba(0, 0, 0, 0.45);
 }
 
+/*shorter on a short screen (a phone on its side), so the text and OK still fit*/
 .about-hero {
     position: relative;
-    height: 300px;
+    height: clamp(170px, calc(100dvh - 170px), 300px);
     overflow: hidden;
 }
 
@@ -1299,6 +1306,24 @@ label.setting:has(.wide) {
     scrollbar-width: thin;
 }
 
+/*short screens (a phone on its side): the editor header's large cover would take most of the
+height, and the selected file is already highlighted in the list beside it*/
+@media (max-height: 500px) {
+    .editor-header {
+        display: none;
+    }
+    .search {
+        margin-top: 6px;
+    }
+    .tabs {
+        height: 36px;
+        margin-top: 2px;
+    }
+    .statusbar {
+        padding: 3px 12px;
+    }
+}
+
 /*phones and narrow windows: the file list stacks above the editor, sized to what it holds
 and capped, so the fields get most of the screen*/
 @media (max-width: 700px) {
@@ -1335,5 +1360,15 @@ and capped, so the fields get most of the screen*/
     }
     .field-scroll {
         padding: 8px 16px;
+    }
+    /*no room beside a menu for a side flyout, so the theme list opens inline beneath its item*/
+    .menu-flyout.sub {
+        position: static;
+        max-height: none;
+        margin: 2px 0 2px 20px;
+        box-shadow: none;
+        border-width: 0 0 0 1px;
+        border-radius: 0;
+        background: transparent;
     }
 }

@@ -3,6 +3,21 @@
 cbzLite is the browser edition of cbzLab. It has its own version line, separate from the
 desktop app's.
 
+## 0.5.2
+
+Menus and dialogs now fit and work on phones in both portrait and landscape.
+
+- Menus never run off the screen: one that would pass the right edge shifts left, and one taller than
+  the screen (the File and Tools menus, with a phone on its side) scrolls.
+- The Theme list opens beneath its menu item on narrow screens, and beside it, scrolling and showing
+  the current theme, everywhere else. Before, it opened off the right edge in portrait, and in
+  landscape it didn't appear at all.
+- With a phone on its side, the editor drops the header with the large cover, as it already did in
+  portrait, so the fields get most of the height.
+- The About box shrinks its logo to fit a short screen, so the text and OK button always show.
+- Settings opens with the Theme choice focused, rather than an outlined scroll area.
+- Rotating the screen closes any open menu or popup, rather than leaving it placed for the old size.
+
 ## 0.5.1
 
 - Fixed: on phones and other narrow screens, the file list and editor header took most of the
