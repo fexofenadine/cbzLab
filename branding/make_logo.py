@@ -3,7 +3,7 @@
 #wordmark over it. also writes the badge on its own, the background every logo is built on
 #
 #usage: py branding/make_logo.py cbzLab cbzLite
-#writes branding/badge.png plus branding/logo-<name>.png for each name given
+#writes branding/badge.png, badge-square.png (uncropped, for app icons) and logo-<name>.png per name
 #needs pillow; the wordmark font, Oooh Baby (SIL Open Font License), is in branding/fonts
 import pathlib
 import sys
@@ -57,7 +57,8 @@ def add_light(base, glow, strength):
     return out
 
 
-def draw_badge():
+#round_=False leaves it square, for app icons that the launcher crops to its own shape
+def draw_badge(round_=True):
     badge = Image.new("RGBA", (S, S), (0, 0, 0, 0))
     px = badge.load()
     for y in range(CY - R, CY + R + 1):
@@ -122,6 +123,8 @@ def draw_badge():
     hot.paste(colour.point(lambda v: min(255, v + 80)), (0, 0), lines.filter(ImageFilter.MinFilter(3)))
     badge = Image.alpha_composite(badge, grid)
     badge = Image.alpha_composite(badge, hot)
+    if not round_:
+        return badge
 
     mask = Image.new("L", (S, S), 0)
     ImageDraw.Draw(mask).ellipse([CX - R, CY - R, CX + R, CY + R], fill=255)
@@ -177,6 +180,7 @@ def draw_logo(badge, name):
 def main():
     badge = draw_badge()
     badge.crop((CX - R, CY - R, CX + R + 1, CY + R + 1)).save(OUT / "badge.png", optimize=True)
+    draw_badge(round_=False).crop((CX - R, CY - R, CX + R + 1, CY + R + 1)).save(OUT / "badge-square.png", optimize=True)
     for name in sys.argv[1:]:
         draw_logo(badge, name).save(OUT / f"logo-{name}.png", optimize=True)
         print(f"wrote logo-{name}.png")

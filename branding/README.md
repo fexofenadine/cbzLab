@@ -5,6 +5,8 @@ without starting from scratch.
 
 - `badge.png` - the sunset and grid badge on its own, with no wordmark: the background both logos are
   built on, at full resolution with a transparent surround.
+- `badge-square.png` - the same badge left square instead of cut to a circle, for app icons that
+  the platform crops to its own shape (Android's adaptive icons).
 - `logo-cbzLab.png`, `logo-cbzLite.png` - the matching pair, 1200×1200, drawn from that badge.
 - `original-cbzLab-logo.png` - the original hand-made cbzLab logo the badge's colours were sampled from.
 - `make_logo.py` - redraws all of the above (except the original). `py branding/make_logo.py cbzLab cbzLite`
