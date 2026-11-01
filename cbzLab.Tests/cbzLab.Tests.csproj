@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <!--matches ..\cbzLab\cbzLab.csproj's TargetFramework so the project reference below resolves cleanly-->
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>

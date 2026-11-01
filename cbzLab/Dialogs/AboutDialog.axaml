@@ -38,7 +38,7 @@
                 </Border>
                 <TextBlock Text="ComicInfo.xml metadata editor for CBZ/CBR comic archives." TextWrapping="Wrap"
                            FontSize="12.5" Foreground="#E8D9FF" />
-                <TextBlock Text="© 2026 fexofenadine · .NET 8 · Avalonia UI" FontSize="11" Foreground="#C49DFF" Margin="0,4,0,0" />
+                <TextBlock Text="© 2026 fexofenadine · .NET 10 · Avalonia UI" FontSize="11" Foreground="#C49DFF" Margin="0,4,0,0" />
             </StackPanel>
         </Grid>
         <Border Grid.Row="1" Background="#0D0221" BorderBrush="#4A1F7A" BorderThickness="0,1,0,0">

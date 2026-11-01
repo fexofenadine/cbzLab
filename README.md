@@ -14,7 +14,7 @@ view and edit the `ComicInfo.xml` metadata inside them (single files or whole
 batches at once), and writes changes back safely without ever touching the page
 images.
 
-Built with C# / .NET 8 and **Avalonia UI**. Pre-built releases target Windows and
+Built with C# / .NET 10 and **Avalonia UI**. Pre-built releases target Windows and
 Linux, deployed as an unpackaged self-contained executable - no installer, no
 store. (Avalonia itself also runs on macOS, but the project doesn't build or
 ship a macOS release - see [Building from source](#documentation) if you want
@@ -41,7 +41,7 @@ rebuilt automatically from these same files whenever they change:
 
 - **[Building from source](https://fexofenadine.github.io/cbzLab/building.html)** -
   environment setup, publishing a distributable executable, and the project layout
-  for the current Avalonia app (just the .NET 8 SDK - no Visual Studio or
+  for the current Avalonia app (just the .NET 10 SDK - no Visual Studio or
   platform-specific workload needed), plus a short pointer to building the
   archived WinUI version at the bottom.
 - **[User guide](https://fexofenadine.github.io/cbzLab/guide.html)** - opening files,

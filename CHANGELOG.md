@@ -10,6 +10,18 @@
 
 ## cbzLab (Avalonia)
 
+### 2.2.0 - 2026-11-01
+
+- **Now runs on .NET 10.** cbzLab was built on .NET 8, whose support ends on 10 November 2026, after
+  which it gets no more security fixes. .NET 10 is the current long-term support release, supported
+  until November 2028. Nothing changes in how the app looks or works, and the downloads stay
+  self-contained, so there's still nothing extra to install. Building from source now needs the
+  .NET 10 SDK.
+- Fixed: the 2.1.1 window's title bar still said 2.1.0. The version is now written in one place and
+  the title bar, About box and update check all read it from there, so they can't fall out of step
+  again.
+- Opening CBR files confirmed working with the updated SharpCompress from 2.1.1.
+
 ### 2.1.1 - 2026-11-01
 
 A refreshed logo, and a browser edition.

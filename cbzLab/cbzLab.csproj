@@ -11,7 +11,7 @@
         WinExe is a Windows PE-subsystem concept with no meaning on Linux, so
         this stays a no-op there rather than breaking cross-platform builds.-->
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>cbzLab</RootNamespace>
     <AssemblyName>cbzLab</AssemblyName>
     <!--Win32 PE resource icon (Explorer/taskbar) - Windows-only concept, harmless no-op on Linux.
@@ -31,9 +31,9 @@
         2.0.1: the rename above, plus a verified SharpCompress bump and first-ever
         confirmed macOS publish - also the first release actually cut via release.yml
         rather than by hand.-->
-    <Version>2.1.1</Version>
-    <AssemblyVersion>2.1.1.0</AssemblyVersion>
-    <FileVersion>2.1.1.0</FileVersion>
+    <Version>2.2.0</Version>
+    <AssemblyVersion>2.2.0.0</AssemblyVersion>
+    <FileVersion>2.2.0.0</FileVersion>
   </PropertyGroup>
 
   <!--scoped to Release only, not the main PropertyGroup above: SelfContained

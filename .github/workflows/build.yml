@@ -22,10 +22,10 @@ jobs:
       - name: Check out the repository
         uses: actions/checkout@v7
 
-      - name: Set up .NET 8
+      - name: Set up .NET 10
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
       #restore and build/test run as one command each, not split with --no-restore/
       #--no-build: a plain `dotnet restore` with no -c Release doesn't know to fetch

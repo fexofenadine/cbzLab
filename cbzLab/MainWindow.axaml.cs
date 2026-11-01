@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -27,8 +28,18 @@ namespace cbzLab;
 
 public partial class MainWindow : Window
 {
-    //keep in sync with cbzLab.csproj's Version
-    public const string DisplayVersion = "2.1.1";
+    //read from the built assembly, so cbzLab.csproj's <Version> is the only place it's written
+    public static readonly string DisplayVersion = ReadDisplayVersion();
+
+    //the informational version carries "+<commit>" when built from a git checkout
+    private static string ReadDisplayVersion()
+    {
+        var assembly = typeof(MainWindow).Assembly;
+        var informational = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        if (!string.IsNullOrEmpty(informational))
+            return informational.Split('+')[0];
+        return assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+    }
 
     private readonly LogService _log;
     private readonly SettingsService _settings;
@@ -61,6 +72,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        Title = $"cbzLab {DisplayVersion}";
         LoadWindowIcon();
         Closing += OnMainWindowClosing;
 

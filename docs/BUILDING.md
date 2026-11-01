@@ -2,19 +2,19 @@
 
 # Building cbzLab from source
 
-cbzLab is a plain SDK-style .NET 8 project - no platform-specific workload,
-no Windows-only tooling. If you have the .NET 8 SDK, you can build and run it.
+cbzLab is a plain SDK-style .NET 10 project - no platform-specific workload,
+no Windows-only tooling. If you have the .NET 10 SDK, you can build and run it.
 
 ## Prerequisites
 
-Just the **.NET 8 SDK** - <https://dotnet.microsoft.com/download/dotnet/8.0>.
+Just the **.NET 10 SDK** - <https://dotnet.microsoft.com/download/dotnet/10.0>.
 Confirm it's installed with:
 
 ```powershell
 dotnet --list-sdks
 ```
 
-You want an `8.0.x` entry. Any editor works: Visual Studio 2022, VS Code (with
+You want a `10.0.x` entry. Any editor works: Visual Studio 2026, VS Code (with
 the C# Dev Kit extension), JetBrains Rider, or a plain text editor plus the
 `dotnet` CLI - none of it is required, just convenient.
 
@@ -61,13 +61,13 @@ These are exactly the commands the project's own release workflow
 here means the same thing a real release build does.
 
 Without an explicit `-o`, the output lands in
-`cbzLab/bin/Release/net8.0/<rid>/publish/`. Managed dependencies (including
+`cbzLab/bin/Release/net10.0/<rid>/publish/`. Managed dependencies (including
 Avalonia's Skia/HarfBuzz native libraries) are collapsed into the single
 `cbzLab`/`cbzLab.exe` via `PublishSingleFile` - nothing else needs installing
 on the target machine. On Linux, mark the output executable before running it:
 
 ```bash
-chmod +x cbzLab/bin/Release/net8.0/linux-x64/publish/cbzLab
+chmod +x cbzLab/bin/Release/net10.0/linux-x64/publish/cbzLab
 ```
 
 To land the exe somewhere more convenient, add `-o <path>`, e.g.
@@ -95,7 +95,7 @@ referenced - as of this writing it has no 12.x release compatible with the
 
 ```
 cbzLab/
-  cbzLab.csproj          project config: net8.0, WinExe, self-contained + single-file on Release
+  cbzLab.csproj          project config: net10.0, WinExe, self-contained + single-file on Release
   Program.cs              entry point, AppBuilder setup
   App.axaml / .cs         application-level styles, service construction order
   MainWindow.axaml / .cs  the whole main UI: file list, editor, grid view, menu, toolbar
