@@ -92,11 +92,64 @@ port was done slice by slice.
     them from beside the app at run time, not from a source folder. Where they live is decided in
     phase 4, when the Android app needs them packaged.
 
-### Phase 2 - shared main view and overlay dialogs
+### Phase 2 - shared main view and in-window dialogs
 
-- Move the window's contents into `MainView`, hosted by `MainWindow` on desktop.
-- An overlay dialog host, then port every dialog to it, the simple ones first (message, confirm,
-  validation), then settings, columns, toolbar, ComicVine, combine, trim. See the dialog decision.
+The first phase with a visible desktop change: dialogs open inside the main window instead of as
+separate windows. Done in slices, each one building, passing every test and checked in the running
+app before the next starts.
+
+**Where the code goes.** A new `cbzLab.UI` library holds everything both apps show: `MainView`, the
+dialogs, the converters, and the shared styles now in `App.axaml` (Fluent theme, the DataGrid style
+include, toolbar and dialog styles). The desktop app keeps only what only a desktop has: `Program`,
+`App`, a thin `MainWindow`, and `UpdateService`.
+
+**What's in the way today.**
+
+- `MainWindow.axaml.cs` is 2,400 lines, but only about 15 places use anything only a window has:
+  saving and restoring its position and size, its icon, its title, the closing check for unsaved
+  edits, and opening files passed on the command line. Those stay in `MainWindow`; everything else
+  moves to `MainView`.
+- 18 dialogs, each its own `Window` shown with `ShowDialog(owner)`, from 37 lines (the message box,
+  opened from 40 places) to 462 (Settings). Seven open further dialogs of their own, such as
+  Settings asking before Reset to Defaults, so dialogs must be able to stack.
+- The progress window (opening many files, saving, combining, trimming) is shown without blocking,
+  updated as work runs, and can be cancelled.
+- File pickers stay the operating system's own; they aren't part of this.
+
+**How in-window dialogs behave.** A dialog host sits over `MainView`'s content:
+
+- A dimmed backdrop covers the app. Nothing behind it can be clicked, and keyboard shortcuts and
+  menus are blocked while a dialog is open.
+- The dialog is a card centred in the window, at its current width at most, never wider or taller
+  than the window allows. Its content scrolls when there isn't room; its buttons stay visible.
+- Focus moves into the dialog when it opens, Tab stays inside it, and focus returns to where it was
+  when it closes.
+- Enter and Esc do what each dialog's default and cancel buttons do today. Clicking the backdrop
+  does nothing, so a stray click can't throw away a half-filled dialog.
+- Dialogs stack: a confirm opened from Settings sits above Settings, with its own backdrop.
+- Every dialog keeps its current wording, buttons and results, so no calling code changes meaning.
+- The About box keeps its fixed synthwave palette.
+- The main window gets a minimum size, so every dialog still fits on screen.
+
+**Slices.**
+
+1. **Shared UI library and `MainView`.** Create `cbzLab.UI`, move the window's contents into
+   `MainView` and the dialogs and converters into the library, unchanged. Dialogs are still separate
+   windows at this point. No visible change at all.
+2. **The dialog host and the everyday dialogs:** message, confirm, validation, unsaved changes and
+   progress. Together these cover nearly every dialog the app shows day to day.
+3. **The rest of the editing dialogs:** Settings, About, Choose Columns, Customize Toolbar, Find &
+   Replace, Copy Fields, Multi Save.
+4. **ComicVine, Combine Archives and Trim Branding Footers:** search, match, both review dialogs,
+   combine and trim.
+5. **Fit and usability check, then release.** Every dialog opened at a normal window size, at the
+   new minimum size, and stacked where it can stack; then the release.
+
+**Checks for each slice.** Build with no warnings; all tests pass; and in the published app, every
+dialog the slice touches is opened, used with the keyboard (Enter, Esc, Tab), and its result
+checked, with your settings file backed up and restored around the run as before. In-window dialogs
+are part of the main window's accessibility tree, which makes them easier to drive in these checks
+than separate windows were.
 
 ### Phase 3 - storage
 
@@ -205,6 +258,11 @@ Answered decisions move to "Decided" with the date.
 
 ### Decided
 
+- **Shared UI library** (2026-11-02): `MainView`, the dialogs, converters and shared styles move into
+  a new `cbzLab.UI` library in phase 2, slice 1, so the Android app uses them as they are.
+- **Releasing in-window dialogs** (2026-11-02): phase 2's slices are pushed without a version bump;
+  one release (2.3.0) ships once every dialog is converted, so desktop users never see a mix of
+  in-window and separate-window dialogs.
 - **.NET 10** (2026-11-01): the desktop app and tests move to .NET 10 now, as their own release
   (2.2.0), ahead of .NET 8's end of support.
 - **Shared code** (2026-11-01): one `cbzLab.Core` library used by both apps, so a fix lands in
