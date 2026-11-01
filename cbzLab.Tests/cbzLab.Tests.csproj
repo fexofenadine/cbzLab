@@ -23,4 +23,9 @@
     <ProjectReference Include="..\cbzLab\cbzLab.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!--shared with cbzLite's node tests, see ParityFixtureTests-->
+    <None Include="..\cbzLite\test\parity\*.json" Link="parity\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

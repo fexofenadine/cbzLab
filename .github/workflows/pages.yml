@@ -2,7 +2,8 @@ name: pages
 
 #deploys fexofenadine.github.io/cbzLab from site/ + the project's real docs
 #(site/build_site.py converts docs/USER_GUIDE.md, docs/BUILDING.md and
-#CHANGELOG.md to html so the published site never drifts from them) -
+#CHANGELOG.md to html so the published site never drifts from them), plus
+#cbzLite at /cbzLab/lite, which inlines cbzLab/Assets' schema and themes -
 #rebuilds only when something the site actually shows changes, not on every commit
 on:
   push:
@@ -12,6 +13,8 @@ on:
       - "docs/**"
       - "README.md"
       - "CHANGELOG.md"
+      - "cbzLite/**"
+      - "cbzLab/Assets/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 

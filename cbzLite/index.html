@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cbzLite</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<!--build_site.py inlines the stylesheet, scripts, schema and themes into one self-contained file-->
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<noscript>
+  <div class="noscript">
+    cbzLite runs entirely in your browser and needs JavaScript to read and write archives.
+    Nothing is uploaded anywhere. If you'd rather not allow scripts,
+    <a href="https://github.com/fexofenadine/cbzLab/releases">the cbzLab desktop app</a> does everything this page does and more.
+  </div>
+</noscript>
+
+<div id="app" class="root" hidden>
+  <!--mirrors MainWindow.axaml: menu bar, toolbar, sidebar | splitter | editor, status bar-->
+  <nav class="menubar" id="menubar">
+    <div class="menu" data-menu>
+      <button class="menu-header" type="button"><u>F</u>ile</button>
+      <div class="menu-flyout" role="menu">
+        <button class="menu-item" type="button" data-action="open"><span>Open…</span><kbd>Ctrl+O</kbd></button>
+        <button class="menu-item" type="button" data-action="openFolder"><span>Open Folder…</span><kbd>Ctrl+Shift+O</kbd></button>
+        <button class="menu-item desktop-only" type="button" data-desktop="OpenRecent"><span>Open Recent</span><kbd>desktop app</kbd></button>
+        <div class="menu-sep"></div>
+        <button class="menu-item" type="button" data-action="save"><span>Save</span><kbd>Ctrl+S</kbd></button>
+        <button class="menu-item" type="button" data-action="saveAs"><span>Save As…</span><kbd>Ctrl+Shift+S</kbd></button>
+        <button class="menu-item" type="button" data-action="saveAll"><span>Save All</span><kbd>Ctrl+Alt+S</kbd></button>
+        <div class="menu-sep"></div>
+        <button class="menu-item" type="button" data-action="revert"><span>Revert</span><kbd></kbd></button>
+        <button class="menu-item" type="button" data-action="remove"><span>Remove from List</span><kbd>Del</kbd></button>
+        <!--no Ctrl+W or Ctrl+Shift+T: browsers keep those for closing and reopening tabs-->
+        <button class="menu-item" type="button" data-action="closeFile"><span>Close</span><kbd></kbd></button>
+        <button class="menu-item" type="button" data-action="closeAll"><span>Close All</span><kbd></kbd></button>
+        <button class="menu-item" type="button" data-action="reopenClosed"><span>Reopen Last Closed File</span><kbd></kbd></button>
+      </div>
+    </div>
+    <div class="menu" data-menu>
+      <button class="menu-header" type="button"><u>V</u>iew</button>
+      <div class="menu-flyout" role="menu">
+        <button class="menu-item check" type="button" data-action="toggleShowAll" data-check="showAllFields"><span>Show All Fields</span><kbd></kbd></button>
+        <button class="menu-item check" type="button" data-action="toggleShowExtra" data-check="showExtraFields"><span>Show Extra Fields</span><kbd></kbd></button>
+        <div class="menu-sep"></div>
+        <button class="menu-item" type="button" data-action="chooseColumns"><span>Choose Grid Columns…</span><kbd></kbd></button>
+        <div class="menu-sep"></div>
+        <div class="menu-sub">
+          <button class="menu-item has-sub" type="button"><span>Theme</span><kbd></kbd></button>
+          <!--filled from the bundled themes, see buildThemeMenu-->
+          <div class="menu-flyout sub" id="themeMenu" role="menu"></div>
+        </div>
+      </div>
+    </div>
+    <div class="menu" data-menu>
+      <button class="menu-header" type="button"><u>T</u>ools</button>
+      <div class="menu-flyout" role="menu">
+        <button class="menu-item desktop-only" type="button" data-desktop="SearchComicVine"><span>Search ComicVine…</span><kbd>desktop app</kbd></button>
+        <div class="menu-sep"></div>
+        <button class="menu-item" type="button" data-action="guessFromFilename"><span>Guess from Filename</span><kbd></kbd></button>
+        <button class="menu-item" type="button" data-action="autoPageCount"><span>Auto Page Count</span><kbd></kbd></button>
+        <button class="menu-item" type="button" data-action="extractSummaryHeader"><span>Extract Publisher/Year from Summary</span><kbd></kbd></button>
+        <div class="menu-sep"></div>
+        <button class="menu-item" type="button" data-action="copyXml"><span>Copy ComicInfo.xml</span><kbd></kbd></button>
+        <button class="menu-item" type="button" data-action="pasteXml"><span>Paste ComicInfo.xml</span><kbd></kbd></button>
+        <div class="menu-sep"></div>
+        <button class="menu-item" type="button" data-action="findReplace"><span>Find &amp; Replace…</span><kbd></kbd></button>
+        <button class="menu-item" type="button" data-action="validateAll"><span>Validate All Open Files…</span><kbd></kbd></button>
+        <div class="menu-sep"></div>
+        <button class="menu-item desktop-only" type="button" data-desktop="Combine"><span>Combine Archives…</span><kbd>desktop app</kbd></button>
+        <button class="menu-item desktop-only" type="button" data-desktop="TrimFooters"><span>Trim Branding Footers…</span><kbd>desktop app</kbd></button>
+        <div class="menu-sep"></div>
+        <button class="menu-item" type="button" data-action="customizeToolbar"><span>Customize Toolbar…</span><kbd></kbd></button>
+        <button class="menu-item" type="button" data-action="settings"><span>Settings…</span><kbd></kbd></button>
+      </div>
+    </div>
+    <div class="menu" data-menu>
+      <button class="menu-header" type="button"><u>H</u>elp</button>
+      <div class="menu-flyout" role="menu">
+        <button class="menu-item" type="button" data-action="checkUpdates"><span>Check for Updates…</span><kbd></kbd></button>
+        <button class="menu-item" type="button" data-action="limits"><span>Why Is cbzLite Limited?</span><kbd></kbd></button>
+        <div class="menu-sep"></div>
+        <button class="menu-item" type="button" data-action="about"><span>About cbzLite</span><kbd></kbd></button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="toolbar">
+    <button class="toolflat" type="button" data-action="toolbarLeft" title="Scroll toolbar left">&lt;</button>
+    <div class="toolbar-scroll" id="toolbarScroll">
+      <!--built from settings.toolbarButtons, see renderToolbar-->
+      <div class="toolbar-panel" id="toolbarPanel"></div>
+    </div>
+    <button class="toolflat" type="button" data-action="toolbarRight" title="Scroll toolbar right">&gt;</button>
+  </div>
+
+  <main class="workspace" id="workspace">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-title">OPEN FILES</div>
+      <div class="sidebar-controls">
+        <input id="fileFilter" class="textbox" type="text" placeholder="Filter files…" autocomplete="off">
+        <select id="sortCombo" class="combobox" title="Sort open files by">
+          <option value="name">Name</option>
+          <option value="series">Series / No.</option>
+          <option value="modified">Modified</option>
+        </select>
+      </div>
+      <ul class="file-list" id="fileList" tabindex="0" role="listbox" aria-multiselectable="true"></ul>
+      <div class="batch-panel" id="batchPanel" hidden>
+        <div class="batch-header" id="batchHeader"></div>
+        <ul class="batch-files" id="batchFiles"></ul>
+      </div>
+    </aside>
+
+    <div class="splitter" id="splitter" role="separator" aria-orientation="vertical"></div>
+
+    <section class="editor">
+      <div class="editor-header" id="editorHeader" hidden>
+        <div class="cover large"><img id="headerCover" alt="" hidden></div>
+        <div class="editor-header-text">
+          <div class="editor-filename" id="headerName"></div>
+          <div class="editor-subtitle" id="headerSubtitle"></div>
+        </div>
+      </div>
+      <input id="searchBox" class="textbox search" type="text" placeholder="Search fields…" autocomplete="off">
+      <div class="tabs" id="tabs" role="tablist" hidden></div>
+      <div class="field-scroll" id="fieldScroll">
+        <div class="field-list" id="fieldList"></div>
+      </div>
+      <div class="empty-state" id="emptyState">Open a comic archive to begin</div>
+    </section>
+  </main>
+
+  <!--table view of every open file, in place of the sidebar and editor-->
+  <section class="grid-view" id="gridView" hidden>
+    <div class="grid-scroll" id="gridScroll" tabindex="0">
+      <table class="grid" id="grid">
+        <thead id="gridHead"></thead>
+        <tbody id="gridBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="statusbar"><span id="statusText">Ready</span></footer>
+
+  <div class="drop-overlay" id="dropOverlay" hidden>
+    <div>Drop comic archives to open</div>
+  </div>
+</div>
+
+<dialog class="dialog" id="messageDialog">
+  <form method="dialog">
+    <h2 class="dialog-title"></h2>
+    <div class="dialog-body"></div>
+    <div class="dialog-buttons"><button class="button accent" value="ok" autofocus>OK</button></div>
+  </form>
+</dialog>
+
+<dialog class="dialog" id="saveAsDialog">
+  <form method="dialog">
+    <h2 class="dialog-title">Save As</h2>
+    <div class="dialog-body">
+      <label class="field-label" for="saveAsName">File name</label>
+      <input id="saveAsName" class="textbox" type="text" autocomplete="off" autofocus>
+      <p class="dialog-note">This browser can't choose where files are saved - the archive is downloaded under this name.</p>
+    </div>
+    <div class="dialog-buttons">
+      <!--type=button, so Enter submits Save rather than the first button in the form-->
+      <button class="button" type="button" data-dialog-cancel>Cancel</button>
+      <button class="button accent" value="ok">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="dialog" id="validationDialog">
+  <form method="dialog">
+    <h2 class="dialog-title">Validation problems</h2>
+    <p class="validation-intro">Validation found the following problems:</p>
+    <div class="validation-list"></div>
+    <div class="dialog-buttons">
+      <!--type=button, so Enter takes the safe choice (Fix) rather than the first button-->
+      <button class="button" type="button" data-dialog-value="anyway">Save Anyway</button>
+      <button class="button accent" value="fix" autofocus>Fix</button>
+    </div>
+  </form>
+</dialog>
+
+<!--fixed synthwave palette regardless of the active theme, like the desktop's About box-->
+<dialog class="about" id="aboutDialog">
+  <form method="dialog">
+    <div class="about-hero">
+      <img src="assets/logo.webp" alt="" width="320" height="320">
+      <div class="about-text">
+        <div class="about-name">cbzLite</div>
+        <div class="about-version" id="aboutVersion"></div>
+        <p>ComicInfo.xml metadata editor for CBZ comic archives, in your browser.</p>
+        <p class="about-links">
+          <a href="https://github.com/fexofenadine/cbzLab/releases" target="_blank" rel="noopener">Get the cbzLab desktop app</a>
+          · <a href="#" data-action="limits">Why is cbzLite limited?</a>
+        </p>
+        <p class="about-small">© 2026 fexofenadine · runs entirely in your browser · no uploads</p>
+      </div>
+    </div>
+    <div class="about-buttons"><button class="about-ok" value="ok" autofocus>OK</button></div>
+  </form>
+</dialog>
+
+<dialog class="dialog wide" id="limitsDialog">
+  <form method="dialog">
+    <h2 class="dialog-title">Why is cbzLite limited?</h2>
+    <div class="settings-body limits">
+      <p>cbzLite is the cbzLab editor running as a web page: nothing to install, and your comics never leave
+        your computer. A web page is kept on a much shorter leash than an installed app, though, so a few
+        things only the <a href="https://github.com/fexofenadine/cbzLab/releases" target="_blank" rel="noopener">cbzLab desktop app</a> can do.</p>
+      <h3>Saving</h3>
+      <p>Chrome and Edge let a page write back to a file you opened, after asking you once. Firefox and Safari
+        don't, so there an edited book is saved as a download and the original is left as it was. The desktop
+        app always saves in place.</p>
+      <h3>CBR files</h3>
+      <p>CBR archives are RAR files, and browsers have no way to read or write RAR. The desktop app opens and
+        saves CBR, and can convert it to CBZ.</p>
+      <h3>Finding your files again</h3>
+      <p>A page only ever sees the files you pick or drop, never their location on disk. So there's no Open
+        Recent, no Open Containing Folder, and Guess from Filename only knows a book's folder if you opened it
+        with Open Folder. Reopen Last Closed File works for files closed since the page was loaded.</p>
+      <h3>ComicVine lookups</h3>
+      <p>cbzLite makes no network requests at all, so it can't look books up on ComicVine. The desktop app
+        does, with your own ComicVine API key.</p>
+      <h3>Combine Archives and Trim Branding Footers</h3>
+      <p>These are the heavy jobs: reading several whole books and writing a new one, or decoding and
+        re-encoding page images. They're left to the desktop app so this page stays quick and light.</p>
+      <h3>Settings and safety nets</h3>
+      <p>Preferences are kept in this browser only, so clearing its site data resets them, and there's no
+        settings backup. The desktop app also autosaves unsaved edits and offers them back after a crash;
+        here, edits live in the page until you save, and the browser warns you before you leave with
+        unsaved changes.</p>
+      <h3>Shortcuts</h3>
+      <p>Browsers keep Ctrl+W and Ctrl+Shift+T for their own tabs, so Close and Reopen Last Closed File are
+        menu-only here.</p>
+    </div>
+    <div class="dialog-buttons"><button class="button accent" value="ok" autofocus>OK</button></div>
+  </form>
+</dialog>
+
+<dialog class="dialog" id="confirmDialog">
+  <form method="dialog">
+    <h2 class="dialog-title"></h2>
+    <div class="dialog-body"></div>
+    <div class="dialog-buttons">
+      <button class="button" type="button" data-dialog-cancel>Cancel</button>
+      <button class="button accent" value="ok" autofocus>OK</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="dialog" id="findReplaceDialog">
+  <form method="dialog">
+    <h2 class="dialog-title">Find &amp; Replace</h2>
+    <div class="settings-body plain">
+      <p class="settings-note" id="frScope"></p>
+      <label class="setting">Field<select class="combobox wide" id="frField"></select></label>
+      <label class="setting">Find<input class="textbox wide" id="frFind" type="text" autocomplete="off" autofocus></label>
+      <label class="setting">Replace with<input class="textbox wide" id="frReplace" type="text" autocomplete="off"></label>
+      <label class="check"><input type="checkbox" id="frCase">Case sensitive</label>
+      <p class="settings-note" id="frStatus"></p>
+    </div>
+    <div class="dialog-buttons">
+      <button class="button" type="button" data-dialog-cancel>Cancel</button>
+      <button class="button accent" type="button" id="frReplaceButton">Replace…</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="dialog" id="copyFieldsDialog">
+  <form method="dialog">
+    <h2 class="dialog-title">Copy Fields to Selection</h2>
+    <p class="dialog-intro" id="copyFieldsIntro"></p>
+    <div class="check-list" id="copyFieldsList"></div>
+    <p class="settings-note">This overwrites the target files' current values for every field checked above. Number and Page Count start unchecked since they're usually issue-specific.</p>
+    <div class="dialog-buttons">
+      <button class="button" type="button" data-dialog-cancel>Cancel</button>
+      <button class="button accent" value="ok" autofocus>Copy</button>
+    </div>
+  </form>
+</dialog>
+
+<!--used when the browser won't let a page read the clipboard directly-->
+<dialog class="dialog wide" id="pasteDialog">
+  <form method="dialog">
+    <h2 class="dialog-title">Paste ComicInfo.xml</h2>
+    <p class="dialog-intro">This browser doesn't let pages read the clipboard from a menu. Paste the XML here with Ctrl+V:</p>
+    <textarea class="textbox paste-box" id="pasteBox" spellcheck="false" autofocus></textarea>
+    <div class="dialog-buttons">
+      <button class="button" type="button" data-dialog-cancel>Cancel</button>
+      <button class="button accent" value="ok">Paste</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="dialog" id="columnsDialog">
+  <form method="dialog">
+    <h2 class="dialog-title">Choose Columns</h2>
+    <p class="dialog-intro">Choose which fields appear as columns:</p>
+    <div class="check-list" id="columnsList"></div>
+    <div class="dialog-buttons">
+      <button class="button" type="button" data-dialog-cancel>Cancel</button>
+      <button class="button accent" value="ok" autofocus>Apply</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="dialog" id="toolbarDialog">
+  <form method="dialog">
+    <h2 class="dialog-title">Customize Toolbar</h2>
+    <p class="dialog-intro">Check the buttons you want on the toolbar, and use the arrows to reorder them.</p>
+    <div class="check-list" id="toolbarList"></div>
+    <div class="dialog-buttons spread">
+      <button class="button" type="button" id="toolbarReset">Reset to Default</button>
+      <span>
+        <button class="button" type="button" data-dialog-cancel>Cancel</button>
+        <button class="button accent" value="ok" autofocus>Apply</button>
+      </span>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="dialog wide" id="settingsDialog">
+  <form method="dialog">
+    <h2 class="dialog-title">Settings</h2>
+    <div class="settings-body">
+      <label class="setting">Theme<select class="combobox" id="setTheme"></select></label>
+      <label class="setting">Editor font size<input class="textbox narrow" id="setFontSize" type="number" min="10" max="28" step="1"></label>
+      <label class="setting">Editor font<select class="combobox" id="setFontFamily"></select></label>
+      <label class="setting">Cover image source
+        <select class="combobox" id="setCoverSource"><option value="first">First page</option><option value="last">Last page</option></select>
+      </label>
+      <label class="check"><input type="checkbox" id="setFillWidth">Let fields fill the available editor width</label>
+      <label class="check"><input type="checkbox" id="setRememberTab">Remember the last active tab between sessions</label>
+      <label class="check"><input type="checkbox" id="setCompact">Compact spacing (fits more on screen)</label>
+      <label class="check"><input type="checkbox" id="setShowAll">Show all fields by default</label>
+      <label class="check"><input type="checkbox" id="setShowExtra">Show extra fields by default</label>
+      <label class="check"><input type="checkbox" id="setAutoPage">Auto-detect page count on open</label>
+      <label class="check"><input type="checkbox" id="setAutoSelect">Select the first file automatically after opening</label>
+      <label class="check"><input type="checkbox" id="setClearFilter">Clear the file filter when new files are opened</label>
+      <label class="setting">Live field validation
+        <select class="combobox" id="setLiveValidation">
+          <option value="keystroke">As you type</option>
+          <option value="blur">When you leave the field</option>
+          <option value="off">Off</option>
+        </select>
+      </label>
+
+      <div class="settings-section">DESKTOP APP ONLY</div>
+      <p class="settings-note">These settings exist in the cbzLab desktop app but can't work in a browser:</p>
+      <ul class="settings-desktop">
+        <li><b>Default save format, RAR write tool</b> - browsers can't read or write RAR, so cbzLite always saves CBZ.</li>
+        <li><b>Confirm before batch save</b> - it picks a format per file, and there's only one here.</li>
+        <li><b>Max recent files</b> - a page can't reopen a file by its path, so there's no Open Recent.</li>
+        <li><b>Online lookup (ComicVine)</b> - cbzLite makes no network requests at all.</li>
+        <li><b>Updates, config/themes/logs folders, settings backup</b> - this page updates itself when reloaded, and keeps its settings in your browser rather than a folder.</li>
+      </ul>
+      <p class="settings-note"><a href="https://github.com/fexofenadine/cbzLab/releases" target="_blank" rel="noopener">Get the cbzLab desktop app</a></p>
+    </div>
+    <div class="dialog-buttons spread">
+      <button class="button" type="button" id="settingsReset">Reset to Defaults…</button>
+      <span>
+        <button class="button" type="button" data-dialog-cancel>Cancel</button>
+        <button class="button accent" value="ok">Save</button>
+      </span>
+    </div>
+  </form>
+</dialog>
+
+<!--value picker and right-click menus, positioned next to whatever opened them-->
+<div class="popup" id="pickerPopup" role="listbox" hidden></div>
+<div class="popup" id="contextMenu" role="menu" hidden></div>
+
+<input type="file" id="fileInput" multiple accept=".cbz,.zip,.cbr,.rar" hidden>
+<!--folder fallback for browsers without showDirectoryPicker-->
+<input type="file" id="folderInput" webkitdirectory multiple hidden>
+
+<script id="cbz-schema" type="application/json"></script>
+<script id="cbz-themes" type="application/json"></script>
+<script src="js/zip.js"></script>
+<script src="js/comicinfo.js"></script>
+<script src="js/schema.js"></script>
+<script src="js/validation.js"></script>
+<script src="js/datefield.js"></script>
+<script src="js/filenameguess.js"></script>
+<script src="js/summaryheader.js"></script>
+<script src="js/archive.js"></script>
+<script src="js/model.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

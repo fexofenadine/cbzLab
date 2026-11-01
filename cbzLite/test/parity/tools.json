@@ -1,0 +1,31 @@
+{
+  "about": "FilenameGuessService.FromPath and SummaryHeaderParser.TryParse cases, run by cbzLab.Tests (ParityFixtureTests) and cbzLite/test/parity.test.mjs. Paths use / between folders.",
+  "guess": [
+    { "path": "Comics/Saga/Saga_012 (2014) (Digital).cbz", "series": "Saga", "number": "12", "volume": null, "year": "2014", "count": null },
+    { "path": "Watchmen 01 (of 12) (1986).cbz", "series": "Watchmen", "number": "1", "volume": null, "year": "1986", "count": "12" },
+    { "path": "Batman Vol. 2 #045.cbz", "series": "Batman", "number": "45", "volume": "2", "year": null, "count": null },
+    { "path": "V for Vendetta 03.cbz", "series": "V for Vendetta", "number": "3", "volume": null, "year": null, "count": null },
+    { "path": "Saga/issue_01.cbz", "series": "Saga", "number": "1", "volume": null, "year": null, "count": null },
+    { "path": "issue_01.cbz", "series": null, "number": "1", "volume": null, "year": null, "count": null },
+    { "path": "2000 AD 1234.cbz", "series": "2000 AD", "number": "1234", "volume": null, "year": null, "count": null },
+    { "path": "Spawn [c2c] {scan}.cbz", "series": "Spawn", "number": null, "volume": null, "year": null, "count": null },
+    { "path": "Pokémon_Adventures_007.cbz", "series": "Pokémon Adventures", "number": "7", "volume": null, "year": null, "count": null },
+    { "path": "Café12.cbz", "series": "Café12", "number": null, "volume": null, "year": null, "count": null },
+    { "path": "Annual 2019 (2019).cbz", "series": "Annual", "number": "2019", "volume": null, "year": "2019", "count": null },
+    { "path": "Volume 3.cbz", "series": null, "number": null, "volume": "3", "year": null, "count": null },
+    { "path": "X-Men - Legacy #300 (2014).cbz", "series": "X-Men - Legacy", "number": "300", "volume": null, "year": "2014", "count": null },
+    { "path": "Book 000.cbz", "series": null, "number": "0", "volume": null, "year": null, "count": null }
+  ],
+  "summaryHeader": [
+    { "summary": "DC Comics - 1995\n\nBatman fights crime.", "publisher": "DC Comics", "year": "1995", "rest": "Batman fights crime." },
+    { "summary": "Marvel \u2013 2001", "publisher": "Marvel", "year": "2001", "rest": "" },
+    { "summary": "Image Comics \u2014 2012\r\n\r\nText", "publisher": "Image Comics", "year": "2012", "rest": "Text" },
+    { "summary": "DC Comics-1995", "publisher": "DC Comics", "year": "1995", "rest": "" },
+    { "summary": "  DC Comics - 1995  \n\n  Text  ", "publisher": "DC Comics", "year": "1995", "rest": "Text" },
+    { "summary": "Story set in Paris - 1920\nThe war is over.", "publisher": null },
+    { "summary": "DC Comics - 95", "publisher": null },
+    { "summary": "- 1995", "publisher": null },
+    { "summary": "", "publisher": null },
+    { "summary": "   ", "publisher": null }
+  ]
+}

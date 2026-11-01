@@ -1,0 +1,31 @@
+{
+  "about": "ValidationService.CheckField cases, run by cbzLab.Tests (ParityFixtureTests) and cbzLite/test/parity.test.mjs against the real schema.json. Expected text is what the desktop shows under en-GB.",
+  "cases": [
+    { "tag": "Title", "value": "anything at all", "problem": null },
+    { "tag": "PageCount", "value": "", "problem": null },
+    { "tag": "PageCount", "value": "   ", "problem": null },
+    { "tag": "PageCount", "value": " 24 ", "problem": null },
+    { "tag": "PageCount", "value": "+05", "problem": null },
+    { "tag": "PageCount", "value": "abc", "problem": "'abc' is not a whole number.", "suggestion": "Enter total number of pages (e.g. 24, 48)." },
+    { "tag": "PageCount", "value": "-1", "problem": "-1 is outside the allowed range.", "suggestion": "Enter 0 or more." },
+    { "tag": "Year", "value": "2024", "problem": null },
+    { "tag": "Year", "value": "999", "problem": "999 is outside the allowed range.", "suggestion": "Enter a value from 1000 to 9999." },
+    { "tag": "Year", "value": "0999", "problem": "999 is outside the allowed range.", "suggestion": "Enter a value from 1000 to 9999." },
+    { "tag": "Month", "value": "13", "problem": "13 is outside the allowed range.", "suggestion": "Enter a value from 1 to 12." },
+    { "tag": "Month", "value": "3.5", "problem": "'3.5' is not a whole number.", "suggestion": "Enter publication month, 1-12 (e.g. 3 for March)." },
+    { "tag": "Day", "value": "1,000", "problem": "'1,000' is not a whole number.", "suggestion": "Enter publication day of the month, 1-31 (e.g. 15)." },
+    { "tag": "Volume", "value": "0x10", "problem": "'0x10' is not a whole number.", "suggestion": "Enter volume number (e.g. 1, 2, 3)." },
+    { "tag": "Count", "value": "99999999999999999999", "problem": "'99999999999999999999' is not a whole number.", "suggestion": "Enter total number of issues in the series (e.g. 6, 12)." },
+    { "tag": "Count", "value": "9223372036854775807", "problem": "9223372036854775807 is outside the allowed range.", "suggestion": "Enter 0 or more." },
+    { "tag": "CommunityRating", "value": "4.5", "problem": null },
+    { "tag": "CommunityRating", "value": " 5 ", "problem": null },
+    { "tag": "CommunityRating", "value": ".5", "problem": null },
+    { "tag": "CommunityRating", "value": "6", "problem": "6 is outside the allowed range.", "suggestion": "Enter a value between 0 and 5." },
+    { "tag": "CommunityRating", "value": "-0.5", "problem": "-0.5 is outside the allowed range.", "suggestion": "Enter a value between 0 and 5." },
+    { "tag": "CommunityRating", "value": "1e3", "problem": "1000 is outside the allowed range.", "suggestion": "Enter a value between 0 and 5." },
+    { "tag": "CommunityRating", "value": "1e20", "problem": "1E+20 is outside the allowed range.", "suggestion": "Enter a value between 0 and 5." },
+    { "tag": "CommunityRating", "value": "abc", "problem": "'abc' is not a number.", "suggestion": "Enter a decimal number, e.g. 4.5." },
+    { "tag": "CommunityRating", "value": "1,5", "problem": "'1,5' is not a number.", "suggestion": "Enter a decimal number, e.g. 4.5." },
+    { "tag": "CommunityRating", "value": "0x1", "problem": "'0x1' is not a number.", "suggestion": "Enter a decimal number, e.g. 4.5." }
+  ]
+}

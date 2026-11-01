@@ -6,6 +6,9 @@
 
 **[cbzlab website →](https://fexofenadine.github.io/cbzLab/)** - screenshots, docs and the latest build, all in one place.
 
+**[cbzLite →](https://fexofenadine.github.io/cbzLab/lite/)** - the same editor in your browser, for quick CBZ
+edits without installing anything. See [`cbzLite/`](cbzLite/) for what it can and can't do.
+
 A metadata editor for comic book archives. cbzLab opens CBZ and CBR files, lets you
 view and edit the `ComicInfo.xml` metadata inside them (single files or whole
 batches at once), and writes changes back safely without ever touching the page
