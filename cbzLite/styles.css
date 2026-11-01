@@ -81,6 +81,8 @@ button, input, select, textarea {
     display: grid;
     grid-template-rows: auto auto 1fr auto;
     height: 100vh;
+    /*the visible height on phones, which 100vh overstates by the browser's own toolbars*/
+    height: 100dvh;
     position: relative;
 }
 
@@ -504,6 +506,23 @@ textarea.textbox {
     position: relative;
 }
 
+/*explicit rows, so hiding the header on phones can't shift the field list out of the 1fr row*/
+.editor-header {
+    grid-row: 1;
+}
+
+.editor > .search {
+    grid-row: 2;
+}
+
+.editor > .tabs {
+    grid-row: 3;
+}
+
+.editor > .field-scroll {
+    grid-row: 4;
+}
+
 .editor-header {
     display: flex;
     gap: 12px;
@@ -543,11 +562,14 @@ textarea.textbox {
     height: 32px;
 }
 
+/*one row that scrolls sideways when it doesn't fit, rather than wrapping or clipping*/
 .tabs {
     display: flex;
     height: 44px;
     margin: 10px 16px 0;
     font-size: 14px;
+    overflow-x: auto;
+    scrollbar-width: none;
 }
 
 .tab {
@@ -558,6 +580,8 @@ textarea.textbox {
     color: var(--th-fg);
     opacity: 0.75;
     cursor: default;
+    white-space: nowrap;
+    flex: none;
 }
 
 .tab:hover {
@@ -1275,12 +1299,41 @@ label.setting:has(.wide) {
     scrollbar-width: thin;
 }
 
+/*phones and narrow windows: the file list stacks above the editor, sized to what it holds
+and capped, so the fields get most of the screen*/
 @media (max-width: 700px) {
     .workspace {
-        grid-template-columns: 1fr;
-        grid-template-rows: 40% 1fr;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto minmax(0, 1fr);
+    }
+    .sidebar {
+        max-height: 30dvh;
+    }
+    .file-list {
+        min-height: 0;
+    }
+    .batch-files {
+        max-height: 54px;
     }
     .splitter {
         display: none;
+    }
+    /*the highlighted row in the file list already shows the same name, subtitle and cover*/
+    .editor-header {
+        display: none;
+    }
+    .search {
+        margin-top: 6px;
+    }
+    .tabs {
+        height: 38px;
+        margin: 4px 8px 0;
+        font-size: 13px;
+    }
+    .tab {
+        padding: 0 8px;
+    }
+    .field-scroll {
+        padding: 8px 16px;
     }
 }

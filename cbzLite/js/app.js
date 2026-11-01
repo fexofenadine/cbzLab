@@ -2,7 +2,7 @@
 (function () {
     "use strict";
 
-    const VERSION = "0.5.0";
+    const VERSION = "0.5.1";
     const DESKTOP_URL = "https://github.com/fexofenadine/cbzLab/releases";
     const SITE_URL = "https://fexofenadine.github.io/cbzLab/lite/";
     const SETTINGS_KEY = "cbzlite.settings";

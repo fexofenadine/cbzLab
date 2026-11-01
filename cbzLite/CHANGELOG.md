@@ -3,6 +3,14 @@
 cbzLite is the browser edition of cbzLab. It has its own version line, separate from the
 desktop app's.
 
+## 0.5.1
+
+- Fixed: on phones and other narrow screens, the file list and editor header took most of the
+  screen, leaving little room for the fields being edited. The file list now takes only the space
+  its files need (at most a third of the screen, scrolling beyond that), the editor header that
+  repeated the selected file is hidden, the tabs stay on one line (scrolling sideways if they must), and the page fits the visible screen instead of running
+  under the browser's toolbars.
+
 ## 0.5.0
 
 Finishing touches: its own logo, an About box, and clear explanations of what needs the desktop app.
