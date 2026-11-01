@@ -47,12 +47,35 @@ port was done slice by slice.
 
 - Done: moved the solution to .NET 10 (release 2.2.0).
 - Done: installed the .NET Android workload, with JDK 17 and Android platform 36.
-- A throwaway Android head: an Avalonia app that starts on an emulator, loads `schema.json`, opens a
-  CBZ through the Android file picker and shows its Series. Proves the toolchain and the
-  stream-based file access before anything is restructured.
-- Check the Avalonia APIs this plan leans on but hasn't confirmed on Android: long-press raising
-  `ContextRequested`, the on-screen keyboard (`TopLevel.InputPane`), and width-based layout
-  switching.
+- Done (2026-11-01): a throwaway Avalonia Android app, run on an Android 15 emulator (`cbzlab-test`,
+  Pixel 6), checked everything this plan relies on:
+  - **Toolchain:** builds a signed APK; Avalonia.Android 12.1.4 starts and renders.
+  - **Shared code:** the desktop's own `ComicInfoXml.cs` and `schema.json`, used unchanged, read a
+    real book (Series and all 34 pages).
+  - **File access:** the Android file picker hands back a `content://` document, not a path. Its read
+    stream works (and seeks).
+  - **Saving in place works:** writing a book back over the opened document succeeded, read back
+    identical, and the file on the device was updated. Writing a *shorter* version was trimmed to
+    the new length, so a smaller archive won't leave the old tail behind - at least with the
+    Downloads provider. Other providers (SD cards, cloud drives) aren't tested yet and should be
+    before phase 3 relies on this.
+  - **Long press** raises `ContextRequested` (what the desktop's right-click menus already use) and
+    `Holding`.
+  - **On-screen keyboard:** `TopLevel.InputPane` reports Open with the area it covers, and Closed,
+    through its `StateChanged` event. Sampling its state once after a delay is unreliable; listen
+    to the event.
+  - **Rotation:** with the activity handling configuration changes itself, rotating keeps the app
+    and its state, and the width-based layout switches between stacked and side by side.
+  - **App icon:** the badge as an adaptive icon showed correctly in the launcher (see phase 4).
+- Findings to carry forward:
+  - Avalonia's Android activity is AppCompat-based, so it needs an AppCompat theme
+    (`Theme.AppCompat.NoActionBar`), not a plain Material one - the app crashes on start otherwise.
+  - Debug builds leave the app's code out of the APK for Visual Studio's fast deployment; an APK
+    installed by hand needs `-p:EmbedAssembliesIntoApk=true` or it crashes on start.
+  - The Android project's automatic namespace imports clash with Avalonia names (`Application`,
+    `Button`), so shared UI code needs aliases or those imports turned off.
+  - **Open question:** the first tap after a fresh launch was ignored, twice in a row. It may be an
+    emulator input quirk; check on a real phone before building around it.
 
 ### Phase 1 - shared core
 
@@ -77,8 +100,10 @@ port was done slice by slice.
 
 ### Phase 4 - Android head
 
-- `cbzLab.Android` project: app icon (an adaptive icon built from `branding/badge.png`), package
-  id, permissions, "open with" for `.cbz`/`.cbr` from file managers, and the activity set up so
+- `cbzLab.Android` project: the app icon is the same badge as the desktop's - an adaptive icon
+  built from `branding/badge-square.png` (the badge uncropped, so each launcher crops it to its own
+  shape), with the badge filling the visible middle and a blurred copy of it to the edges, generated
+  by `branding/apply_logos.py` alongside the other icons. Then the package id, permissions, "open with" for `.cbz`/`.cbr` from file managers, and the activity set up so
   rotation doesn't restart the app.
 - The Back button: closes an open dialog, else returns from the editor to the file list, else asks
   about unsaved edits before leaving.
