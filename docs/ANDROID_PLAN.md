@@ -94,6 +94,28 @@ port was done slice by slice.
 - Menu bar and toolbar become a top app bar with the most-used actions and a "⋮" overflow menu on
   narrow screens. The desktop keeps its menu bar.
 
+### Requirements for every screen (checked in phases 2, 5 and 6)
+
+Every screen, menu and dialog has to work in both portrait and landscape, on a phone and a tablet,
+and keep working when the device is rotated while it's open:
+
+- Nothing runs off the screen. A menu or list too long for the space scrolls; a menu or popup that
+  would pass an edge moves or opens the other way; a submenu with no room beside its item opens
+  inline beneath it.
+- Every dialog fits the screen in both orientations: its content scrolls when it doesn't fit, and its
+  buttons stay visible and reachable without scrolling the whole dialog away. Decorative areas (the
+  About box's logo) shrink on short screens rather than pushing the buttons off.
+- With a phone on its side (wide but short), the editor gives the fields most of the height: no
+  large cover header, compact search and tabs.
+- Rotating keeps the selection, the current tab, any half-typed text and any open dialog's contents.
+  Anything positioned for the old size (a popup, a menu) closes or re-places itself.
+- The on-screen keyboard never covers the field being typed into, in either orientation.
+
+These are checked the way cbzLite's were for 0.5.2: an automated pass that opens every menu, submenu,
+popup and dialog at a phone portrait size (360x780) and landscape size (780x360) and checks each is
+on screen, visible, scrollable where it overflows, and has a reachable button - plus a manual pass
+on a real phone, rotating with each one open.
+
 ### Phase 6 - touch
 
 - Long press replaces right-click (field menu, file menu).
