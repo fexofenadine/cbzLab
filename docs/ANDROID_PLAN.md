@@ -293,7 +293,7 @@ plan; this records what actually happened.
 - **Grid view cards.** On a narrow screen grid view is still the desktop table, scrolling sideways.
 - **Date picker and field info buttons.** The Publication Date is typed, as on the desktop; there is
   no system date picker, and tooltips have no touch replacement.
-- **Open Folder.** Not offered on Android; folder access through the document tree would be needed.
+- **Open Folder.** Added in 2.4.2 through the document tree (`ACTION_OPEN_DOCUMENT_TREE`), with the grant kept across restarts.
 - **The signing secrets.** Writing them to the repository's Actions secrets was not done as part of
   this work; see "Release procedure" below.
 
@@ -304,7 +304,8 @@ plan; this records what actually happened.
 2. Add four repository secrets: `ANDROID_KEYSTORE_BASE64` (the keystore, base64),
    `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_PASSWORD` and `ANDROID_KEY_ALIAS` (`cbzlab`).
 3. A version bump pushed to master tags and releases as before; the `android` job then builds,
-   signs and attaches `cbzLab-<version>-android.apk`. For a version already released, re-run the
+   signs and attaches `cbzLab-<version>-android-arm64.apk` (arm64 only, about 19 MB) and
+   `cbzLab-<version>-android.apk` (universal, about 48 MB). For a version already released, re-run the
    workflow for its tag.
 
 ## Testing

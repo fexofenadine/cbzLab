@@ -52,6 +52,17 @@ public sealed class AndroidArchiveStorage : IArchiveStorage
     {
         if (IsFile(id))
             return File.Exists(id);
+        //asking for the row is enough, and unlike opening it doesn't start a cloud provider downloading
+        try
+        {
+            using var cursor = _resolver.Query(AndroidUri.Parse(id)!, new[] { IOpenableColumns.DisplayName }, null, null, null);
+            if (cursor is not null)
+                return cursor.MoveToFirst();
+        }
+        catch
+        {
+            //no permission, or a provider that won't answer a query: try opening it instead
+        }
         try
         {
             using var stream = OpenDescriptor(id, "r", FileAccess.Read);
@@ -145,8 +156,7 @@ public sealed class AndroidArchiveStorage : IArchiveStorage
 
         try
         {
-            //"rwt" truncates, so a smaller archive doesn't leave the old tail behind
-            using (var target = OpenDescriptor(id, "rwt", FileAccess.Write))
+            using (var target = OpenForWrite(id))
             using (var source = File.OpenRead(tempFile))
             {
                 source.CopyTo(target);
@@ -161,7 +171,7 @@ public sealed class AndroidArchiveStorage : IArchiveStorage
         {
             try
             {
-                using var target = OpenDescriptor(id, "rwt", FileAccess.Write);
+                using var target = OpenForWrite(id);
                 using var original = File.OpenRead(backup);
                 original.CopyTo(target);
                 target.Flush(true);
@@ -185,9 +195,28 @@ public sealed class AndroidArchiveStorage : IArchiveStorage
         return Convert.ToHexString(SHA256.HashData(stream));
     }
 
+    //"rwt" is asked for first, but not every provider offers it (cloud drives often take only "w" or
+    //"wt"); a plain "w" that doesn't truncate would leave the old tail behind, which the read-back
+    //check in Replace catches
+    private FileStream OpenForWrite(string id)
+    {
+        foreach (var mode in new[] { "rwt", "wt" })
+        {
+            try
+            {
+                return OpenDescriptor(id, mode, FileAccess.Write);
+            }
+            catch (Exception ex) when (ex is not FileNotFoundException)
+            {
+                //try the next mode
+            }
+        }
+        return OpenDescriptor(id, "w", FileAccess.Write);
+    }
+
     private FileStream OpenDescriptor(string id, string mode, FileAccess access)
     {
-        var pfd = _resolver.OpenFileDescriptor(AndroidUri.Parse(id)!, mode)
+        using var pfd = _resolver.OpenFileDescriptor(AndroidUri.Parse(id)!, mode)
             ?? throw new FileNotFoundException("the document couldn't be opened", id);
         //the stream owns the descriptor from here
         var handle = new SafeFileHandle((IntPtr)pfd.DetachFd(), ownsHandle: true);

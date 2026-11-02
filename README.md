@@ -48,8 +48,8 @@ rebuilt automatically from these same files whenever they change:
   the editor, batch editing, grid view, saving, ComicVine lookup, settings and themes.
   The workflow is the same in the Avalonia version; menu/dialog wording matches
   unless noted.
-- **Android** - the same editor for phones and tablets; install the `-android.apk` from the
-  releases page. The [user guide](https://fexofenadine.github.io/cbzLab/guide.html) has a section on
+- **Android** - the same editor for phones and tablets; install the `-android-arm64.apk` from the
+  releases page (or the larger `-android.apk` on an older 32-bit phone). The [user guide](https://fexofenadine.github.io/cbzLab/guide.html) has a section on
   how it differs from the desktop app.
 - **[Changelog](https://fexofenadine.github.io/cbzLab/changelog.html)** - version
   history for the current Avalonia app, plus the archived WinUI version's history

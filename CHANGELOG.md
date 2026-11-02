@@ -10,6 +10,33 @@
 
 ## cbzLab (Avalonia)
 
+### 2.4.2 - 2026-11-02
+
+- Android: a smaller download. `cbzLab-2.4.2-android-arm64.apk` (about 19 MB, down from 48 MB) suits
+  nearly every phone; the universal `cbzLab-2.4.2-android.apk` is still there for older 32-bit
+  phones and x86 devices. Either installs over the other.
+- Android: **File → Open Folder…** opens every book in a folder and its subfolders, and **Open
+  Folder with Another File Manager…** does the same through any app that can pick a folder. The
+  permission Android asks for lasts across restarts.
+- Android: selecting several books is now visible. A **Select** button above the list starts it
+  (long-press still works), **Cancel** ends it, and grid view has a tick box at the start of each
+  row with an **Edit N books** button, where before only one book could be picked there.
+- Android: a book opened from grid view has a **‹ Grid** button (and Back) to return to the grid.
+  Before, there was no way back, because the editor didn't count as opened. Grid View is also in
+  the View menu now, since the toolbar is hidden on short screens.
+- Android: fixed rotating the phone while typing, which could leave half the screen or more black.
+  The space kept for the keyboard was worked out once and not again after a rotation. With the phone
+  on its side and the keyboard up, the menus, tabs and list now step aside so the field being
+  typed in stays in view.
+- Android: saving to a provider that won't open a document for "read, write and truncate" (some
+  cloud drives) now falls back to plain write modes instead of failing, with the read-back check
+  still guarding against a stale tail.
+- **Save** shows the same unsaved dot as Save All while the book(s) you're editing have unsaved
+  changes.
+- An unexpected error in a menu or button action is now shown and logged, with unsaved edits
+  snapshotted for recovery, instead of closing the app.
+- Desktop: resizing the window no longer resets the width you dragged the file list to.
+
 ### 2.4.1 - 2026-11-02
 
 - Android: **File → Open with Another File Manager…** opens books through any app that can hand over

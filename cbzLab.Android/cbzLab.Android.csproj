@@ -22,9 +22,12 @@
   </PropertyGroup>
 
   <!--release builds: one universal apk for the three abis phones ship (the debug build's emulator needs
-      only x64). signing comes from the command line (see the release workflow), never from this file-->
+      only x64). signing comes from the command line (see the release workflow), never from this file.
+      -p:ApkAbis=android-arm64 builds a single-abi apk instead; RuntimeIdentifiers itself can't be passed
+      on the command line, since it would reach the plain net10.0 libraries this project references-->
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
-    <RuntimeIdentifiers>android-arm64;android-arm;android-x64</RuntimeIdentifiers>
+    <ApkAbis Condition="'$(ApkAbis)' == ''">android-arm64;android-arm;android-x64</ApkAbis>
+    <RuntimeIdentifiers>$(ApkAbis)</RuntimeIdentifiers>
   </PropertyGroup>
 
   <!--one version for both apps: the desktop project's Version property is the only place it's written, so

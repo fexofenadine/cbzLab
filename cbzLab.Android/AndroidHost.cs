@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Android.Content;
 using Avalonia.Controls;
@@ -30,7 +31,7 @@ public static class AndroidHost
     public static MainView CreateView()
     {
         Prepare(global::Android.App.Application.Context);
-        var view = new MainView { TouchMode = true, ExternalOpenPicker = PickFromAnyAppAsync };
+        var view = new MainView { TouchMode = true, ExternalOpenPicker = PickFromAnyAppAsync, FolderPicker = PickFolderAsync };
         View = view;
         view.QuitRequested += async (_, _) => await LeaveAsync(view);
         view.Loaded += async (_, _) =>
@@ -41,12 +42,34 @@ public static class AndroidHost
 
             //the keyboard: edge-to-edge windows ignore adjustResize, so the view is lifted by the
             //height the keyboard covers, which keeps the field being typed into in sight
-            if (TopLevel.GetTopLevel(view)?.InputPane is { } pane)
-                pane.StateChanged += (_, e) =>
-                    view.Margin = new Avalonia.Thickness(0, 0, 0,
-                        e.NewState == Avalonia.Controls.Platform.InputPaneState.Open ? pane.OccludedRect.Height : 0);
+            if (TopLevel.GetTopLevel(view) is { InputPane: { } pane } window)
+            {
+                //read from android's own insets on every layout pass: the input pane's rect went stale
+                //across a rotation, lifting the view too far and leaving a black band (or most of a
+                //landscape screen black)
+                void Lift()
+                {
+                    //the input pane's own figure is only a fallback, so it is capped at half the screen
+                    var covered = KeyboardHeight(window.RenderScaling)
+                                  ?? Math.Min(pane.State == Avalonia.Controls.Platform.InputPaneState.Open ? pane.OccludedRect.Height : 0,
+                                              window.Bounds.Height / 2);
+                    view.SetRoomAboveKeyboard(covered > 0 ? window.Bounds.Height - covered : double.PositiveInfinity);
+                    if (view.Margin.Bottom == covered)
+                        return;
+                    view.Margin = new Avalonia.Thickness(0, 0, 0, covered);
+                    //what's left can be a thin strip (a phone on its side), so the field being typed in is
+                    //scrolled back into it once the layout has caught up
+                    if (covered > 0)
+                        Avalonia.Threading.Dispatcher.UIThread.Post(
+                            () => (window.FocusManager?.GetFocusedElement() as Avalonia.Controls.Control)?.BringIntoView(),
+                            Avalonia.Threading.DispatcherPriority.Background);
+                }
+                pane.StateChanged += (_, _) => Lift();
+                window.SizeChanged += (_, _) => Lift();
+                if (Activity?.Window?.DecorView.ViewTreeObserver is { } observer)
+                    observer.GlobalLayout += (_, _) => Lift();
+            }
 
-            //the back button: an open dialog
             //the back button: an open dialog, then the editor back to the list, then leaving
             if (TopLevel.GetTopLevel(view) is { } top)
                 top.BackRequested += (_, e) =>
@@ -59,6 +82,17 @@ public static class AndroidHost
             await view.OnShownAsync(PendingBooks(Activity?.Intent));
         };
         return view;
+    }
+
+    //how far the keyboard reaches above the navigation bar, in view units; null before android 11,
+    //where the insets don't name the keyboard and the input pane's own figure is used instead
+    private static double? KeyboardHeight(double scaling)
+    {
+        if (!OperatingSystem.IsAndroidVersionAtLeast(30) || Activity?.Window?.DecorView.RootWindowInsets is not { } insets)
+            return null;
+        var ime = insets.GetInsets(global::Android.Views.WindowInsets.Type.Ime()).Bottom;
+        var bars = insets.GetInsets(global::Android.Views.WindowInsets.Type.SystemBars()).Bottom;
+        return Math.Max(0, ime - bars) / scaling;
     }
 
     //---------------------------------------------------------------- picking from any app
@@ -90,9 +124,133 @@ public static class AndroidHost
         return _pick.Task;
     }
 
+    //---------------------------------------------------------------- picking a folder
+
+    private const int FolderRequest = 4202;
+    private static TaskCompletionSource<IReadOnlyList<string>>? _folderPick;
+
+    //a folder is a tree grant, not a path: the user picks one (the system's picker, or any app that
+    //offers the same, such as a file manager with network drives) and every archive under it is listed
+    //as a document uri. the grant is kept, so the books can be reopened and saved after a restart
+    private static Task<IReadOnlyList<string>> PickFolderAsync(bool anyApp)
+    {
+        var activity = Activity ?? throw new InvalidOperationException("no activity to ask from");
+        _folderPick?.TrySetResult(Array.Empty<string>());
+        _folderPick = new TaskCompletionSource<IReadOnlyList<string>>();
+
+        var intent = new Intent(Intent.ActionOpenDocumentTree);
+        intent.AddFlags(ActivityFlags.GrantReadUriPermission | ActivityFlags.GrantWriteUriPermission
+                        | ActivityFlags.GrantPersistableUriPermission | ActivityFlags.GrantPrefixUriPermission);
+        activity.StartActivityForResult(anyApp ? Intent.CreateChooser(intent, "Open a folder with") : intent, FolderRequest);
+        return _folderPick.Task;
+    }
+
+    private static async void FinishFolderPick(global::Android.Net.Uri? tree)
+    {
+        var source = _folderPick;
+        _folderPick = null;
+        if (source is null)
+            return;
+        if (tree is null)
+        {
+            source.TrySetResult(Array.Empty<string>());
+            return;
+        }
+        try
+        {
+            var resolver = global::Android.App.Application.Context.ContentResolver!;
+            try
+            {
+                resolver.TakePersistableUriPermission(tree,
+                    ActivityFlags.GrantReadUriPermission | ActivityFlags.GrantWriteUriPermission);
+            }
+            catch
+            {
+                //read-only grant, or a provider that doesn't persist: still good for this session
+                try { resolver.TakePersistableUriPermission(tree, ActivityFlags.GrantReadUriPermission); } catch { }
+            }
+            source.TrySetResult(await Task.Run(() => ArchivesUnder(resolver, tree)));
+        }
+        catch (System.Exception ex)
+        {
+            source.TrySetException(ex);
+        }
+    }
+
+    //walks the tree's folders, collecting every cbz/cbr as a document uri, in name order
+    private static List<string> ArchivesUnder(ContentResolver resolver, global::Android.Net.Uri tree)
+    {
+        var found = new List<(string Name, string Id)>();
+        var pending = new Stack<string>();
+        pending.Push(global::Android.Provider.DocumentsContract.GetTreeDocumentId(tree)!);
+        while (pending.Count > 0)
+        {
+            var parent = pending.Pop();
+            var children = global::Android.Provider.DocumentsContract.BuildChildDocumentsUriUsingTree(tree, parent);
+            using var cursor = resolver.Query(children, new[]
+            {
+                global::Android.Provider.DocumentsContract.Document.ColumnDocumentId,
+                global::Android.Provider.DocumentsContract.Document.ColumnDisplayName,
+                global::Android.Provider.DocumentsContract.Document.ColumnMimeType,
+            }, null, null, null);
+            if (cursor is null)
+                continue;
+            while (cursor.MoveToNext())
+            {
+                var docId = cursor.GetString(0);
+                var name = cursor.GetString(1) ?? "";
+                var mime = cursor.GetString(2);
+                if (docId is null)
+                    continue;
+                if (mime == global::Android.Provider.DocumentsContract.Document.MimeTypeDir)
+                    pending.Push(docId);
+                else if (ArchiveService.IsSupportedArchive(name))
+                    found.Add((name, global::Android.Provider.DocumentsContract.BuildDocumentUriUsingTree(tree, docId)!.ToString()!));
+            }
+        }
+        found.Sort((a, b) => NaturalCompare(a.Name, b.Name));
+        return found.Select(f => f.Id).ToList();
+    }
+
+    //digit runs compare as numbers, so "issue 2" comes before "issue 10"
+    private static int NaturalCompare(string a, string b)
+    {
+        int i = 0, j = 0;
+        while (i < a.Length && j < b.Length)
+        {
+            if (char.IsDigit(a[i]) && char.IsDigit(b[j]))
+            {
+                int si = i, sj = j;
+                while (i < a.Length && char.IsDigit(a[i])) i++;
+                while (j < b.Length && char.IsDigit(b[j])) j++;
+                var na = a[si..i].TrimStart('0');
+                var nb = b[sj..j].TrimStart('0');
+                if (na.Length != nb.Length)
+                    return na.Length - nb.Length;
+                var c = string.CompareOrdinal(na, nb);
+                if (c != 0)
+                    return c;
+            }
+            else
+            {
+                var c = char.ToLowerInvariant(a[i]).CompareTo(char.ToLowerInvariant(b[j]));
+                if (c != 0)
+                    return c;
+                i++;
+                j++;
+            }
+        }
+        return (a.Length - i) - (b.Length - j);
+    }
+
     //called by the activity for every result; true if it was ours
     public static bool OnActivityResult(int requestCode, global::Android.App.Result resultCode, Intent? data)
     {
+        if (requestCode == FolderRequest)
+        {
+            FinishFolderPick(resultCode == global::Android.App.Result.Ok ? data?.Data : null);
+            return true;
+        }
         if (requestCode != PickRequest)
             return false;
 

@@ -592,10 +592,19 @@ public class MainViewModel : ViewModelBase
     //for the Save All toolbar badge's Visibility binding
     public bool HasDirtyFiles => DirtyCount > 0;
 
+    //for the Save toolbar button's dot: an edit to the book on screen, not just one somewhere in the list
+    private bool _selectionHasUnsaved;
+    public bool SelectionHasUnsaved
+    {
+        get => _selectionHasUnsaved;
+        private set => SetProperty(ref _selectionHasUnsaved, value);
+    }
+
     public void UpdateStatus()
     {
         var dirty = OpenFiles.Count(f => f.IsDirty);
         DirtyCount = dirty;
+        SelectionHasUnsaved = dirty > 0 && SelectedFiles.Any(f => f.IsDirty);
         var files = OpenFiles.Count == 1 ? "1 file open" : $"{OpenFiles.Count} files open";
         StatusText = dirty == 0 ? files : $"{files} · {dirty} unsaved";
     }

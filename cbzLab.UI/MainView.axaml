@@ -39,11 +39,12 @@
               DragDrop.DragLeave="OnDragLeave" DragDrop.Drop="OnDrop"
               KeyDown="OnRootGridKeyDown">
 
-            <Menu Grid.Row="0">
+            <Menu x:Name="MainMenu" Grid.Row="0">
                 <MenuItem Header="_File">
                     <MenuItem Header="Open…" Click="OnOpen" HotKey="Ctrl+O" />
                     <MenuItem x:Name="OpenFolderItem" Header="Open Folder…" Click="OnOpenFolder" HotKey="Ctrl+Shift+O" />
                     <MenuItem x:Name="OpenExternalItem" Header="Open with Another File Manager…" Click="OnOpenExternal" IsVisible="False" />
+                    <MenuItem x:Name="OpenFolderExternalItem" Header="Open Folder with Another File Manager…" Click="OnOpenFolderExternal" IsVisible="False" />
                     <!--populated via RecentMenu.Items in code, see BuildRecentMenu-->
                     <MenuItem x:Name="RecentMenu" Header="Open Recent" />
                     <Separator />
@@ -60,6 +61,9 @@
                     <MenuItem Header="Quit" Click="OnQuit" HotKey="Ctrl+Q" />
                 </MenuItem>
                 <MenuItem Header="_View">
+                    <MenuItem Header="Grid View" ToggleType="CheckBox"
+                              IsChecked="{Binding IsGridViewActive, Mode=OneWay}" Click="OnToggleGridView" />
+                    <Separator />
                     <!--one-way binding + explicit click: TwoWay CheckBox IsChecked didn't round-trip reliably-->
                     <MenuItem Header="Show All Fields" ToggleType="CheckBox"
                               IsChecked="{Binding ShowAllFields, Mode=OneWay}" Click="OnToggleShowAllFields" />
@@ -121,8 +125,13 @@
 
                 <!--ThListBg is a real, separate theme key from ThBg, not just a duplicate-->
                 <Grid x:Name="ListPane" Grid.Column="0" RowDefinitions="Auto,Auto,*,Auto,Auto" Background="{DynamicResource ThListBg}">
-                    <TextBlock Grid.Row="0" Text="OPEN FILES" FontSize="11" FontWeight="SemiBold"
-                               Opacity="0.6" Margin="4,8,4,4" />
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+                        <TextBlock Text="OPEN FILES" FontSize="11" FontWeight="SemiBold"
+                                   Opacity="0.6" Margin="4,8,4,4" VerticalAlignment="Center" />
+                        <!--touch only: the visible way into selecting several books (long press does the same)-->
+                        <Button x:Name="SelectModeButton" Grid.Column="1" Content="Select" IsVisible="False"
+                                Margin="0,4,4,0" Click="OnSelectModeButton" />
+                    </Grid>
 
                     <!--separate from the field-search box below, which only searches the currently open file(s)-->
                     <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Margin="4,0,4,6">
@@ -217,7 +226,7 @@
                     </Border>
 
                     <!--selection mode (touch): opens the editor for what's been picked-->
-                    <Button x:Name="EditSelectionButton" Grid.Row="4" IsVisible="False" Margin="8"
+                    <Button x:Name="EditSelectionButton" Grid.Row="4" Classes="accent" IsVisible="False" Margin="8"
                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                             Click="OnEditSelection" />
                 </Grid>
@@ -252,7 +261,7 @@
                     </Border>
 
                     <!--filters VisibleFields within the current file; distinct from FileFilterBox, which filters the sidebar list-->
-                    <Grid Grid.Row="1" ColumnDefinitions="Auto,*" Margin="16,8,16,0">
+                    <Grid x:Name="EditorSearchRow" Grid.Row="1" ColumnDefinitions="Auto,*" Margin="16,8,16,0">
                         <!--only on a narrow screen, where the editor replaces the file list instead of sitting beside it-->
                         <Button x:Name="BackToListButton" Grid.Column="0" Content="‹ Books" Height="32" Margin="0,0,8,0"
                                 IsVisible="False" Click="OnBackToList" />
@@ -299,7 +308,7 @@
             </Grid>
 
             <!--dirty-indicator/Size/Modified columns are fixed (see FixedGridColumnCount); the rest come from AppSettings.GridColumns, built in RebuildGridColumns-->
-            <DataGrid Grid.Row="2" x:Name="ComicsGrid"
+            <DataGrid Grid.Row="2" x:Name="ComicsGrid" SelectionChanged="OnGridSelectionChanged"
                       ItemsSource="{Binding DisplayedFiles}"
                       IsReadOnly="True"
                       AutoGenerateColumns="False"
@@ -308,6 +317,16 @@
                       ContextRequested="OnGridContextRequested"
                       Margin="16,10,16,16">
                 <DataGrid.Columns>
+                    <!--touch only: ticking a row is the stand-in for ctrl-click, which a finger doesn't have-->
+                    <DataGridTemplateColumn Header="" Width="56" CanUserSort="False" IsVisible="False">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate x:DataType="vm:ComicFileViewModel">
+                                <CheckBox HorizontalAlignment="Center" VerticalAlignment="Center" MinWidth="0"
+                                          IsChecked="{Binding $parent[DataGridRow].IsSelected, Mode=OneWay}"
+                                          Click="OnGridRowCheckClick" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
                     <DataGridTemplateColumn Header="" Width="32" CanUserSort="False">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate x:DataType="vm:ComicFileViewModel">
@@ -329,7 +348,11 @@
                 </DataGrid.ContextMenu>
             </DataGrid>
 
-            <Border Grid.Row="3" Background="{DynamicResource ThBg2}"
+            <!--touch only: opens the ticked books in the editor-->
+            <Button x:Name="GridEditButton" Grid.Row="2" Classes="accent" IsVisible="False" HorizontalAlignment="Right"
+                    VerticalAlignment="Bottom" Margin="0,0,28,28" Padding="20,0" Click="OnGridEditSelection" />
+
+            <Border x:Name="StatusBar" Grid.Row="3" Background="{DynamicResource ThBg2}"
                     BorderBrush="{DynamicResource ThSep}" BorderThickness="0,1,0,0">
                 <TextBlock Text="{Binding StatusText}" Margin="12,6" Opacity="0.7" />
             </Border>

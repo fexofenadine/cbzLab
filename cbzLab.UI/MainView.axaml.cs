@@ -59,7 +59,7 @@ public partial class MainView : UserControl
         InitializeComponent();
         Dialogs.Covered = RootGrid;
 
-        //a folder is a path the desktop can walk; android hands out documents, not folders
+        //a folder is a path the desktop can walk; android hands out documents, and its host sets FolderPicker
         if (OperatingSystem.IsAndroid())
             OpenFolderItem.IsVisible = OpenContainingItem.IsVisible = OpenContainingSeparator.IsVisible = false;
         SizeChanged += (_, _) => ApplyLayoutMode();
@@ -78,6 +78,26 @@ public partial class MainView : UserControl
         _comicVine = new ComicVineService(_settings, _comicVineCache, _log);
         _autosave = new AutosaveService(_settings, _log);
         _viewModel = new MainViewModel(_schema, _settings, _validation, _recentValues);
+
+        //a handler that throws would otherwise take the whole app down, edits since the last autosave
+        //with it: the error is logged and shown, unsaved edits are snapshotted, and the app carries on
+        Dispatcher.UIThread.UnhandledException += (_, e) =>
+        {
+            e.Handled = true;
+            _log.Error("Unhandled error", e.Exception);
+            try { SnapshotDirtyFiles(); } catch { }
+            _viewModel.StatusText = $"Something went wrong: {e.Exception.Message}";
+            if (!_showingCrash)
+            {
+                _showingCrash = true;
+                _ = ShowCrashAsync(e.Exception);
+            }
+        };
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            _log.Error("Unobserved task error", e.Exception);
+            e.SetObserved();
+        };
 
         _autosaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
         _autosaveTimer.Tick += (_, _) => SnapshotDirtyFiles();
@@ -112,6 +132,26 @@ public partial class MainView : UserControl
         //the light/dark variant is set on whatever hosts the view, so it waits until there is one
         AttachedToVisualTree += (_, _) => UpdateElementTheme();
         BuildThemeMenu();
+    }
+
+    //one at a time: an error raised while the dialog is up only goes to the log
+    private bool _showingCrash;
+
+    private async Task ShowCrashAsync(System.Exception ex)
+    {
+        try
+        {
+            await MessageDialog.ShowAsync(Owner, "Something went wrong",
+                $"{ex.Message}\n\nYour unsaved edits were kept. The details are in the log.");
+        }
+        catch
+        {
+            //no dialog host yet (very early in start-up); the log and status line still have it
+        }
+        finally
+        {
+            _showingCrash = false;
+        }
     }
 
     //---------------------------------------------------------------- host
@@ -150,10 +190,9 @@ public partial class MainView : UserControl
             ExitSelectMode(clear: true);
             return true;
         }
-        if (_narrow && _editorOpen)
+        if ((_narrow && _editorOpen) || _cameFromGrid)
         {
-            _editorOpen = false;
-            ApplyLayoutMode();
+            OnBackToList(null, new RoutedEventArgs());
             return true;
         }
         return false;
@@ -168,6 +207,8 @@ public partial class MainView : UserControl
     private const double CompactBelow = 480;
     private bool _narrow;
     private bool _editorOpen;
+    //the editor was reached from the grid, so back returns there rather than to the list
+    private bool _cameFromGrid;
 
     private void ApplyLayoutMode()
     {
@@ -185,26 +226,83 @@ public partial class MainView : UserControl
         if (!_viewModel.HasSelection)
             _editorOpen = false;
 
+        //typing with little room left: only the fields stay, so the one being typed in can be seen
+        var tight = _keyboardTight;
+        SetSplit(!_narrow && !tight);
         if (_narrow)
+        {
+            ListPane.IsVisible = !_editorOpen;
+            EditorPane.IsVisible = _editorOpen;
+        }
+        else
+        {
+            ListPane.IsVisible = true;
+            EditorPane.IsVisible = true;
+        }
+        PaneSplitter.IsVisible = !_narrow;
+        BackToListButton.IsVisible = (_narrow && _editorOpen) || _cameFromGrid;
+        BackToListButton.Content = _cameFromGrid ? "‹ Grid" : "‹ Books";
+
+        MainMenu.IsVisible = !tight;
+        StatusBar.IsVisible = !tight;
+        EditorSearchRow.IsVisible = !tight;
+        EditorTabs.MaxHeight = tight ? 0 : double.PositiveInfinity;
+        if (tight)
+        {
+            ToolbarBar.IsVisible = false;
+            ListPane.IsVisible = false;
+            PaneSplitter.IsVisible = false;
+            EditorPane.IsVisible = true;
+        }
+    }
+
+    //the list beside the editor, or one pane at a time. the columns are only rebuilt when that changes,
+    //so a width dragged with the splitter survives resizing the window, and comes back after a narrow spell
+    private bool? _split;
+    private GridLength _listWidth = new(260);
+
+    private void SetSplit(bool split)
+    {
+        if (_split == split)
+            return;
+        if (_split == true)
+            _listWidth = SplitGrid.ColumnDefinitions[0].Width;
+        _split = split;
+        if (split)
+        {
+            SplitGrid.ColumnDefinitions = new ColumnDefinitions
+            {
+                new ColumnDefinition(_listWidth),
+                new ColumnDefinition(GridLength.Auto),
+                new ColumnDefinition(1, GridUnitType.Star),
+            };
+            ListPane.SetValue(Grid.ColumnProperty, 0);
+            PaneSplitter.SetValue(Grid.ColumnProperty, 1);
+            EditorPane.SetValue(Grid.ColumnProperty, 2);
+        }
+        else
         {
             SplitGrid.ColumnDefinitions = new ColumnDefinitions("*");
             ListPane.SetValue(Grid.ColumnProperty, 0);
             EditorPane.SetValue(Grid.ColumnProperty, 0);
-            ListPane.IsVisible = !_editorOpen;
-            EditorPane.IsVisible = _editorOpen;
-            PaneSplitter.IsVisible = false;
         }
-        else
-        {
-            SplitGrid.ColumnDefinitions = new ColumnDefinitions("260,Auto,*");
-            ListPane.SetValue(Grid.ColumnProperty, 0);
-            PaneSplitter.SetValue(Grid.ColumnProperty, 1);
-            EditorPane.SetValue(Grid.ColumnProperty, 2);
-            ListPane.IsVisible = true;
-            PaneSplitter.IsVisible = true;
-            EditorPane.IsVisible = true;
-        }
-        BackToListButton.IsVisible = _narrow && _editorOpen;
+    }
+
+    //below this height left above the keyboard, the chrome around the field being typed in is set aside
+    private const double KeyboardTightBelow = 360;
+    private bool _keyboardTight;
+
+    //called by a host that moves the view above an on-screen keyboard, with the height left to it
+    //(infinity once the keyboard has closed). only a field in the editor counts: the list's own
+    //filter box must not hide the list it filters
+    public void SetRoomAboveKeyboard(double height)
+    {
+        var focused = TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement() as Visual;
+        var tight = height < KeyboardTightBelow && focused is not null && EditorPane.IsVisualAncestorOf(focused);
+        if (tight == _keyboardTight)
+            return;
+        _keyboardTight = tight;
+        ApplyLayoutMode();
     }
 
     //a tap on a book opens its editor on a narrow screen (selection alone doesn't, so opening files
@@ -222,16 +320,29 @@ public partial class MainView : UserControl
     private bool _selectMode;
     private bool _enteringSelectMode;
     private ComicFileViewModel? _selectModeFirst;
+    private bool _selectModeExplicit;
 
     //taps toggle books in and out of the selection; ctrl and shift-click have no touch equivalent
-    private void EnterSelectMode(ComicFileViewModel first)
+    private void OnSelectModeButton(object? sender, RoutedEventArgs e)
+    {
+        if (_selectMode)
+            ExitSelectMode(clear: true);
+        else
+            EnterSelectMode(null);
+    }
+
+    //first is null when started from the Select button: nothing is picked yet
+    private void EnterSelectMode(ComicFileViewModel? first)
     {
         _selectMode = true;
+        _selectModeExplicit = first is null;
+        SelectModeButton.Content = "Cancel";
         FileList.SelectionMode = SelectionMode.Multiple | SelectionMode.Toggle;
         //clearing passes through "nothing selected", which would otherwise end the mode just begun
         _enteringSelectMode = true;
         FileList.SelectedItems!.Clear();
-        FileList.SelectedItems.Add(first);
+        if (first is not null)
+            FileList.SelectedItems.Add(first);
         _enteringSelectMode = false;
         //lifting the finger after the long press arrives as a tap, which in toggle mode would deselect
         //the book just chosen; for a moment a deselect of that one book is put back
@@ -243,6 +354,9 @@ public partial class MainView : UserControl
     private void ExitSelectMode(bool clear)
     {
         _selectMode = false;
+        _selectModeExplicit = false;
+        SelectModeButton.Content = "Select";
+        EditSelectionButton.IsEnabled = true;
         FileList.SelectionMode = SelectionMode.Multiple;
         if (clear)
             FileList.SelectedItems!.Clear();
@@ -262,14 +376,20 @@ public partial class MainView : UserControl
             _enteringSelectMode = false;
             count = 1;
         }
-        if (count == 0)
+        if (count == 0 && !_selectModeExplicit)
         {
             ExitSelectMode(clear: false);
             return;
         }
-        EditSelectionButton.Content = count == 1 ? "Edit 1 book" : $"Edit {count} books";
+        EditSelectionButton.Content = count switch
+        {
+            0 => "Tap books to select them",
+            1 => "Edit 1 book",
+            _ => $"Edit {count} books",
+        };
+        EditSelectionButton.IsEnabled = count > 0;
         EditSelectionButton.IsVisible = true;
-        _viewModel.StatusText = "Tap books to add or remove them. Back when done.";
+        _viewModel.StatusText = "Tap books to add or remove them. Cancel when done.";
     }
 
     private void OnEditSelection(object? sender, RoutedEventArgs e)
@@ -281,12 +401,28 @@ public partial class MainView : UserControl
     private void OnBackToList(object? sender, RoutedEventArgs e)
     {
         _editorOpen = false;
+        if (_cameFromGrid)
+        {
+            _cameFromGrid = false;
+            _viewModel.IsGridViewActive = true;
+        }
         ApplyLayoutMode();
+        UpdateGridEditButton();
     }
 
     //set by a touch host (android): long-press starts selecting several books, fields get the number
     //keypad, and the desktop's hover and right-click habits are left out
-    public bool TouchMode { get; set; }
+    public bool TouchMode
+    {
+        get => _touchMode;
+        set
+        {
+            _touchMode = value;
+            SelectModeButton.IsVisible = value;
+            ComicsGrid.Columns[0].IsVisible = value;
+        }
+    }
+    private bool _touchMode;
 
     //set by a host that can hand over files from other apps (android's "choose any app" picker, which
     //lists file managers the system document picker doesn't): shows File > Open with Another File
@@ -301,6 +437,51 @@ public partial class MainView : UserControl
         }
     }
     private Func<Task<IReadOnlyList<string>>>? _externalOpenPicker;
+
+    //set by a host that has to pick folders its own way (android hands out folder grants, not paths):
+    //takes whether to offer every app that can pick a folder, returns the archive ids inside the one
+    //chosen, empty if cancelled. shows File > Open Folder, plus the other-file-manager version
+    public Func<bool, Task<IReadOnlyList<string>>>? FolderPicker
+    {
+        get => _folderPicker;
+        set
+        {
+            _folderPicker = value;
+            OpenFolderItem.IsVisible = value is not null;
+            OpenFolderExternalItem.IsVisible = value is not null;
+        }
+    }
+    private Func<bool, Task<IReadOnlyList<string>>>? _folderPicker;
+
+    private void OnOpenFolderExternal(object? sender, RoutedEventArgs e) => _ = OpenFolderWithHostAsync(true);
+
+    private async Task OpenFolderWithHostAsync(bool anyApp)
+    {
+        if (_folderPicker is null)
+            return;
+        try
+        {
+            _viewModel.StatusText = "Choose a folder...";
+            var picked = await _folderPicker(anyApp);
+            if (picked.Count == 0)
+            {
+                _viewModel.StatusText = "Ready";
+                return;
+            }
+            if (picked.Count >= LargeImportConfirmThreshold &&
+                !await ConfirmDialog.ShowAsync(Owner, "Open folder", $"Found {picked.Count} archives.\n\nOpen all of them?", "Open All"))
+            {
+                _viewModel.StatusText = "Ready";
+                return;
+            }
+            await OpenPathsAsync(picked.ToList());
+        }
+        catch (System.Exception ex)
+        {
+            _log.Error("The folder picker failed", ex);
+            _viewModel.StatusText = $"Could not open that folder: {ex.Message}";
+        }
+    }
 
     private async void OnOpenExternal(object? sender, RoutedEventArgs e)
     {
@@ -522,6 +703,11 @@ public partial class MainView : UserControl
     //place into its original folder without any extra bookkeeping.
     private async void OnOpenFolder(object? sender, RoutedEventArgs e)
     {
+        if (_folderPicker is not null)
+        {
+            await OpenFolderWithHostAsync(false);
+            return;
+        }
         var topLevel = TopLevel.GetTopLevel(this);
         if (topLevel is null)
             return;
@@ -1429,7 +1615,7 @@ public partial class MainView : UserControl
         "Open" => MakeToolButton("Open…", OnOpen, "Open archives"),
         "OpenFolder" => MakeToolButton("Open Folder…", OnOpenFolder,
             "Open every archive in a folder, including subfolders"),
-        "Save" => MakeToolButton("Save", OnSave, "Save the selected file(s) in place"),
+        "Save" => BuildSaveButton(),
         "SaveAll" => BuildSaveAllButton(),
         "Remove" => MakeToolButton("Remove", OnRemove, "Remove the selected file(s) from the list (not from disk)"),
         "Revert" => MakeToolButton("Revert", OnRevert, "Discard edits on the current file and reload from disk"),
@@ -1471,6 +1657,30 @@ public partial class MainView : UserControl
         toggle.Bind(ToggleButton.IsCheckedProperty, new Binding(boundProperty) { Mode = BindingMode.OneWay });
         toggle.Click += handler;
         return toggle;
+    }
+
+    //the same dot the file list uses, shown while the selected book(s) have edits
+    private Button BuildSaveButton()
+    {
+        var button = new Button();
+        button.Classes.Add("toolflat");
+        ToolTip.SetTip(button, "Save the selected file(s) in place");
+        button.Click += OnSave;
+
+        var dot = new TextBlock
+        {
+            Text = "•",
+            FontWeight = FontWeight.Bold,
+            Foreground = GetThemeBrush("ThDirtyFg"),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        dot.Bind(Visual.IsVisibleProperty, new Binding(nameof(MainViewModel.SelectionHasUnsaved)) { Source = _viewModel });
+
+        var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        content.Children.Add(new TextBlock { Text = "Save" });
+        content.Children.Add(dot);
+        button.Content = content;
+        return button;
     }
 
     private Button BuildSaveAllButton()
@@ -2233,8 +2443,13 @@ public partial class MainView : UserControl
 
     //---------------------------------------------------------------- grid view
 
-    private void OnToggleGridView(object? sender, RoutedEventArgs e) =>
+    private void OnToggleGridView(object? sender, RoutedEventArgs e)
+    {
         _viewModel.IsGridViewActive = !_viewModel.IsGridViewActive;
+        _cameFromGrid = false;
+        ApplyLayoutMode();
+        UpdateGridEditButton();
+    }
 
     private async void OnChooseColumns(object? sender, RoutedEventArgs e)
     {
@@ -2248,7 +2463,7 @@ public partial class MainView : UserControl
 
     //binds the whole row; resolves each column's value via FieldValueConverter keyed by that column's tag
     //dirty-indicator, Size, Modified - see the matching fixed columns declared in MainWindow.axaml
-    private const int FixedGridColumnCount = 3;
+    private const int FixedGridColumnCount = 4;
 
     private void RebuildGridColumns()
     {
@@ -2312,6 +2527,27 @@ public partial class MainView : UserControl
         FileList.SelectedItems!.Clear();
         foreach (var file in files)
             FileList.SelectedItems!.Add(file);
+        //a way back to the grid, and on a narrow screen the editor itself rather than the list
+        _cameFromGrid = true;
+        _editorOpen = true;
+        ApplyLayoutMode();
+        UpdateGridEditButton();
+    }
+
+    //touch: ticking a row stands in for ctrl-click
+    private void OnGridRowCheckClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is CheckBox box && box.FindAncestorOfType<DataGridRow>() is { } row)
+            row.IsSelected = box.IsChecked == true;
+    }
+
+    private void OnGridSelectionChanged(object? sender, SelectionChangedEventArgs e) => UpdateGridEditButton();
+
+    private void UpdateGridEditButton()
+    {
+        var count = ComicsGrid.SelectedItems?.Count ?? 0;
+        GridEditButton.IsVisible = TouchMode && _viewModel.IsGridViewActive && count > 0;
+        GridEditButton.Content = count == 1 ? "Edit 1 book" : $"Edit {count} books";
     }
 
     //---------------------------------------------------------------- field templates
