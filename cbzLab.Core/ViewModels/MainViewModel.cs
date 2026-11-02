@@ -144,6 +144,14 @@ public class MainViewModel : ViewModelBase
         set => SetProperty(ref _isGridViewActive, value);
     }
 
+    //a short screen (a phone on its side): the editor drops its cover header to give the fields the height
+    private bool _isCompactHeight;
+    public bool IsCompactHeight
+    {
+        get => _isCompactHeight;
+        set => SetProperty(ref _isCompactHeight, value);
+    }
+
     private FileSortMode _sortMode = FileSortMode.Name;
     public FileSortMode SortMode
     {

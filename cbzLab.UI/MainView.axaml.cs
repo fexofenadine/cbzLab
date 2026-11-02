@@ -57,6 +57,7 @@ public partial class MainView : UserControl
     {
         InitializeComponent();
         Dialogs.Covered = RootGrid;
+        SizeChanged += (_, _) => ApplyLayoutMode();
 
         //same construction order as App.xaml.cs in the winui project
         _log = new LogService();
@@ -133,8 +134,82 @@ public partial class MainView : UserControl
         }
     }
 
-    //the android back button: closes the open dialog if there is one. false means nothing here used it
-    public bool HandleBack() => Dialogs.CancelTop();
+    //the android back button: closes the open dialog, else goes from the editor back to the list on a
+    //narrow screen. false means nothing here used it, and the app may leave
+    public bool HandleBack()
+    {
+        if (Dialogs.CancelTop())
+            return true;
+        if (_narrow && _editorOpen)
+        {
+            _editorOpen = false;
+            ApplyLayoutMode();
+            return true;
+        }
+        return false;
+    }
+
+    //---------------------------------------------------------------- adaptive layout
+
+    //width decides the layout, not the device: a narrow window (a phone upright) shows the file list
+    //and the editor one at a time; a wide one (a tablet, a phone on its side, the desktop) shows both
+    private const double NarrowBelow = 700;
+    //below this height the editor drops its cover header
+    private const double CompactBelow = 480;
+    private bool _narrow;
+    private bool _editorOpen;
+
+    private void ApplyLayoutMode()
+    {
+        var width = Bounds.Width;
+        var height = Bounds.Height;
+        if (width <= 0 || height <= 0)
+            return;
+
+        _narrow = width < NarrowBelow;
+        _viewModel.IsCompactHeight = height < CompactBelow;
+
+        //the editor can only be "open" with something to edit
+        if (!_viewModel.HasSelection)
+            _editorOpen = false;
+
+        if (_narrow)
+        {
+            SplitGrid.ColumnDefinitions = new ColumnDefinitions("*");
+            ListPane.SetValue(Grid.ColumnProperty, 0);
+            EditorPane.SetValue(Grid.ColumnProperty, 0);
+            ListPane.IsVisible = !_editorOpen;
+            EditorPane.IsVisible = _editorOpen;
+            PaneSplitter.IsVisible = false;
+        }
+        else
+        {
+            SplitGrid.ColumnDefinitions = new ColumnDefinitions("260,Auto,*");
+            ListPane.SetValue(Grid.ColumnProperty, 0);
+            PaneSplitter.SetValue(Grid.ColumnProperty, 1);
+            EditorPane.SetValue(Grid.ColumnProperty, 2);
+            ListPane.IsVisible = true;
+            PaneSplitter.IsVisible = true;
+            EditorPane.IsVisible = true;
+        }
+        BackToListButton.IsVisible = _narrow && _editorOpen;
+    }
+
+    //a tap on a book opens its editor on a narrow screen (selection alone doesn't, so opening files
+    //programmatically leaves you on the list)
+    private void OnFileListTapped(object? sender, TappedEventArgs e)
+    {
+        if (!_narrow || !_viewModel.HasSelection || _viewModel.IsBatchMode)
+            return;
+        _editorOpen = true;
+        ApplyLayoutMode();
+    }
+
+    private void OnBackToList(object? sender, RoutedEventArgs e)
+    {
+        _editorOpen = false;
+        ApplyLayoutMode();
+    }
 
     //opens files after start-up (a book handed over by another app)
     public Task OpenAsync(IReadOnlyList<string> paths) => OpenPathsAsync(paths.ToList());
@@ -1026,6 +1101,7 @@ public partial class MainView : UserControl
     private async void FileList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         _viewModel.SetSelection(FileList.SelectedItems!.Cast<ComicFileViewModel>());
+        ApplyLayoutMode();
 
         //the editor header shows the current file's cover, and with lazy loading that file may
         //never have had a visible row (selected programmatically, or scrolled past too fast)

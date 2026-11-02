@@ -116,10 +116,10 @@
                 </Grid>
             </Border>
 
-            <Grid Grid.Row="2" ColumnDefinitions="260,Auto,*" IsVisible="{Binding !IsGridViewActive}">
+            <Grid x:Name="SplitGrid" Grid.Row="2" ColumnDefinitions="260,Auto,*" IsVisible="{Binding !IsGridViewActive}">
 
                 <!--ThListBg is a real, separate theme key from ThBg, not just a duplicate-->
-                <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*,Auto" Background="{DynamicResource ThListBg}">
+                <Grid x:Name="ListPane" Grid.Column="0" RowDefinitions="Auto,Auto,*,Auto" Background="{DynamicResource ThListBg}">
                     <TextBlock Grid.Row="0" Text="OPEN FILES" FontSize="11" FontWeight="SemiBold"
                                Opacity="0.6" Margin="4,8,4,4" />
 
@@ -142,6 +142,7 @@
                              Focusable="True"
                              Background="{DynamicResource ThListBg}"
                              SelectionChanged="FileList_SelectionChanged"
+                             Tapped="OnFileListTapped"
                              KeyDown="OnFileListKeyDown"
                              ContextRequested="OnFileListContextRequested">
                         <ListBox.ContextMenu>
@@ -215,12 +216,19 @@
                     </Border>
                 </Grid>
 
-                <GridSplitter Grid.Column="1" Width="1" Background="{DynamicResource ThSep}" />
+                <GridSplitter x:Name="PaneSplitter" Grid.Column="1" Width="1" Background="{DynamicResource ThSep}" />
 
                 <!--editor: one shared field list, filtered by ActiveTab-->
-                <Grid Grid.Column="2" RowDefinitions="Auto,Auto,Auto,*">
+                <Grid x:Name="EditorPane" Grid.Column="2" RowDefinitions="Auto,Auto,Auto,*">
                     <Border Grid.Row="0" Padding="16,12" BorderBrush="{DynamicResource ThSep}"
-                            BorderThickness="0,0,0,1" IsVisible="{Binding IsSingleFileMode}">
+                            BorderThickness="0,0,0,1">
+                        <Border.IsVisible>
+                            <!--the cover header goes on a short screen (a phone on its side), where the fields need the height-->
+                            <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                <Binding Path="IsSingleFileMode" />
+                                <Binding Path="!IsCompactHeight" />
+                            </MultiBinding>
+                        </Border.IsVisible>
                         <StackPanel Orientation="Horizontal" Spacing="12">
                             <!--same 2:3 + Uniform as the sidebar thumbnail, so the whole cover shows-->
                             <Border Width="76" Height="114" CornerRadius="3" Background="{DynamicResource ThBg2}">
@@ -238,10 +246,15 @@
                     </Border>
 
                     <!--filters VisibleFields within the current file; distinct from FileFilterBox, which filters the sidebar list-->
-                    <TextBox Grid.Row="1" x:Name="SearchBox" Margin="16,8,16,0" Padding="10,4" Height="32"
-                             PlaceholderText="Search fields…"
-                             Text="{Binding SearchText, Mode=TwoWay}"
-                             IsEnabled="{Binding IsSearchEnabled}" />
+                    <Grid Grid.Row="1" ColumnDefinitions="Auto,*" Margin="16,8,16,0">
+                        <!--only on a narrow screen, where the editor replaces the file list instead of sitting beside it-->
+                        <Button x:Name="BackToListButton" Grid.Column="0" Content="‹ Books" Height="32" Margin="0,0,8,0"
+                                IsVisible="False" Click="OnBackToList" />
+                        <TextBox Grid.Column="1" x:Name="SearchBox" Padding="10,4" Height="32"
+                                 PlaceholderText="Search fields…"
+                                 Text="{Binding SearchText, Mode=TwoWay}"
+                                 IsEnabled="{Binding IsSearchEnabled}" />
+                    </Grid>
 
                     <!--auto-width tabs, not stretching evenly: a UniformGrid ItemsPanel clipped longer labels at 5 uneven widths.
                         TabItem:selected sets its own FontSize in FluentTheme (a style beats inheritance), so both states below need

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using Android.Content;
+using Avalonia.Controls;
 using cbzLab.Services;
 
 namespace cbzLab.Android;
@@ -35,9 +36,30 @@ public static class AndroidHost
             if (_shown)
                 return;
             _shown = true;
+
+            //the back button: an open dialog, then the editor back to the list, then leaving
+            if (TopLevel.GetTopLevel(view) is { } top)
+                top.BackRequested += (_, e) =>
+                {
+                    e.Handled = true;
+                    if (!view.HandleBack())
+                        _ = LeaveAsync(view);
+                };
+
             await view.OnShownAsync(PendingBooks(Activity?.Intent));
         };
         return view;
+    }
+
+    //leaving asks about unsaved edits first; unsaved edits that survive a kill are the autosave's job,
+    //but a deliberate exit resolves them (saved or discarded) like closing the desktop window does
+    private static async System.Threading.Tasks.Task LeaveAsync(MainView view)
+    {
+        if (!await view.ConfirmCloseAsync())
+            return;
+        view.PrepareForExit();
+        view.Settings.Save();
+        Activity?.FinishAndRemoveTask();
     }
 
     private static void Prepare(Context context)
