@@ -56,6 +56,7 @@ public partial class MainView : UserControl
     public MainView()
     {
         InitializeComponent();
+        Dialogs.Covered = RootGrid;
 
         //same construction order as App.xaml.cs in the winui project
         _log = new LogService();

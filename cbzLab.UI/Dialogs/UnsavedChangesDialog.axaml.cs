@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
@@ -8,8 +9,8 @@ namespace cbzLab.Dialogs;
 
 public enum UnsavedChoice { Save, Discard, Cancel }
 
-//shown on close/quit when files have unsaved changes
-public partial class UnsavedChangesDialog : Window
+//shown on close/quit when files have unsaved changes; Esc means Cancel
+public partial class UnsavedChangesDialog : DialogBase
 {
     private UnsavedChoice _result = UnsavedChoice.Cancel;
 
@@ -42,11 +43,11 @@ public partial class UnsavedChangesDialog : Window
         Close();
     }
 
-    public static async Task<UnsavedChoice> ShowAsync(Window owner, IEnumerable<string> fileNames)
+    public static async Task<UnsavedChoice> ShowAsync(Visual owner, IEnumerable<string> fileNames)
     {
         var dlg = new UnsavedChangesDialog();
         dlg.Populate(fileNames);
-        await dlg.ShowDialog(owner);
+        await DialogHost.ShowAsync(owner, dlg);
         return dlg._result;
     }
 }

@@ -1,13 +1,10 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="cbzLab.Dialogs.ProgressDialog"
-        Width="420" SizeToContent="Height"
-        CanResize="False"
-        WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource ThBg}"
-        Closing="OnClosingIntercept">
+<dlg:DialogBase xmlns="https://github.com/avaloniaui"
+                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                xmlns:dlg="using:cbzLab.Dialogs"
+                x:Class="cbzLab.Dialogs.ProgressDialog"
+                DialogWidth="420">
 
-    <StackPanel Margin="20" Spacing="12">
+    <StackPanel Margin="20,12,20,20" Spacing="12">
         <TextBlock x:Name="LabelText" TextTrimming="CharacterEllipsis" />
         <ProgressBar x:Name="Bar" Minimum="0" />
         <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
@@ -15,4 +12,4 @@
         </StackPanel>
     </StackPanel>
 
-</Window>
+</dlg:DialogBase>

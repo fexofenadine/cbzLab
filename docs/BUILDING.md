@@ -108,7 +108,8 @@ cbzLab.UI/                  everything the apps show, shared with the Android ap
   MainView.axaml / .cs    the whole main UI: file list, editor, grid view, menu, toolbar. Never assumes
                            a window exists - window-only jobs are left to its host
   AppStyles.axaml         the Fluent theme and DataGrid styles every app includes
-  Dialogs/                 one dialog per .axaml + .cs pair
+  Dialogs/                 one dialog per .axaml + .cs pair; DialogHost shows a DialogBase dialog
+                           inside the window, over a dimmed backdrop
   Converters/              FieldTemplateSelector (widget dispatch) and FieldValueConverter (grid cell values)
 cbzLab.Core/                the code shared with the Android app (see docs/ANDROID_PLAN.md);
                            namespaces are unchanged, still cbzLab.Services etc.

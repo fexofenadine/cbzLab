@@ -144,7 +144,18 @@ include, toolbar and dialog styles). The desktop app keeps only what only a desk
    (version 2.2.0) and the update item, asks about unsaved edits on close (Cancel keeps it open,
    Discard closes without touching the book), and saves the open tab and window position on exit.
 2. **The dialog host and the everyday dialogs:** message, confirm, validation, unsaved changes and
-   progress. Together these cover nearly every dialog the app shows day to day.
+   progress. Together these cover nearly every dialog the app shows day to day. Done (2026-11-02).
+   Each dialog is now a `DialogBase` shown by a `DialogHost` that sits over `MainView`: a dimmed
+   backdrop disables everything behind it, the card is sized to the window, Esc does what the
+   dialog's cancel does, Tab stays inside the card and focus goes to the default button. A dialog
+   opened from one that is still a separate window (Reset to Defaults from Settings) falls back to a
+   small `DialogWindow` showing the same card, until slices 3 and 4 convert the rest. Checked in the
+   published app: all five open inside the main window, with the menus and toolbar disabled behind
+   them; Esc, Enter and Tab work; Revert's Cancel keeps the edit and Revert reloads; unsaved changes
+   on close keeps the window on Esc and closes on Discard; the progress card updates and Esc switches
+   it to cancelling. Two things for later: at very small window sizes the unsaved-changes file list
+   shrinks to nothing (slice 5's minimum size covers it), and the footer scan never checks for
+   cancel, so its Cancel button only takes effect once the scan ends (unchanged from before).
 3. **The rest of the editing dialogs:** Settings, About, Choose Columns, Customize Toolbar, Find &
    Replace, Copy Fields, Multi Save.
 4. **ComicVine, Combine Archives and Trim Branding Footers:** search, match, both review dialogs,

@@ -1,10 +1,11 @@
 using System.Threading.Tasks;
-using Avalonia.Controls;
+using Avalonia;
 using Avalonia.Interactivity;
 
 namespace cbzLab.Dialogs;
 
-public partial class ConfirmDialog : Window
+//a yes/no question; anything but the confirm button (Cancel, Esc) answers no
+public partial class ConfirmDialog : DialogBase
 {
     private bool _result;
 
@@ -25,12 +26,12 @@ public partial class ConfirmDialog : Window
         Close();
     }
 
-    public static async Task<bool> ShowAsync(Window owner, string title, string message, string confirmText = "OK")
+    public static async Task<bool> ShowAsync(Visual owner, string title, string message, string confirmText = "OK")
     {
         var dlg = new ConfirmDialog { Title = title };
         dlg.MessageText.Text = message;
         dlg.ConfirmButton.Content = confirmText;
-        await dlg.ShowDialog(owner);
+        await DialogHost.ShowAsync(owner, dlg);
         return dlg._result;
     }
 }

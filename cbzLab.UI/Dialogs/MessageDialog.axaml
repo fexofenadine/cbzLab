@@ -1,14 +1,16 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="cbzLab.Dialogs.MessageDialog"
-        Width="420" SizeToContent="Height"
-        CanResize="False"
-        WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource ThBg}">
+<dlg:DialogBase xmlns="https://github.com/avaloniaui"
+                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                xmlns:dlg="using:cbzLab.Dialogs"
+                x:Class="cbzLab.Dialogs.MessageDialog"
+                DialogWidth="420">
 
-    <StackPanel Margin="20" Spacing="16">
-        <TextBlock x:Name="MessageText" TextWrapping="Wrap" />
-        <Button x:Name="OkButton" Content="OK" HorizontalAlignment="Right" Click="OnOk" IsDefault="True" />
-    </StackPanel>
+    <!--the text scrolls when it's long, so OK always stays on screen-->
+    <Grid RowDefinitions="*,Auto" Margin="20,12,20,20">
+        <ScrollViewer Grid.Row="0">
+            <TextBlock x:Name="MessageText" TextWrapping="Wrap" />
+        </ScrollViewer>
+        <Button Grid.Row="1" x:Name="OkButton" Content="OK" HorizontalAlignment="Right" Margin="0,16,0,0"
+                Click="OnOk" IsDefault="True" />
+    </Grid>
 
-</Window>
+</dlg:DialogBase>

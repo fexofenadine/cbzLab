@@ -1,17 +1,18 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="cbzLab.Dialogs.ConfirmDialog"
-        Width="420" SizeToContent="Height"
-        CanResize="False"
-        WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource ThBg}">
+<dlg:DialogBase xmlns="https://github.com/avaloniaui"
+                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                xmlns:dlg="using:cbzLab.Dialogs"
+                x:Class="cbzLab.Dialogs.ConfirmDialog"
+                DialogWidth="420">
 
-    <StackPanel Margin="20" Spacing="16">
-        <TextBlock x:Name="MessageText" TextWrapping="Wrap" />
-        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+    <!--the text scrolls when it's long, so both buttons always stay on screen-->
+    <Grid RowDefinitions="*,Auto" Margin="20,12,20,20">
+        <ScrollViewer Grid.Row="0">
+            <TextBlock x:Name="MessageText" TextWrapping="Wrap" />
+        </ScrollViewer>
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button x:Name="CancelButton" Content="Cancel" Click="OnCancel" />
             <Button x:Name="ConfirmButton" Content="OK" Click="OnConfirm" IsDefault="True" />
         </StackPanel>
-    </StackPanel>
+    </Grid>
 
-</Window>
+</dlg:DialogBase>

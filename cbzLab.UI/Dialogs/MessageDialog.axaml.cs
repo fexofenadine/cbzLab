@@ -1,11 +1,11 @@
 using System.Threading.Tasks;
-using Avalonia.Controls;
+using Avalonia;
 using Avalonia.Interactivity;
 
 namespace cbzLab.Dialogs;
 
-//avalonia has no ContentDialog equivalent, so this is a plain modal Window
-public partial class MessageDialog : Window
+//a titled message with an OK button
+public partial class MessageDialog : DialogBase
 {
     public MessageDialog()
     {
@@ -14,10 +14,10 @@ public partial class MessageDialog : Window
 
     private void OnOk(object? sender, RoutedEventArgs e) => Close();
 
-    public static Task ShowAsync(Window owner, string title, string message)
+    public static Task ShowAsync(Visual owner, string title, string message)
     {
         var dlg = new MessageDialog { Title = title };
         dlg.MessageText.Text = message;
-        return dlg.ShowDialog(owner);
+        return DialogHost.ShowAsync(owner, dlg);
     }
 }

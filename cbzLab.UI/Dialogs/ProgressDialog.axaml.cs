@@ -1,12 +1,13 @@
 using System;
 using System.Threading;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 
 namespace cbzLab.Dialogs;
 
 //cancellation is cooperative: the caller's save loop finishes its current file first
-public partial class ProgressDialog : Window
+public partial class ProgressDialog : DialogBase
 {
     private readonly CancellationTokenSource _cts = new();
     private bool _done;
@@ -24,12 +25,11 @@ public partial class ProgressDialog : Window
         Bar.Maximum = Math.Max(1, total);
     }
 
-    private void OnClosingIntercept(object? sender, WindowClosingEventArgs e)
+    //Esc asks to cancel, as closing the old window did; it stays until the work actually stops
+    protected internal override void OnCancelRequested()
     {
-        if (_done)
-            return;
-        e.Cancel = true;
-        RequestCancel();
+        if (!_done)
+            RequestCancel();
     }
 
     private void OnCancelClick(object? sender, RoutedEventArgs e) => RequestCancel();
@@ -58,6 +58,6 @@ public partial class ProgressDialog : Window
         Close();
     }
 
-    //fire-and-forget: the caller keeps working while this window stays open
-    public void ShowNonBlocking(Window owner) => _ = ShowDialog(owner);
+    //fire-and-forget: the caller keeps working while this stays open
+    public void ShowNonBlocking(Visual owner) => _ = DialogHost.ShowAsync(owner, this);
 }

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
@@ -8,8 +9,8 @@ using cbzLab.Models;
 
 namespace cbzLab.Dialogs;
 
-//"Save Anyway" writes the file with bad values intact; "Fix" returns without saving
-public partial class ValidationDialog : Window
+//"Save Anyway" writes the file with bad values intact; "Fix" (or Esc) returns without saving
+public partial class ValidationDialog : DialogBase
 {
     private bool _result;
 
@@ -50,11 +51,11 @@ public partial class ValidationDialog : Window
     }
 
     /// <summary>Returns true for "Save Anyway", false for "Fix" (return to the editor).</summary>
-    public static async Task<bool> ShowAsync(Window owner, IReadOnlyList<ValidationError> errors)
+    public static async Task<bool> ShowAsync(Visual owner, IReadOnlyList<ValidationError> errors)
     {
         var dlg = new ValidationDialog();
         dlg.Populate(errors);
-        await dlg.ShowDialog(owner);
+        await DialogHost.ShowAsync(owner, dlg);
         return dlg._result;
     }
 }
