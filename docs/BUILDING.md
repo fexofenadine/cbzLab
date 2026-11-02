@@ -92,6 +92,38 @@ can test isn't worth the CI time.
 referenced - as of this writing it has no 12.x release compatible with the
 12.1.1 core packages.
 
+## Building the Android app
+
+The Android app (`cbzLab.Android/`) isn't part of `cbzLab.sln`, so the desktop build and its CI
+never need the Android tools. To build it you need, in addition to the .NET 10 SDK:
+
+- the .NET Android workload: `dotnet workload install android`
+- a JDK between 17 and 21 (Android Studio's own bundled JDK is too new)
+- the Android SDK with platform 36 and the matching build tools; `dotnet build
+  cbzLab.Android/cbzLab.Android.csproj -t:InstallAndroidDependencies -f net10.0-android
+  -p:AndroidSdkDirectory=<sdk> -p:JavaSdkDirectory=<jdk> -p:AcceptAndroidSDKLicenses=True`
+  installs them
+
+```powershell
+$sdk = "$env:LOCALAPPDATA\Android\Sdk"; $jdk = "<path to a JDK 17>"
+# debug build for an emulator or a phone
+dotnet build cbzLab.Android/cbzLab.Android.csproj -c Debug -p:AndroidSdkDirectory=$sdk -p:JavaSdkDirectory=$jdk
+adb install -r cbzLab.Android/bin/Debug/net10.0-android/io.github.fexofenadine.cbzlab-Signed.apk
+```
+
+A release build adds the signing key (never kept in the repository; the release workflow reads
+it from repository secrets) and produces one APK for arm64, arm and x64:
+
+```powershell
+$env:KS_PASS = "<store password>"
+dotnet publish cbzLab.Android/cbzLab.Android.csproj -c Release -p:AndroidSdkDirectory=$sdk -p:JavaSdkDirectory=$jdk `
+  -p:AndroidKeyStore=true -p:AndroidSigningKeyStore=<keystore> -p:AndroidSigningKeyAlias=cbzlab `
+  -p:AndroidSigningStorePass=env:KS_PASS -p:AndroidSigningKeyPass=env:KS_PASS -o publish/android
+```
+
+The app's version is read from `cbzLab/cbzLab.csproj`, so one version bump numbers both apps.
+Regenerate the adaptive icon with `py branding/apply_logos.py` if the badge artwork changes.
+
 ## Project layout
 
 ```
@@ -104,6 +136,8 @@ cbzLab/                    the desktop app
   Assets/                 icon, logo, bundled schema.json/themes.json (seeded to %APPDATA% on first run)
   Assets/themes/          custom theme JSON files bundled with the app (Synthwave Dark, etc.)
   Services/UpdateService.cs  the desktop-only self-updater
+cbzLab.Android/             the Android app: activity, document storage (content uris), asset unpacking,
+                           the back button and keyboard handling, around the same MainView
 cbzLab.UI/                  everything the apps show, shared with the Android app
   MainView.axaml / .cs    the whole main UI: file list, editor, grid view, menu, toolbar. Never assumes
                            a window exists - window-only jobs are left to its host

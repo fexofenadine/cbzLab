@@ -252,3 +252,55 @@ To make your own theme, copy one of the files in `themes\` (e.g.
 change the colour values. Keys you omit fall back to Solarized Dark. Themes are
 picked up at launch and apply instantly when selected, no restart needed. Keys
 beginning with `_` are treated as comments.
+
+## cbzLab for Android
+
+The same editor, on a phone or tablet. It's built from the same code as the desktop app, so
+the fields, validation, batch editing, ComicVine lookup, Combine Archives and Trim Branding
+Footers all behave the same way. Install the `cbzLab-<version>-android.apk` from the
+[releases page](https://github.com/fexofenadine/cbzLab/releases) (Android 8 or later; you may
+need to allow installing apps from your browser or file manager the first time).
+
+**Opening books.** File → Open (or **Open…**) uses Android's own file picker and can select
+several books at once. Choosing "Open with cbzLab" on a `.cbz` or `.cbr` in a file manager or
+a download opens it directly. Open Recent works across restarts.
+
+**Layout.** On a narrow screen (a phone upright) the file list and the editor are separate
+screens: tap a book to edit it, and **‹ Books** (or the Back button) returns to the list. On a
+wider screen (a tablet, or a phone on its side) they sit side by side, as on the desktop. On a
+short screen the toolbar and the cover header go, so the fields get the height; every toolbar
+action is also in the menus. Rotating the phone keeps your books, your edits and the open tab.
+
+**Editing several books.** Long-press a book to start selecting; tap more books to add or
+remove them, then **Edit N books**. Back leaves selecting. The editor then works as batch
+editing does on the desktop. Whole-number fields (Issue #, Count, Volume, Year, Page Count)
+open the number keypad.
+
+**Saving.** Save writes over the book you opened, then reads it back to check it; the original
+is kept aside until that check passes and put back if it fails. If a save can't be completed
+you're told, and the book is left as it was. If Android kills the app in the background,
+unsaved edits are recovered the next time you open it.
+
+**CBR files.** They open and can be edited, but cbzLab can't write a CBR on Android, because
+that needs an external RAR program. Saving a book that came as a CBR asks where to save a CBZ
+copy; the original CBR is never touched.
+
+**Not on Android.** Open Folder, Open Containing Folder, the RAR tool setting, the folder
+shortcuts in Settings, and the self-updater (install new versions from the releases page).
+Grid view is the desktop table and scrolls sideways on a phone.
+
+### How it compares
+
+| Feature | Desktop | Android |
+| --- | --- | --- |
+| Open, edit, validate and save CBZ | Yes | Yes, saved over the original document |
+| Open and edit CBR | Yes | Yes |
+| Write CBR | With an external RAR tool | No: saves a CBZ copy instead |
+| Batch editing, Find & Replace, Copy fields | Yes | Yes (long-press to select) |
+| ComicVine search, single and batch | Yes | Yes |
+| Combine Archives, Trim Branding Footers | Yes | Yes; very large books are slower on a phone |
+| Open Folder | Yes | No |
+| Autosave and crash recovery | Yes | Yes, also when the app is put in the background |
+| Settings export and import | Yes | Yes |
+| Keyboard shortcuts | Yes | Only with a keyboard attached |
+| Self-update | Yes | No |

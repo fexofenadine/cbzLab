@@ -134,7 +134,7 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           {
             echo "**Downloads:** \`cbzLab-$VERSION-win-x64.exe\` for Windows, \`cbzLab-$VERSION-linux-x64\` for Linux"
-            echo "(run \`chmod +x\` on it first). The \`-debug.zip\` files add debug symbols for crash reports;"
+            echo "(run \`chmod +x\` on it first), \`cbzLab-$VERSION-android.apk\` for Android (added by the android job a few minutes after the rest). The \`-debug.zip\` files add debug symbols for crash reports;"
             echo "the \`.zip\`/\`.tar.gz\` files are for the in-app updater in older versions."
             echo
             cat changelog-notes.md
@@ -158,3 +158,84 @@ jobs:
             --title "cbzLab ${{ steps.version.outputs.version }}" \
             --notes "$(cat release-notes.md)" \
             --generate-notes
+
+  #the android app, built and signed on its own runner (it needs the .net android workload, the
+  #android sdk and a jdk, which the desktop job doesn't) and attached to the release the job above
+  #just created. it needs four repository secrets holding the release signing key - see
+  #docs/ANDROID_PLAN.md, phase 8; without them the job says so and stops, rather than shipping an
+  #unsigned apk nobody could install. re-run this workflow for the tag once they exist.
+  android:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Check the signing key is available
+        id: signing
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE" ]; then
+            echo "::warning::The android signing secrets aren't set, so no APK was built. See docs/ANDROID_PLAN.md (phase 8)."
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up .NET 10
+        if: steps.signing.outputs.available == 'true'
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      #.net's android build accepts jdk 17 to 21
+      - name: Set up Java 17
+        if: steps.signing.outputs.available == 'true'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install the .NET Android workload
+        if: steps.signing.outputs.available == 'true'
+        run: dotnet workload install android
+
+      #fetches the exact android platform and build tools the workload targets into the runner's sdk
+      - name: Install the Android SDK pieces
+        if: steps.signing.outputs.available == 'true'
+        run: >
+          dotnet build cbzLab.Android/cbzLab.Android.csproj
+          -t:InstallAndroidDependencies -f net10.0-android
+          -p:AndroidSdkDirectory="$ANDROID_HOME"
+          -p:JavaSdkDirectory="$JAVA_HOME"
+          -p:AcceptAndroidSDKLicenses=True
+
+      - name: Build and sign the APK
+        if: steps.signing.outputs.available == 'true'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/cbzlab-release.keystore"
+          dotnet publish cbzLab.Android/cbzLab.Android.csproj -c Release \
+            -p:AndroidSdkDirectory="$ANDROID_HOME" -p:JavaSdkDirectory="$JAVA_HOME" \
+            -p:AndroidKeyStore=true \
+            -p:AndroidSigningKeyStore="$RUNNER_TEMP/cbzlab-release.keystore" \
+            -p:AndroidSigningKeyAlias="$ANDROID_KEY_ALIAS" \
+            -p:AndroidSigningStorePass=env:ANDROID_KEYSTORE_PASSWORD \
+            -p:AndroidSigningKeyPass=env:ANDROID_KEY_PASSWORD \
+            -o publish/android
+          rm -f "$RUNNER_TEMP/cbzlab-release.keystore"
+          VERSION="${GITHUB_REF_NAME#v}"
+          cp publish/android/io.github.fexofenadine.cbzlab-Signed.apk "cbzLab-$VERSION-android.apk"
+
+      - name: Attach the APK to the release
+        if: steps.signing.outputs.available == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          gh release upload "${{ github.ref_name }}" "cbzLab-$VERSION-android.apk" --clobber

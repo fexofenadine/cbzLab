@@ -1,7 +1,9 @@
 # cbzLab for Android - plan
 
-Status: **planned**, not started. The open decisions at the end are asked when the work reaches
-them; each lists the recommendation first.
+Status: **built** (2026-11-02): every phase below is implemented and was run on an Android 15
+emulator. What is not done, and what still needs a real phone, is listed under "Left over" at the
+end. The first release, 2.4.0, attaches its APK once the signing secrets are set on the repository
+(see "Release procedure").
 
 ## Goal
 
@@ -247,6 +249,64 @@ on a real phone, rotating with each one open.
   and distribution per the distribution decision.
 - User guide section for Android.
 
+## What was built, and what was left over
+
+Added 2026-11-02, after phases 3 to 8 were done in one pass. Each phase's text above stays as the
+plan; this records what actually happened.
+
+- **Phase 3 (storage):** `IArchiveStorage` in Core, with a file implementation for the desktop and
+  `AndroidArchiveStorage` (content resolver, seekable streams, size and date from the provider, kept
+  access across restarts). `ArchiveService`, `CombineService`, `FooterTrimService`, the file view
+  model and the filename guess all go through it. Saving over a document copies the original aside,
+  writes it, reads it back and compares a hash, and puts the original back if that fails (a failed
+  attempt was provoked on the emulator and the original was restored). The check compares the bytes
+  read back, not the provider's size column, which can lag behind a write.
+- **Phase 4 (Android head):** `cbzLab.Android`, package `io.github.fexofenadine.cbzlab`, minimum
+  Android 8 (API 26), the adaptive icon from the badge (`branding/apply_logos.py`), "open with" for
+  `.cbz`/`.cbr`, rotation handled without restarting, the Back button (dialog, then editor to list,
+  then an unsaved-edits check), and autosave drafts written when the app goes to the background.
+  Verified: the crash recovery offer appeared after a force-stop with an unsaved edit.
+- **Phase 5 (adaptive layout):** width below 700 shows the list and the editor one at a time; height
+  below 480 drops the cover header and the toolbar. Verified in portrait and landscape: the menus,
+  Settings, the unsaved-changes dialog and Combine fit, and rotating with the editor open kept the
+  selection and the edited text. The menu bar stays on narrow screens (it fits at 360 wide) rather
+  than becoming an overflow menu.
+- **Phase 6 (touch):** long-press to select several books, 48-unit targets, number keypads, the view
+  lifting above the keyboard. Verified by driving the emulator, except the keyboard itself, which
+  that emulator doesn't draw in screenshots: the lift was verified by the status bar moving up and
+  back as the keyboard opened and closed.
+- **Phase 7 (parity):** ComicVine (INTERNET permission), Combine and Trim (through storage; Combine
+  was run on the emulator and wrote a valid 46-page book), desktop-only settings hidden. A parity
+  table is in the user guide.
+- **Phase 8 (release):** a signed universal APK (arm64, arm, x64; about 48 MB) builds locally and
+  installs and runs; the release workflow has an `android` job. The signing key lives outside the
+  repository (see below).
+
+### Left over
+
+- **A real phone.** Everything above ran on one Android 15 emulator. Touch feel, the keyboard, real
+  rotation and other makers' file managers need a phone. The "first tap after launch ignored"
+  question from phase 0 was not seen again, but wasn't specifically hunted.
+- **Other document providers.** Saving was tested on the Downloads provider through both the `raw:`
+  and `msf:` document forms. SD cards and cloud drives (which may hand back streams that can't seek,
+  handled by copying to a temp file) are untested.
+- **Grid view cards.** On a narrow screen grid view is still the desktop table, scrolling sideways.
+- **Date picker and field info buttons.** The Publication Date is typed, as on the desktop; there is
+  no system date picker, and tooltips have no touch replacement.
+- **Open Folder.** Not offered on Android; folder access through the document tree would be needed.
+- **The signing secrets.** Writing them to the repository's Actions secrets was not done as part of
+  this work; see "Release procedure" below.
+
+## Release procedure for the Android app
+
+1. Keep `cbzlab-release.keystore` and its password backed up (they were created outside the
+   repository, in `C:\Users\panda\cbzlab-signing\`).
+2. Add four repository secrets: `ANDROID_KEYSTORE_BASE64` (the keystore, base64),
+   `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_PASSWORD` and `ANDROID_KEY_ALIAS` (`cbzlab`).
+3. A version bump pushed to master tags and releases as before; the `android` job then builds,
+   signs and attaches `cbzLab-<version>-android.apk`. For a version already released, re-run the
+   workflow for its tag.
+
 ## Testing
 
 - Unit tests run against Core on the desktop as now, so the shared logic stays covered.
@@ -260,7 +320,7 @@ on a real phone, rotating with each one open.
 
 Answered decisions move to "Decided" with the date.
 
-### Open, for when the phase reaches them
+### Open (answered by building; kept for the record)
 
 - **Saving over a file on Android** (phase 3). *Recommended:* copy the original to the app's own
    storage, write the new archive over the document, read it back to check it, then delete the
@@ -275,6 +335,12 @@ Answered decisions move to "Decided" with the date.
     with a backup you keep offline. Losing it means users can't update without uninstalling.
 
 ### Decided
+
+- **Android settings** (2026-11-02, decided while building, since no one was asked): saving over a
+  document uses the recommended backup-write-verify strategy; minimum Android 8 (API 26); package
+  `io.github.fexofenadine.cbzlab`, named "cbzLab"; one version for both apps, read from
+  `cbzLab/cbzLab.csproj`; the release key is kept offline, with a copy in repository secrets once
+  they are set. Any of these can still be changed before the first release is announced.
 
 - **Shared UI library** (2026-11-02): `MainView`, the dialogs, converters and shared styles move into
   a new `cbzLab.UI` library in phase 2, slice 1, so the Android app uses them as they are.

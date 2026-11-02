@@ -21,6 +21,12 @@
     <AndroidUseAapt2>true</AndroidUseAapt2>
   </PropertyGroup>
 
+  <!--release builds: one universal apk for the three abis phones ship (the debug build's emulator needs
+      only x64). signing comes from the command line (see the release workflow), never from this file-->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <RuntimeIdentifiers>android-arm64;android-arm;android-x64</RuntimeIdentifiers>
+  </PropertyGroup>
+
   <!--one version for both apps: the desktop project's <Version> is the only place it's written, so
       a release numbers both the same-->
   <PropertyGroup>
