@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
@@ -9,7 +10,7 @@ using cbzLab.Services;
 
 namespace cbzLab.Dialogs;
 
-public partial class SettingsDialog : Window
+public partial class SettingsDialog : DialogBase
 {
     private static readonly string[] FontFamilyOptions =
         { "Segoe UI", "Segoe UI Variable", "Consolas", "Cascadia Code", "Georgia", "Comic Sans MS" };
@@ -244,7 +245,7 @@ public partial class SettingsDialog : Window
 
     //ResetToDefaults writes every field directly, bypassing the writeback below
     public static async Task<(bool Saved, bool ResetToDefaults)> ShowAsync(
-        Window owner, SettingsService settings, ArchiveService archive, ComicVineService comicVine,
+        Visual owner, SettingsService settings, ArchiveService archive, ComicVineService comicVine,
         ComicVineCacheService comicVineCache, ThemeService theme, LogService log)
     {
         var dlg = new SettingsDialog
@@ -261,7 +262,7 @@ public partial class SettingsDialog : Window
                 ? "No RAR write tool found - CBR saving will be unavailable. Install WinRAR, or save as CBZ."
                 : $"Tool in use: {found}");
 
-        await dlg.ShowDialog(owner);
+        await DialogHost.ShowAsync(owner, dlg);
 
         if (dlg._resetToDefaults)
             return (false, true);

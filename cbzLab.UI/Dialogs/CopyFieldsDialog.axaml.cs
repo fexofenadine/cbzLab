@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using cbzLab.Services;
@@ -10,7 +11,7 @@ namespace cbzLab.Dialogs;
 
 //Number/PageCount start unchecked - copying them by default across a batch
 //of different issues would be a predictable footgun
-public partial class CopyFieldsDialog : Window
+public partial class CopyFieldsDialog : DialogBase
 {
     private static readonly HashSet<string> PerFileDefaultOff = new() { "Number", "PageCount" };
 
@@ -59,7 +60,7 @@ public partial class CopyFieldsDialog : Window
 
     //returns chosen tags, or null if cancelled or the source has nothing to offer
     public static async Task<List<string>?> ShowAsync(
-        Window owner, ComicFileViewModel source, int targetCount, SchemaService schema)
+        Visual owner, ComicFileViewModel source, int targetCount, SchemaService schema)
     {
         if (schema.Fields.All(f => source.GetValue(f.Tag).Length == 0))
         {
@@ -69,7 +70,7 @@ public partial class CopyFieldsDialog : Window
 
         var dlg = new CopyFieldsDialog();
         dlg.Populate(source, targetCount, schema);
-        await dlg.ShowDialog(owner);
+        await DialogHost.ShowAsync(owner, dlg);
         return dlg._result;
     }
 }

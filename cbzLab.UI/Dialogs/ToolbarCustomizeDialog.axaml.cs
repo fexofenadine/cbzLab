@@ -9,7 +9,7 @@ using cbzLab.Models;
 namespace cbzLab.Dialogs;
 
 //one row per catalog item (checkbox + up/down) rather than drag-and-drop reorder
-public partial class ToolbarCustomizeDialog : Window
+public partial class ToolbarCustomizeDialog : DialogBase
 {
     private sealed class RowState
     {
@@ -107,11 +107,11 @@ public partial class ToolbarCustomizeDialog : Window
     }
 
     public static async Task<List<string>?> ShowAsync(
-        Window owner, List<string> currentIds, IReadOnlyList<(string Id, string Label, int Group)> catalog)
+        Visual owner, List<string> currentIds, IReadOnlyList<(string Id, string Label, int Group)> catalog)
     {
         var dlg = new ToolbarCustomizeDialog();
         dlg.Populate(currentIds, catalog);
-        await dlg.ShowDialog(owner);
+        await DialogHost.ShowAsync(owner, dlg);
         return dlg._result;
     }
 }

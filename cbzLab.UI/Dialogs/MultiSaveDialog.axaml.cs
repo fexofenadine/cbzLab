@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
@@ -11,7 +12,7 @@ using cbzLab.ViewModels;
 namespace cbzLab.Dialogs;
 
 //confirms a multi-file save, listing each file with a per-file CBZ/CBR selector
-public partial class MultiSaveDialog : Window
+public partial class MultiSaveDialog : DialogBase
 {
     private readonly List<(ComicFileViewModel File, ComboBox Combo)> _rows = new();
     private List<(ComicFileViewModel File, ArchiveFormat Format)>? _result;
@@ -65,11 +66,11 @@ public partial class MultiSaveDialog : Window
     }
 
     public static async Task<List<(ComicFileViewModel File, ArchiveFormat Format)>?> ShowAsync(
-        Window owner, IReadOnlyList<ComicFileViewModel> files)
+        Visual owner, IReadOnlyList<ComicFileViewModel> files)
     {
         var dlg = new MultiSaveDialog();
         dlg.Populate(files);
-        await dlg.ShowDialog(owner);
+        await DialogHost.ShowAsync(owner, dlg);
         return dlg._result;
     }
 }

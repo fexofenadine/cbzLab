@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using cbzLab.Services;
@@ -12,7 +13,7 @@ namespace cbzLab.Dialogs;
 //operates directly on the ComicFileViewModel instances passed in - the caller (MainView)
 //is responsible for calling RefreshEditor() afterward so the on-screen field picks up any
 //change to the file currently open in the editor (SetValue alone doesn't push to the ui)
-public partial class FindReplaceDialog : Window
+public partial class FindReplaceDialog : DialogBase
 {
     private readonly List<string> _tags = new();
     private List<ComicFileViewModel> _scopeFiles = new();
@@ -82,12 +83,12 @@ public partial class FindReplaceDialog : Window
     private void OnCancel(object? sender, RoutedEventArgs e) => Close();
 
     public static async Task<int> ShowAsync(
-        Window owner, SchemaService schema, List<ComicFileViewModel> selectedFiles, List<ComicFileViewModel> allOpenFiles)
+        Visual owner, SchemaService schema, List<ComicFileViewModel> selectedFiles, List<ComicFileViewModel> allOpenFiles)
     {
         var scopeIsSelection = selectedFiles.Count > 0;
         var dlg = new FindReplaceDialog();
         dlg.Populate(scopeIsSelection ? selectedFiles : allOpenFiles, schema, scopeIsSelection);
-        await dlg.ShowDialog(owner);
+        await DialogHost.ShowAsync(owner, dlg);
         return dlg._filesChanged;
     }
 }

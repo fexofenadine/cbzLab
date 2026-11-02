@@ -1,13 +1,14 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using cbzLab.Services;
 
 namespace cbzLab.Dialogs;
 
-public partial class ChooseColumnsDialog : Window
+public partial class ChooseColumnsDialog : DialogBase
 {
     //most useful-at-a-glance fields first; unlisted fields fall back to schema order
     private static readonly string[] GridColumnPriorityOrder =
@@ -57,11 +58,11 @@ public partial class ChooseColumnsDialog : Window
         Close();
     }
 
-    public static async Task<List<string>?> ShowAsync(Window owner, List<string> currentColumns, SchemaService schema)
+    public static async Task<List<string>?> ShowAsync(Visual owner, List<string> currentColumns, SchemaService schema)
     {
         var dlg = new ChooseColumnsDialog();
         dlg.Populate(currentColumns, schema);
-        await dlg.ShowDialog(owner);
+        await DialogHost.ShowAsync(owner, dlg);
         return dlg._result;
     }
 }

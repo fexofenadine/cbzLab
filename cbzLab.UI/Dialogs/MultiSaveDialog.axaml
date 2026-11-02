@@ -1,12 +1,11 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="cbzLab.Dialogs.MultiSaveDialog"
-        Title="Save files"
-        Width="460" Height="480"
-        WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource ThBg}">
+<dlg:DialogBase xmlns="https://github.com/avaloniaui"
+                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                xmlns:dlg="using:cbzLab.Dialogs"
+                x:Class="cbzLab.Dialogs.MultiSaveDialog"
+                Title="Save files"
+                DialogWidth="460" DialogHeight="480">
 
-    <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="20">
+    <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="20,12,20,20">
         <TextBlock x:Name="HeaderText" Grid.Row="0" TextWrapping="Wrap" Margin="0,0,0,10" />
 
         <ScrollViewer Grid.Row="1">
@@ -22,4 +21,4 @@
         </StackPanel>
     </Grid>
 
-</Window>
+</dlg:DialogBase>

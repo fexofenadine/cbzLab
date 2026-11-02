@@ -1,20 +1,19 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using Avalonia.Controls;
-using Avalonia.Input;
+using Avalonia;
+using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
 using cbzLab.Services;
 
 namespace cbzLab.Dialogs;
 
-public partial class AboutDialog : Window
+public partial class AboutDialog : DialogBase
 {
     public AboutDialog()
     {
         InitializeComponent();
         VersionText.Text = AppVersion.Display;
-        KeyDown += OnKeyDown;
         LoadHeroImage();
     }
 
@@ -32,12 +31,7 @@ public partial class AboutDialog : Window
         }
     }
 
-    private void OnKeyDown(object? sender, KeyEventArgs e)
-    {
-        if (e.Key is Key.Enter or Key.Escape) Close();
-    }
+    private void OnOk(object? sender, RoutedEventArgs e) => Close();
 
-    private void OnOk(object? sender, PointerPressedEventArgs e) => Close();
-
-    public static Task ShowAsync(Window owner) => new AboutDialog().ShowDialog(owner);
+    public static Task ShowAsync(Visual owner) => DialogHost.ShowAsync(owner, new AboutDialog());
 }

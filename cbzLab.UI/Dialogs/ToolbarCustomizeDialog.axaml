@@ -1,12 +1,11 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="cbzLab.Dialogs.ToolbarCustomizeDialog"
-        Title="Customize Toolbar"
-        Width="380" Height="480"
-        WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource ThBg}">
+<dlg:DialogBase xmlns="https://github.com/avaloniaui"
+                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                xmlns:dlg="using:cbzLab.Dialogs"
+                x:Class="cbzLab.Dialogs.ToolbarCustomizeDialog"
+                Title="Customize Toolbar"
+                DialogWidth="380" DialogHeight="480">
 
-    <Grid RowDefinitions="Auto,*,Auto" Margin="20">
+    <Grid RowDefinitions="Auto,*,Auto" Margin="20,12,20,20">
         <TextBlock Grid.Row="0" TextWrapping="Wrap" Margin="0,0,0,10"
                     Text="Check the buttons you want on the toolbar, and use the arrows to reorder them." />
 
@@ -23,4 +22,4 @@
         </Grid>
     </Grid>
 
-</Window>
+</dlg:DialogBase>

@@ -1,20 +1,23 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="cbzLab.Dialogs.AboutDialog"
-        Title="About cbzLab"
-        Width="460" Height="380"
-        CanResize="False"
-        WindowStartupLocation="CenterOwner"
-        Background="#0D0221">
+<dlg:DialogBase xmlns="https://github.com/avaloniaui"
+                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                xmlns:dlg="using:cbzLab.Dialogs"
+                x:Class="cbzLab.Dialogs.AboutDialog"
+                DialogWidth="460" DialogHeight="380"
+                Background="#0D0221">
 
     <!--fixed Synthwave Dark palette always, regardless of the app's active theme (by
         request) - branding chrome, not an editing surface, so it deliberately does not
         use the Th* DynamicResource brushes ThemeService drives-->
-    <Window.Styles>
-        <Style Selector="Border.aboutBtn:pointerover">
+    <dlg:DialogBase.Styles>
+        <Style Selector="Button.aboutBtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#261255" />
             <Setter Property="BorderBrush" Value="#FF2D9B" />
         </Style>
-    </Window.Styles>
+        <Style Selector="Button.aboutBtn:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#261255" />
+            <Setter Property="BorderBrush" Value="#FF2D9B" />
+        </Style>
+    </dlg:DialogBase.Styles>
 
     <Grid RowDefinitions="*,Auto">
         <Grid Grid.Row="0" ClipToBounds="True">
@@ -42,11 +45,9 @@
             </StackPanel>
         </Grid>
         <Border Grid.Row="1" Background="#0D0221" BorderBrush="#4A1F7A" BorderThickness="0,1,0,0">
-            <Border Classes="aboutBtn" HorizontalAlignment="Right" Margin="20,12"
+            <Button Classes="aboutBtn" HorizontalAlignment="Right" Margin="20,12" IsDefault="True"
                     Background="#261255" BorderBrush="#4A1F7A" BorderThickness="1" CornerRadius="4"
-                    Padding="20,6" Cursor="Hand" PointerPressed="OnOk">
-                <TextBlock Text="OK" Foreground="#F0D6FF" FontSize="13" />
-            </Border>
+                    Padding="20,6" Cursor="Hand" Foreground="#F0D6FF" FontSize="13" Content="OK" Click="OnOk" />
         </Border>
     </Grid>
-</Window>
+</dlg:DialogBase>
