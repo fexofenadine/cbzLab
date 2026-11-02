@@ -1,12 +1,11 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="cbzLab.Dialogs.CombineArchivesDialog"
-        Title="Combine Archives"
-        Width="560" Height="520"
-        WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource ThBg}">
+<dlg:DialogBase xmlns="https://github.com/avaloniaui"
+                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                xmlns:dlg="using:cbzLab.Dialogs"
+                x:Class="cbzLab.Dialogs.CombineArchivesDialog"
+                Title="Combine Archives"
+                DialogWidth="560" DialogHeight="520">
 
-    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="20">
+    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="20,12,20,20">
         <TextBlock Grid.Row="0" TextWrapping="Wrap" Margin="0,0,0,4"
                    Text="These archives will be joined into one new CBZ, in the order shown. Pages are renumbered into a single sequence; the first book's ComicInfo.xml is kept and the rest are dropped." />
 
@@ -29,4 +28,4 @@
         </StackPanel>
     </Grid>
 
-</Window>
+</dlg:DialogBase>

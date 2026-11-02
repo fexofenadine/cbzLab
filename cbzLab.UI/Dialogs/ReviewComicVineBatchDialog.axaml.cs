@@ -14,7 +14,7 @@ namespace cbzLab.Dialogs;
 //batch counterpart to ReviewComicVineMatchDialog: fields in ComicVineSharedTags
 //that every matched file agrees on show as one ticked line; disagreement is
 //flagged and left unticked. per-issue fields aren't held to that check.
-public partial class ReviewComicVineBatchDialog : Window
+public partial class ReviewComicVineBatchDialog : DialogBase
 {
     //fields expected to agree across issues of the same run; divergence is flagged
     private static readonly HashSet<string> ComicVineSharedTags = new(System.StringComparer.Ordinal)
@@ -130,7 +130,7 @@ public partial class ReviewComicVineBatchDialog : Window
     }
 
     public static async Task<List<string>?> ShowAsync(
-        Window owner, Dictionary<ComicFileViewModel, Dictionary<string, string>> perFileProposed, SchemaService schema)
+        Visual owner, Dictionary<ComicFileViewModel, Dictionary<string, string>> perFileProposed, SchemaService schema)
     {
         var anyChanges = perFileProposed.Values.SelectMany(d => d.Keys).Any(tag =>
             perFileProposed.Any(kv => kv.Value.TryGetValue(tag, out var v)
@@ -144,7 +144,7 @@ public partial class ReviewComicVineBatchDialog : Window
 
         var dlg = new ReviewComicVineBatchDialog();
         dlg.Populate(perFileProposed, schema);
-        await dlg.ShowDialog(owner);
+        await DialogHost.ShowAsync(owner, dlg);
 
         if (!dlg._applied)
             return null;

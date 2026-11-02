@@ -110,9 +110,8 @@ public partial class MainView : UserControl
 
     //---------------------------------------------------------------- host
 
-    //the window or activity this view sits in; dialogs are owned by it
-    private Window Owner => TopLevel.GetTopLevel(this) as Window
-        ?? throw new InvalidOperationException("MainView needs a window to own its dialogs");
+    //dialogs open in this view's own dialog host
+    private Visual Owner => this;
 
     public LogService Log => _log;
     public SettingsService Settings => _settings;

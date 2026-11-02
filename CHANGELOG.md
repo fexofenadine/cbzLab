@@ -10,6 +10,20 @@
 
 ## cbzLab (Avalonia)
 
+### 2.3.0 - 2026-11-02
+
+- **Dialogs now open inside the main window** instead of as separate windows. A dimmed backdrop
+  covers the app while one is open, so nothing behind it can be clicked, and menus and shortcuts
+  are blocked until it closes. Dialogs stack (a confirmation opened from Settings sits above
+  Settings), Tab stays inside the open dialog, and focus goes back to where it was when it closes.
+  Enter and Esc do what the default and cancel buttons do. Every dialog keeps its wording, buttons
+  and results; the About box keeps its fixed synthwave palette.
+- Dialogs never grow past the window: they shrink to fit, and their content scrolls while their
+  buttons stay in view.
+- The main window now has a minimum size (560 x 420), so every dialog still fits on screen.
+- This is groundwork for an Android version: the main view and dialogs now live in a shared
+  library that an Android app will use as they are.
+
 ### 2.2.0 - 2026-11-01
 
 - **Now runs on .NET 10.** cbzLab was built on .NET 8, whose support ends on 10 November 2026, after

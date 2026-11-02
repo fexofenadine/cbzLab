@@ -13,7 +13,7 @@ namespace cbzLab.Dialogs;
 
 //every detected band is shown as an actual image strip rather than just a page number - the whole
 //point is that the user can see what would be cut before anything is written
-public partial class TrimFootersDialog : Window
+public partial class TrimFootersDialog : DialogBase
 {
     private readonly List<(FooterPage Page, CheckBox Box)> _rows = new();
     private List<string>? _result;
@@ -97,11 +97,11 @@ public partial class TrimFootersDialog : Window
     }
 
     /// <summary>Returns the entry keys to trim, or null if cancelled.</summary>
-    public static async Task<List<string>?> ShowAsync(Window owner, FooterScan scan, string fileName)
+    public static async Task<List<string>?> ShowAsync(Visual owner, FooterScan scan, string fileName)
     {
         var dlg = new TrimFootersDialog();
         dlg.Populate(scan, fileName);
-        await dlg.ShowDialog(owner);
+        await DialogHost.ShowAsync(owner, dlg);
         return dlg._result;
     }
 }

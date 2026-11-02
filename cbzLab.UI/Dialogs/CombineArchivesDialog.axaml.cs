@@ -13,7 +13,7 @@ public record CombineCandidate(string Path, string FileName, int PageCount);
 
 //up/down buttons rather than drag-and-drop reorder, matching ToolbarCustomizeDialog - drag-drop
 //inside a list is the one gesture this project has never been able to verify by automation
-public partial class CombineArchivesDialog : Window
+public partial class CombineArchivesDialog : DialogBase
 {
     private readonly List<CombineCandidate> _rows = new();
     private List<CombineCandidate>? _result;
@@ -118,11 +118,11 @@ public partial class CombineArchivesDialog : Window
 
     /// <summary>Returns the archives in the chosen order, or null if cancelled.</summary>
     public static async Task<List<CombineCandidate>?> ShowAsync(
-        Window owner, IReadOnlyList<CombineCandidate> candidates)
+        Visual owner, IReadOnlyList<CombineCandidate> candidates)
     {
         var dlg = new CombineArchivesDialog();
         dlg.Populate(candidates);
-        await dlg.ShowDialog(owner);
+        await DialogHost.ShowAsync(owner, dlg);
         return dlg._result;
     }
 }

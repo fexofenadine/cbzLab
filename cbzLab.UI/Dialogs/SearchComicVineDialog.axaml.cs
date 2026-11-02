@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -14,7 +15,7 @@ using cbzLab.ViewModels;
 namespace cbzLab.Dialogs;
 
 //rows render immediately with text; covers pop in as each download completes
-public partial class SearchComicVineDialog : Window
+public partial class SearchComicVineDialog : DialogBase
 {
     private ComicVineService? _comicVine;
     private readonly ObservableCollection<VolumeRow> _rows = new();
@@ -115,12 +116,12 @@ public partial class SearchComicVineDialog : Window
         Close();
     }
 
-    public static async Task<ComicVineVolume?> ShowAsync(Window owner, ComicVineService comicVine, string initialQuery)
+    public static async Task<ComicVineVolume?> ShowAsync(Visual owner, ComicVineService comicVine, string initialQuery)
     {
         var dlg = new SearchComicVineDialog { _comicVine = comicVine };
         dlg.QueryBox.Text = initialQuery;
 
-        var shown = dlg.ShowDialog(owner);
+        var shown = DialogHost.ShowAsync(owner, dlg);
         if (initialQuery.Trim().Length > 0)
             _ = dlg.RunSearchAsync();
         await shown;

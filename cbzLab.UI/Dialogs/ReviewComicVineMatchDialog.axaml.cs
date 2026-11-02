@@ -12,7 +12,7 @@ using cbzLab.ViewModels;
 namespace cbzLab.Dialogs;
 
 //only shows fields where ComicVine's proposed value differs from the current one
-public partial class ReviewComicVineMatchDialog : Window
+public partial class ReviewComicVineMatchDialog : DialogBase
 {
     private readonly List<(string Tag, CheckBox Box)> _checks = new();
     private bool _applied;
@@ -68,7 +68,7 @@ public partial class ReviewComicVineMatchDialog : Window
 
     //returns tags to apply, or null if nothing differs or the user cancels
     public static async Task<List<string>?> ShowAsync(
-        Window owner, ComicFileViewModel file, Dictionary<string, string> proposedValues, SchemaService schema)
+        Visual owner, ComicFileViewModel file, Dictionary<string, string> proposedValues, SchemaService schema)
     {
         var changed = proposedValues
             .Where(kv => !string.Equals(file.GetValue(kv.Key), kv.Value, System.StringComparison.Ordinal))
@@ -85,7 +85,7 @@ public partial class ReviewComicVineMatchDialog : Window
 
         var dlg = new ReviewComicVineMatchDialog();
         dlg.Populate(changed);
-        await dlg.ShowDialog(owner);
+        await DialogHost.ShowAsync(owner, dlg);
 
         if (!dlg._applied)
             return null;

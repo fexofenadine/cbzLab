@@ -3,7 +3,8 @@
         xmlns:ui="using:cbzLab"
         x:Class="cbzLab.MainWindow"
         Title="cbzLab"
-        Width="900" Height="640">
+        Width="900" Height="640"
+        MinWidth="560" MinHeight="420">
 
     <!--everything shown lives in the shared MainView (cbzLab.UI); this window only adds what a
         desktop window has: its size and position, icon, title, closing, and updating the app-->

@@ -156,11 +156,11 @@ include, toolbar and dialog styles). The desktop app keeps only what only a desk
    it to cancelling. Two things for later: at very small window sizes the unsaved-changes file list
    shrinks to nothing (slice 5's minimum size covers it), and the footer scan never checks for
    cancel, so its Cancel button only takes effect once the scan ends (unchanged from before).
-3. **The rest of the editing dialogs:** Settings, About, Choose Columns, Customize Toolbar, Find &
+3. **The rest of the editing dialogs (done 2026-11-02):** Settings, About, Choose Columns, Customize Toolbar, Find &
    Replace, Copy Fields, Multi Save.
-4. **ComicVine, Combine Archives and Trim Branding Footers:** search, match, both review dialogs,
+4. **ComicVine, Combine Archives and Trim Branding Footers (done 2026-11-02):** search, match, both review dialogs,
    combine and trim.
-5. **Fit and usability check, then release.** Every dialog opened at a normal window size, at the
+5. **Fit and usability check, then release (done 2026-11-02, released as 2.3.0; the window fallback was removed and the main window now has a 560 x 420 minimum).** Every dialog opened at a normal window size, at the
    new minimum size, and stacked where it can stack; then the release.
 
 **Checks for each slice.** Build with no warnings; all tests pass; and in the published app, every

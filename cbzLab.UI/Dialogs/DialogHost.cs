@@ -67,7 +67,7 @@ public sealed class DialogHost : Panel
         var top = TopLevel.GetTopLevel(owner);
         if (top is not null && Hosts.TryGetValue(top, out var host))
             return host.Show(dialog);
-        return DialogWindow.ShowAsync(top as Window, dialog);
+        throw new InvalidOperationException("no dialog host is attached to this owner");
     }
 
     private async Task Show(DialogBase dialog)

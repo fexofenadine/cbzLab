@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using cbzLab.Models;
@@ -9,7 +10,7 @@ namespace cbzLab.Dialogs;
 
 //always shows the full issue list, with a number match pre-selected;
 //autoAcceptSingleMatch (batch mode) skips the dialog entirely on a clean match
-public partial class MatchIssueDialog : Window
+public partial class MatchIssueDialog : DialogBase
 {
     private int? _selected;
 
@@ -73,7 +74,7 @@ public partial class MatchIssueDialog : Window
     }
 
     public static async Task<int?> ShowAsync(
-        Window owner, ComicVineVolume volume, List<ComicVineIssueSummary> issues, string currentNumber,
+        Visual owner, ComicVineVolume volume, List<ComicVineIssueSummary> issues, string currentNumber,
         bool autoAcceptSingleMatch = false, string? contextLabel = null)
     {
         if (autoAcceptSingleMatch)
@@ -85,7 +86,7 @@ public partial class MatchIssueDialog : Window
 
         var dlg = new MatchIssueDialog();
         dlg.Populate(volume, issues, currentNumber, contextLabel);
-        await dlg.ShowDialog(owner);
+        await DialogHost.ShowAsync(owner, dlg);
         return dlg._selected;
     }
 }
