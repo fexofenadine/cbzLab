@@ -24,6 +24,7 @@ public partial class MultiSaveDialog : DialogBase
 
     private void Populate(IReadOnlyList<ComicFileViewModel> files)
     {
+        CbrNote.IsVisible = ArchiveStorage.CanWriteCbr;
         HeaderText.Text = $"{files.Count} file{(files.Count == 1 ? "" : "s")} will be written:";
 
         foreach (var file in files)
@@ -37,8 +38,9 @@ public partial class MultiSaveDialog : DialogBase
 
             var combo = new ComboBox { MinWidth = 90 };
             combo.Items.Add("CBZ");
-            combo.Items.Add("CBR");
-            combo.SelectedIndex = file.Format == ArchiveFormat.Cbr ? 1 : 0;
+            if (ArchiveStorage.CanWriteCbr)
+                combo.Items.Add("CBR");
+            combo.SelectedIndex = file.Format == ArchiveFormat.Cbr && ArchiveStorage.CanWriteCbr ? 1 : 0;
 
             var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
             Grid.SetColumn(name, 0);

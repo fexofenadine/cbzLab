@@ -210,11 +210,11 @@ public partial class MainView : UserControl
     //here was never cleanly resolved one way or the other
     private async Task OfferAutosaveRecoveryAsync()
     {
-        var drafts = _autosave.LoadAll().Where(d => File.Exists(d.OriginalPath)).ToList();
+        var drafts = _autosave.LoadAll().Where(d => ArchiveStorage.Current.Exists(d.OriginalPath)).ToList();
         if (drafts.Count == 0)
             return;
 
-        var names = drafts.Select(d => System.IO.Path.GetFileName(d.OriginalPath));
+        var names = drafts.Select(d => ArchiveStorage.Current.Name(d.OriginalPath));
         var restore = await ConfirmDialog.ShowAsync(Owner, "Restore unsaved changes",
             "cbzLab didn't close cleanly last time. Unsaved changes were found for:\n\n"
             + string.Join("\n", names) + "\n\nRestore them?", "Restore");
@@ -313,7 +313,7 @@ public partial class MainView : UserControl
 
         if (picked.Count > 0)
         {
-            var folder = System.IO.Path.GetDirectoryName(picked[0].Path.LocalPath);
+            var folder = picked[0].Path.IsFile ? System.IO.Path.GetDirectoryName(picked[0].Path.LocalPath) : null;
             if (!string.IsNullOrEmpty(folder) && folder != _settings.Settings.LastOpenFolder)
             {
                 _settings.Settings.LastOpenFolder = folder;
@@ -321,7 +321,7 @@ public partial class MainView : UserControl
             }
         }
 
-        await OpenPathsAsync(picked.Select(f => f.Path.LocalPath).ToList());
+        await OpenPathsAsync(picked.Select(f => ArchiveStorage.IdOf(f.Path)).ToList());
     }
 
     //opens every archive under a folder, including subfolders. Each file keeps its own absolute
@@ -449,7 +449,7 @@ public partial class MainView : UserControl
                         var result = _archive.Read(path, includeCover: false);
                         var values = ComicInfoXml.Parse(result.ComicInfoXml);
                         if (ComicInfoXml.IsUnreadable(result.ComicInfoXml))
-                            unreadableXml.Add(System.IO.Path.GetFileName(path));
+                            unreadableXml.Add(ArchiveStorage.Current.Name(path));
                         var file = new ComicFileViewModel(path, result.Format, result.ComicInfoXml,
                             values, result.ImagePageCount);
                         //seeded into the baseline, like the winui original, so filling an empty Page
@@ -462,13 +462,13 @@ public partial class MainView : UserControl
                     catch (System.Exception ex)
                     {
                         _log.Error($"Failed to open '{path}'", ex);
-                        failures.Add($"{System.IO.Path.GetFileName(path)}: {ex.Message}");
+                        failures.Add($"{ArchiveStorage.Current.Name(path)}: {ex.Message}");
                     }
 
                     var seen = System.Threading.Interlocked.Increment(ref done);
                     if (progress is not null)
                         Dispatcher.UIThread.Post(() => progress.Report(seen, pending.Count,
-                            System.IO.Path.GetFileName(path)));
+                            ArchiveStorage.Current.Name(path)));
                     return ValueTask.CompletedTask;
                 });
         }
@@ -634,11 +634,11 @@ public partial class MainView : UserControl
 
         foreach (var path in recents)
         {
-            var item = new MenuItem { Header = System.IO.Path.GetFileName(path) };
+            var item = new MenuItem { Header = ArchiveStorage.Current.Name(path) };
             ToolTip.SetTip(item, path);
             item.Click += async (_, _) =>
             {
-                if (!System.IO.File.Exists(path))
+                if (!ArchiveStorage.Current.Exists(path))
                 {
                     _settings.Settings.RecentFiles.Remove(path);
                     _settings.Save();
@@ -668,7 +668,7 @@ public partial class MainView : UserControl
         if (files is null)
             return;
 
-        var paths = files.Select(f => f.Path.LocalPath).Where(IsSupportedArchive).ToList();
+        var paths = files.Select(f => ArchiveStorage.IdOf(f.Path)).Where(IsSupportedArchive).ToList();
         if (paths.Count == 0)
         {
             _viewModel.StatusText = "Drop cbz/cbr files to open them";
@@ -737,6 +737,21 @@ public partial class MainView : UserControl
             plan = files.Select(f => (f, f.Format == ArchiveFormat.Unknown ? ArchiveFormat.Cbz : f.Format)).ToList();
         }
 
+        //cbr can't be written here, so a book that came as one is saved as a cbz copy, at a place the
+        //user picks (there's no sibling to put it beside)
+        var pickedDest = new Dictionary<ComicFileViewModel, string>();
+        if (!ArchiveStorage.CanWriteCbr)
+        {
+            plan = plan.Select(p => (p.File, ArchiveFormat.Cbz)).ToList();
+            foreach (var f in plan.Select(p => p.File).Where(f => f.Format == ArchiveFormat.Cbr))
+            {
+                var picked = await PickSaveTargetAsync(f);
+                if (picked is null)
+                    return false;
+                pickedDest[f] = picked;
+            }
+        }
+
         if (plan.Any(p => p.Format == ArchiveFormat.Cbr) && _archive.FindRarTool() is null)
         {
             await MessageDialog.ShowAsync(Owner, "No RAR tool available",
@@ -746,7 +761,7 @@ public partial class MainView : UserControl
         }
 
         var targets = plan
-            .Select(p => (p.File, p.Format, Dest: SavePlanner.DestinationFor(p.File.Path, p.File.Format, p.Format)))
+            .Select(p => (p.File, p.Format, Dest: pickedDest.TryGetValue(p.File, out var chosenDest) ? chosenDest : SavePlanner.DestinationFor(p.File.Path, p.File.Format, p.Format)))
             .ToList();
 
         //a conversion onto another book that's open here would leave that open copy describing a
@@ -754,7 +769,7 @@ public partial class MainView : UserControl
         var openClash = targets
             .Where(t => SavePlanner.IsConversion(t.File.Path, t.Dest)
                         && _viewModel.FindByPath(t.Dest) is { } other && !ReferenceEquals(other, t.File))
-            .Select(t => System.IO.Path.GetFileName(t.Dest))
+            .Select(t => ArchiveStorage.Current.Name(t.Dest))
             .ToList();
         if (openClash.Count > 0)
         {
@@ -764,10 +779,10 @@ public partial class MainView : UserControl
             return false;
         }
 
-        var clashes = SavePlanner.Clashes(targets.Select(t => (t.File.Path, t.Dest)).ToList(), File.Exists);
+        var clashes = SavePlanner.Clashes(targets.Select(t => (t.File.Path, t.Dest)).ToList(), ArchiveStorage.Current.Exists);
         if (clashes.Count > 0 && !await ConfirmDialog.ShowAsync(Owner, "Replace existing files?",
                 "Converting to the new format writes a new file beside each original, and these already exist:\n\n"
-                + string.Join("\n", clashes.Select(System.IO.Path.GetFileName))
+                + string.Join("\n", clashes.Select(ArchiveStorage.Current.Name))
                 + "\n\nReplace them? Nothing is saved if you cancel.", "Replace"))
             return false;
 
@@ -817,6 +832,38 @@ public partial class MainView : UserControl
         return true;
     }
 
+    //asks where to save a book, offering cbr only where it can be written; null if cancelled
+    private async Task<string?> PickSaveTargetAsync(ComicFileViewModel file)
+    {
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel is null)
+            return null;
+
+        var cbzType = new FilePickerFileType("Comic ZIP archive") { Patterns = new[] { "*.cbz" } };
+        var cbrType = new FilePickerFileType("Comic RAR archive") { Patterns = new[] { "*.cbr" } };
+        var defaultIsCbr = _settings.Settings.DefaultSaveFormat.Equals("cbr", System.StringComparison.OrdinalIgnoreCase);
+        var types = !ArchiveStorage.CanWriteCbr ? new[] { cbzType }
+            : defaultIsCbr ? new[] { cbrType, cbzType } : new[] { cbzType, cbrType };
+
+        try
+        {
+            var target = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Save comic archive as",
+                SuggestedFileName = System.IO.Path.GetFileNameWithoutExtension(ArchiveStorage.Current.Name(file.Path)),
+                DefaultExtension = ArchiveStorage.CanWriteCbr ? null : "cbz",
+                FileTypeChoices = types,
+            });
+            return target is null ? null : ArchiveStorage.IdOf(target.Path);
+        }
+        catch (System.Exception ex)
+        {
+            _log.Error("Save As picker failed", ex);
+            _viewModel.StatusText = $"Save As failed: {ex.Message}";
+            return null;
+        }
+    }
+
     //single file only - doesn't apply to a batch selection
     private async void OnSaveAs(object? sender, RoutedEventArgs e)
     {
@@ -827,41 +874,18 @@ public partial class MainView : UserControl
             return;
         }
 
-        var topLevel = TopLevel.GetTopLevel(this);
-        if (topLevel is null)
+        var path = await PickSaveTargetAsync(file);
+        if (path is null)
             return;
-
-        var cbzType = new FilePickerFileType("Comic ZIP archive") { Patterns = new[] { "*.cbz" } };
-        var cbrType = new FilePickerFileType("Comic RAR archive") { Patterns = new[] { "*.cbr" } };
-        var defaultIsCbr = _settings.Settings.DefaultSaveFormat.Equals("cbr", System.StringComparison.OrdinalIgnoreCase);
-
-        IStorageFile? target;
-        try
-        {
-            target = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-            {
-                Title = "Save comic archive as",
-                SuggestedFileName = System.IO.Path.GetFileNameWithoutExtension(file.Path),
-                FileTypeChoices = defaultIsCbr ? new[] { cbrType, cbzType } : new[] { cbzType, cbrType },
-            });
-        }
-        catch (System.Exception ex)
-        {
-            _log.Error("Save As picker failed", ex);
-            _viewModel.StatusText = $"Save As failed: {ex.Message}";
-            return;
-        }
-        if (target is null)
-            return;
-
-        var path = target.Path.LocalPath;
-        var format = path.EndsWith(".cbr", System.StringComparison.OrdinalIgnoreCase) ? ArchiveFormat.Cbr : ArchiveFormat.Cbz;
+        var format = !ArchiveStorage.CanWriteCbr || !path.EndsWith(".cbr", System.StringComparison.OrdinalIgnoreCase)
+            ? ArchiveFormat.Cbz
+            : ArchiveFormat.Cbr;
 
         //the picker already confirms replacing a file on disk, but not one that's open here
         if (_viewModel.FindByPath(path) is { } openElsewhere && !ReferenceEquals(openElsewhere, file))
         {
             await MessageDialog.ShowAsync(Owner, "Can't save there",
-                $"{System.IO.Path.GetFileName(path)} is also open here. Close it first, or choose another name.");
+                $"{ArchiveStorage.Current.Name(path)} is also open here. Close it first, or choose another name.");
             return;
         }
 
@@ -885,7 +909,7 @@ public partial class MainView : UserControl
             _settings.AddRecentFile(path);
             BuildRecentMenu();
             _viewModel.RefreshEditor();
-            _viewModel.StatusText = $"Saved as {System.IO.Path.GetFileName(path)}";
+            _viewModel.StatusText = $"Saved as {ArchiveStorage.Current.Name(path)}";
         }
         catch (System.Exception ex)
         {
@@ -979,7 +1003,7 @@ public partial class MainView : UserControl
         {
             var path = _recentlyClosedPaths[0];
             _recentlyClosedPaths.RemoveAt(0);
-            if (!File.Exists(path))
+            if (!ArchiveStorage.Current.Exists(path))
                 continue;
             await OpenPathsAsync(new List<string> { path });
             return;
@@ -1620,7 +1644,7 @@ public partial class MainView : UserControl
                 Title = "Save combined archive as",
                 SuggestedFileName = suggested,
                 SuggestedStartLocation = startLocation,
-                DefaultExtension = "cbz",
+                DefaultExtension = ArchiveStorage.CanWriteCbr ? null : "cbz",
                 FileTypeChoices = new[]
                 {
                     new FilePickerFileType("Comic ZIP archive") { Patterns = new[] { "*.cbz" } },
@@ -1759,7 +1783,7 @@ public partial class MainView : UserControl
                 Title = "Save trimmed archive as",
                 SuggestedFileName = System.IO.Path.GetFileNameWithoutExtension(sourcePath) + " (trimmed)",
                 SuggestedStartLocation = startLocation,
-                DefaultExtension = "cbz",
+                DefaultExtension = ArchiveStorage.CanWriteCbr ? null : "cbz",
                 FileTypeChoices = new[]
                 {
                     new FilePickerFileType("Comic ZIP archive") { Patterns = new[] { "*.cbz" } },

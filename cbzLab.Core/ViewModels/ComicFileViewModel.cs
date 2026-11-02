@@ -10,7 +10,7 @@ namespace cbzLab.ViewModels;
 public class ComicFileViewModel : ViewModelBase
 {
     public string Path { get; private set; }
-    public string FileName => System.IO.Path.GetFileName(Path);
+    public string FileName => cbzLab.Services.ArchiveStorage.Current.Name(Path);
 
     //read straight from disk on each access rather than cached, so a save (which rewrites
     //the archive) is reflected immediately without needing its own invalidation path
@@ -20,7 +20,7 @@ public class ComicFileViewModel : ViewModelBase
         {
             try
             {
-                var bytes = new System.IO.FileInfo(Path).Length;
+                var bytes = cbzLab.Services.ArchiveStorage.Current.Length(Path) ?? 0;
                 return bytes switch
                 {
                     < 1024 => $"{bytes} B",
@@ -41,7 +41,7 @@ public class ComicFileViewModel : ViewModelBase
         {
             try
             {
-                return new System.IO.FileInfo(Path).LastWriteTime.ToString("g");
+                return cbzLab.Services.ArchiveStorage.Current.Modified(Path)?.ToString("g") ?? "";
             }
             catch
             {

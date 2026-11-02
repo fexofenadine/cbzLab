@@ -54,7 +54,7 @@ public class ArchiveService
 
     internal ArchiveReadResult ReadZip(string path, bool includeCover)
     {
-        using var zip = ZipFile.OpenRead(path);
+        using var zip = new ZipArchive(ArchiveStorage.Current.OpenRead(path), ZipArchiveMode.Read);
         byte[]? xml = null;
         var images = new List<ZipArchiveEntry>();
         foreach (var entry in zip.Entries)
@@ -97,7 +97,7 @@ public class ArchiveService
         var imageKeys = new List<string>();
         var pages = 0;
 
-        using (var stream = File.OpenRead(path))
+        using (var stream = ArchiveStorage.Current.OpenRead(path))
         using (var reader = ReaderFactory.OpenReader(stream))
         {
             while (reader.MoveToNextEntry())
@@ -192,7 +192,7 @@ public class ArchiveService
 
         try
         {
-            using var stream = File.OpenRead(path);
+            using var stream = ArchiveStorage.Current.OpenRead(path);
             using var reader = ReaderFactory.OpenReader(stream);
             while (reader.MoveToNextEntry())
             {
@@ -243,7 +243,7 @@ public class ArchiveService
     {
         try
         {
-            using var stream = File.OpenRead(path);
+            using var stream = ArchiveStorage.Current.OpenRead(path);
             using var reader = ReaderFactory.OpenReader(stream);
             while (reader.MoveToNextEntry())
             {
@@ -268,7 +268,7 @@ public class ArchiveService
         try
         {
             Span<byte> magic = stackalloc byte[4];
-            using var fs = File.OpenRead(path);
+            using var fs = ArchiveStorage.Current.OpenRead(path);
             if (fs.Read(magic) >= 4)
             {
                 if (magic[0] == 0x50 && magic[1] == 0x4B) //"PK" - zip
@@ -282,7 +282,7 @@ public class ArchiveService
             //fall through to extension guess
         }
 
-        var ext = Path.GetExtension(path).ToLowerInvariant();
+        var ext = Path.GetExtension(ArchiveStorage.Current.Name(path)).ToLowerInvariant();
         return ext switch
         {
             ".cbz" or ".zip" => ArchiveFormat.Cbz,
@@ -331,10 +331,11 @@ public class ArchiveService
     //rebuilds as a zip with the new xml, then atomically replaces the destination
     private void SaveAsCbz(string sourcePath, string destPath, byte[] xml)
     {
-        var tempPath = TempSibling(destPath);
+        //a document has no folder to put a sibling in, so its temp file goes to the temp folder
+        var tempPath = ArchiveStorage.Current.IsFile(destPath) ? TempSibling(destPath) : TempAnywhere();
         try
         {
-            using (var srcStream = File.OpenRead(sourcePath))
+            using (var srcStream = ArchiveStorage.Current.OpenRead(sourcePath))
             using (var reader = ReaderFactory.OpenReader(srcStream))
             using (var outStream = File.Create(tempPath))
             using (var zip = new ZipArchive(outStream, ZipArchiveMode.Create))
@@ -362,7 +363,7 @@ public class ArchiveService
                 xs.Write(xml, 0, xml.Length);
             }
 
-            File.Move(tempPath, destPath, overwrite: true);
+            ArchiveStorage.Current.Replace(destPath, tempPath);
         }
         finally
         {
@@ -374,6 +375,9 @@ public class ArchiveService
     //(needs the real rar tool - 7-Zip can't create rar archives)
     private void SaveAsCbr(string sourcePath, string destPath, byte[] xml)
     {
+        if (!ArchiveStorage.CanWriteCbr)
+            throw new InvalidOperationException("CBR files can't be written on this device. Save as CBZ instead.");
+
         var tool = FindRarTool()
             ?? throw new InvalidOperationException(
                 "No RAR write tool was found. Set the tool path in Settings, or save as CBZ instead.");
@@ -420,7 +424,7 @@ public class ArchiveService
     {
         var root = Path.GetFullPath(destDir + Path.DirectorySeparatorChar);
 
-        using var stream = File.OpenRead(archivePath);
+        using var stream = ArchiveStorage.Current.OpenRead(archivePath);
         using var reader = ReaderFactory.OpenReader(stream);
         while (reader.MoveToNextEntry())
         {
@@ -474,6 +478,10 @@ public class ArchiveService
     /// </summary>
     public string? FindRarTool()
     {
+        //nothing to run a tool with on android
+        if (!ArchiveStorage.CanWriteCbr)
+            return null;
+
         var configured = _settings.Settings.RarToolPath;
         if (!string.IsNullOrWhiteSpace(configured) && File.Exists(configured))
         {
@@ -594,6 +602,8 @@ public class ArchiveService
     }
 
     //---------------------------------------------------------------- helpers
+
+    private static string TempAnywhere() => Path.Combine(Path.GetTempPath(), "cbzlab-" + Guid.NewGuid().ToString("N") + ".tmp");
 
     private static string TempSibling(string path)
     {

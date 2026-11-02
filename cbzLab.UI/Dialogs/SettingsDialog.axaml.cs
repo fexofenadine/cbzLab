@@ -28,6 +28,9 @@ public partial class SettingsDialog : DialogBase
         InitializeComponent();
         foreach (var f in FontFamilyOptions)
             FontFamilyCombo.Items.Add(f);
+
+        //saving cbr needs an external tool, which a phone can't run: it's cbz only there
+        DefaultFormatPanel.IsVisible = RarToolPanel.IsVisible = ArchiveStorage.CanWriteCbr;
     }
 
     private void Populate(AppSettingsSnapshot s)
