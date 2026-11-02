@@ -119,7 +119,7 @@
             <Grid x:Name="SplitGrid" Grid.Row="2" ColumnDefinitions="260,Auto,*" IsVisible="{Binding !IsGridViewActive}">
 
                 <!--ThListBg is a real, separate theme key from ThBg, not just a duplicate-->
-                <Grid x:Name="ListPane" Grid.Column="0" RowDefinitions="Auto,Auto,*,Auto" Background="{DynamicResource ThListBg}">
+                <Grid x:Name="ListPane" Grid.Column="0" RowDefinitions="Auto,Auto,*,Auto,Auto" Background="{DynamicResource ThListBg}">
                     <TextBlock Grid.Row="0" Text="OPEN FILES" FontSize="11" FontWeight="SemiBold"
                                Opacity="0.6" Margin="4,8,4,4" />
 
@@ -214,6 +214,11 @@
                             </ScrollViewer>
                         </StackPanel>
                     </Border>
+
+                    <!--selection mode (touch): opens the editor for what's been picked-->
+                    <Button x:Name="EditSelectionButton" Grid.Row="4" IsVisible="False" Margin="8"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                            Click="OnEditSelection" />
                 </Grid>
 
                 <GridSplitter x:Name="PaneSplitter" Grid.Column="1" Width="1" Background="{DynamicResource ThSep}" />

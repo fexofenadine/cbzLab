@@ -29,7 +29,7 @@ public static class AndroidHost
     public static MainView CreateView()
     {
         Prepare(global::Android.App.Application.Context);
-        var view = new MainView();
+        var view = new MainView { TouchMode = true };
         View = view;
         view.Loaded += async (_, _) =>
         {
@@ -69,6 +69,11 @@ public static class AndroidHost
         _prepared = true;
 
         ArchiveStorage.Current = new AndroidArchiveStorage(context);
+        //fingertip-sized targets, app-wide so menus and dialogs get them too
+        Avalonia.Application.Current!.Styles.Add(new Avalonia.Markup.Xaml.Styling.StyleInclude(new Uri("avares://cbzLab.UI/"))
+        {
+            Source = new Uri("avares://cbzLab.UI/TouchStyles.axaml"),
+        });
         AppPaths.BundledAssetsDir = UnpackBundledAssets(context);
     }
 

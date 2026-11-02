@@ -11,6 +11,7 @@ using Avalonia.Data;
 using Avalonia.Data.Converters;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
+using Avalonia.Input.TextInput;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -140,6 +141,11 @@ public partial class MainView : UserControl
     {
         if (Dialogs.CancelTop())
             return true;
+        if (_selectMode)
+        {
+            ExitSelectMode(clear: true);
+            return true;
+        }
         if (_narrow && _editorOpen)
         {
             _editorOpen = false;
@@ -199,10 +205,71 @@ public partial class MainView : UserControl
     //programmatically leaves you on the list)
     private void OnFileListTapped(object? sender, TappedEventArgs e)
     {
-        if (!_narrow || !_viewModel.HasSelection || _viewModel.IsBatchMode)
+        if (_selectMode || !_narrow || !_viewModel.HasSelection || _viewModel.IsBatchMode)
             return;
         _editorOpen = true;
         ApplyLayoutMode();
+    }
+
+    //---------------------------------------------------------------- selecting several books (touch)
+
+    private bool _selectMode;
+    private bool _enteringSelectMode;
+    private ComicFileViewModel? _selectModeFirst;
+
+    //taps toggle books in and out of the selection; ctrl and shift-click have no touch equivalent
+    private void EnterSelectMode(ComicFileViewModel first)
+    {
+        _selectMode = true;
+        FileList.SelectionMode = SelectionMode.Multiple | SelectionMode.Toggle;
+        //clearing passes through "nothing selected", which would otherwise end the mode just begun
+        _enteringSelectMode = true;
+        FileList.SelectedItems!.Clear();
+        FileList.SelectedItems.Add(first);
+        _enteringSelectMode = false;
+        //lifting the finger after the long press arrives as a tap, which in toggle mode would deselect
+        //the book just chosen; for a moment a deselect of that one book is put back
+        _selectModeFirst = first;
+        DispatcherTimer.RunOnce(() => _selectModeFirst = null, TimeSpan.FromMilliseconds(700));
+        UpdateSelectMode();
+    }
+
+    private void ExitSelectMode(bool clear)
+    {
+        _selectMode = false;
+        FileList.SelectionMode = SelectionMode.Multiple;
+        if (clear)
+            FileList.SelectedItems!.Clear();
+        EditSelectionButton.IsVisible = false;
+        _viewModel.UpdateStatus();
+        ApplyLayoutMode();
+    }
+
+    //the button's label doubles as the count; nothing selected leaves the mode
+    private void UpdateSelectMode()
+    {
+        var count = FileList.SelectedItems!.Count;
+        if (count == 0 && _selectModeFirst is { } first)
+        {
+            _enteringSelectMode = true;
+            FileList.SelectedItems.Add(first);
+            _enteringSelectMode = false;
+            count = 1;
+        }
+        if (count == 0)
+        {
+            ExitSelectMode(clear: false);
+            return;
+        }
+        EditSelectionButton.Content = count == 1 ? "Edit 1 book" : $"Edit {count} books";
+        EditSelectionButton.IsVisible = true;
+        _viewModel.StatusText = "Tap books to add or remove them. Back when done.";
+    }
+
+    private void OnEditSelection(object? sender, RoutedEventArgs e)
+    {
+        _editorOpen = true;
+        ExitSelectMode(clear: false);
     }
 
     private void OnBackToList(object? sender, RoutedEventArgs e)
@@ -210,6 +277,10 @@ public partial class MainView : UserControl
         _editorOpen = false;
         ApplyLayoutMode();
     }
+
+    //set by a touch host (android): long-press starts selecting several books, fields get the number
+    //keypad, and the desktop's hover and right-click habits are left out
+    public bool TouchMode { get; set; }
 
     //opens files after start-up (a book handed over by another app)
     public Task OpenAsync(IReadOnlyList<string> paths) => OpenPathsAsync(paths.ToList());
@@ -1101,6 +1172,8 @@ public partial class MainView : UserControl
     private async void FileList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         _viewModel.SetSelection(FileList.SelectedItems!.Cast<ComicFileViewModel>());
+        if (_selectMode && !_enteringSelectMode)
+            UpdateSelectMode();
         ApplyLayoutMode();
 
         //the editor header shows the current file's cover, and with lazy loading that file may
@@ -1184,6 +1257,14 @@ public partial class MainView : UserControl
     //right-clicking outside the current selection replaces it first
     private void OnFileListContextRequested(object? sender, ContextRequestedEventArgs e)
     {
+        if ((e.Source as StyledElement)?.DataContext is ComicFileViewModel pressed && TouchMode && !_selectMode)
+        {
+            //a long press starts selecting; the file menu is for a second long press once selecting
+            EnterSelectMode(pressed);
+            e.Handled = true;
+            return;
+        }
+
         if ((e.Source as StyledElement)?.DataContext is ComicFileViewModel file)
         {
             _lastRightTappedFile = file;
@@ -2208,6 +2289,16 @@ public partial class MainView : UserControl
         NumericGroupTemplate = new FuncDataTemplate<FieldViewModel>((f, _) => BuildNumericGroupRow(f), true),
     };
 
+    //whole-number and decimal fields open the number keypad on a touch screen (no effect elsewhere)
+    private void ApplyInputHints(TextBox box, FieldViewModel field)
+    {
+        var constraints = _schema.Constraints;
+        if (constraints.IntFields.Contains(field.Tag))
+            TextInputOptions.SetContentType(box, TextInputContentType.Digits);
+        else if (constraints.FloatFields.Contains(field.Tag))
+            TextInputOptions.SetContentType(box, TextInputContentType.Number);
+    }
+
     //free-text entry, not a calendar picker - DateFieldHelper parses full dates, year-only, and "MM/yyyy"
     private Control BuildDateRow(FieldViewModel field)
     {
@@ -2239,6 +2330,7 @@ public partial class MainView : UserControl
         var box = new TextBox { Width = 90 };
         box.Bind(TextBox.TextProperty, new Binding(nameof(FieldViewModel.Value)) { Mode = BindingMode.TwoWay });
         box.Bind(TextBox.PlaceholderTextProperty, new Binding(nameof(FieldViewModel.PlaceholderText)));
+        ApplyInputHints(box, field);
         AttachRevertContextMenu(box, field);
 
         var item = new StackPanel { Spacing = 2, DataContext = field };
@@ -2255,6 +2347,7 @@ public partial class MainView : UserControl
         var box = new TextBox();
         box.Bind(TextBox.TextProperty, new Binding(nameof(FieldViewModel.Value)) { Mode = BindingMode.TwoWay });
         box.Bind(TextBox.PlaceholderTextProperty, new Binding(nameof(FieldViewModel.PlaceholderText)));
+        ApplyInputHints(box, field);
 
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
         var bordered = WrapWithErrorBorder(box, field);

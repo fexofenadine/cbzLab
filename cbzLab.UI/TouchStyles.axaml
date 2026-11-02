@@ -1,0 +1,32 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--added by a touch host (android) on top of AppStyles: a fingertip needs targets of at least
+        48 units, which the desktop's mouse-sized controls are not. app-wide rather than on the main
+        view so menu popups and dialogs get them too-->
+    <Style Selector="Button">
+        <Setter Property="MinHeight" Value="48" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="MinWidth" Value="48" />
+    </Style>
+    <Style Selector="TextBox">
+        <Setter Property="MinHeight" Value="48" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="ComboBox">
+        <Setter Property="MinHeight" Value="48" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="CheckBox">
+        <Setter Property="MinHeight" Value="48" />
+    </Style>
+    <Style Selector="MenuItem">
+        <Setter Property="MinHeight" Value="48" />
+    </Style>
+    <Style Selector="ListBoxItem">
+        <Setter Property="MinHeight" Value="56" />
+    </Style>
+    <Style Selector="TabItem">
+        <Setter Property="MinHeight" Value="48" />
+    </Style>
+</Styles>
