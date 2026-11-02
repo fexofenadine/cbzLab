@@ -36,6 +36,8 @@
 - An unexpected error in a menu or button action is now shown and logged, with unsaved edits
   snapshotted for recovery, instead of closing the app.
 - Desktop: resizing the window no longer resets the width you dragged the file list to.
+- Picking a book from Open Recent that no longer exists now closes the menu before saying so (it
+  stayed open over the message), and names the book rather than showing its full address.
 
 ### 2.4.1 - 2026-11-02
 

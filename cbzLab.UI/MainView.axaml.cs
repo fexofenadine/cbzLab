@@ -1019,11 +1019,13 @@ public partial class MainView : UserControl
             {
                 if (!ArchiveStorage.Current.Exists(path))
                 {
+                    //close first: rebuilding detaches the clicked item, which would leave the menu open
+                    MainMenu.Close();
                     _settings.Settings.RecentFiles.Remove(path);
                     _settings.Save();
                     BuildRecentMenu();
                     await MessageDialog.ShowAsync(Owner, "File not found",
-                        $"{path} no longer exists and has been removed from the recent list.");
+                        $"{ArchiveStorage.Current.Name(path)} no longer exists and has been removed from the recent list.");
                     return;
                 }
                 await OpenPathsAsync(new List<string> { path });
