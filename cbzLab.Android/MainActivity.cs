@@ -7,6 +7,9 @@ using Android.Runtime;
 using Android.Views;
 using Avalonia.Android;
 
+//ComicVine lookups are the only thing that goes online; saving and opening are all local documents
+[assembly: UsesPermission(global::Android.Manifest.Permission.Internet)]
+
 namespace cbzLab.Android;
 
 [Application(Label = "cbzLab", Icon = "@mipmap/appicon", RoundIcon = "@mipmap/appicon")]

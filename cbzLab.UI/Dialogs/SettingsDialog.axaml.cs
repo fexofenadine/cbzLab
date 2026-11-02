@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -31,6 +32,9 @@ public partial class SettingsDialog : DialogBase
 
         //saving cbr needs an external tool, which a phone can't run: it's cbz only there
         DefaultFormatPanel.IsVisible = RarToolPanel.IsVisible = ArchiveStorage.CanWriteCbr;
+
+        //there is no folder to open and no self-updater on a phone
+        FolderLinksPanel.IsVisible = UpdatesPanel.IsVisible = !OperatingSystem.IsAndroid();
     }
 
     private void Populate(AppSettingsSnapshot s)

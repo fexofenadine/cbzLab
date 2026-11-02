@@ -58,6 +58,10 @@ public partial class MainView : UserControl
     {
         InitializeComponent();
         Dialogs.Covered = RootGrid;
+
+        //a folder is a path the desktop can walk; android hands out documents, not folders
+        if (OperatingSystem.IsAndroid())
+            OpenFolderItem.IsVisible = OpenContainingItem.IsVisible = OpenContainingSeparator.IsVisible = false;
         SizeChanged += (_, _) => ApplyLayoutMode();
 
         //same construction order as App.xaml.cs in the winui project
@@ -1774,7 +1778,7 @@ public partial class MainView : UserControl
         if (combined is null)
         {
             _viewModel.StatusText =
-                $"Combined {outcome.SourceCount} archives into {System.IO.Path.GetFileName(outcome.OutputPath)}";
+                $"Combined {outcome.SourceCount} archives into {ArchiveStorage.Current.Name(outcome.OutputPath)}";
             return;
         }
 
@@ -1793,7 +1797,7 @@ public partial class MainView : UserControl
             return null;
 
         IStorageFolder? startLocation = null;
-        var sourceDir = System.IO.Path.GetDirectoryName(firstSourcePath);
+        var sourceDir = ArchiveStorage.Current.IsFile(firstSourcePath) ? System.IO.Path.GetDirectoryName(firstSourcePath) : null;
         if (!string.IsNullOrEmpty(sourceDir))
         {
             try { startLocation = await topLevel.StorageProvider.TryGetFolderFromPathAsync(sourceDir); }
@@ -1802,7 +1806,7 @@ public partial class MainView : UserControl
 
         //the joined book is no longer "part 1", so the suggested name drops that marker
         var suggested = CombineService.TrimPartSuffix(
-            System.IO.Path.GetFileNameWithoutExtension(firstSourcePath));
+            System.IO.Path.GetFileNameWithoutExtension(ArchiveStorage.Current.Name(firstSourcePath)));
 
         try
         {
@@ -1813,13 +1817,13 @@ public partial class MainView : UserControl
                 Title = "Save combined archive as",
                 SuggestedFileName = suggested,
                 SuggestedStartLocation = startLocation,
-                DefaultExtension = ArchiveStorage.CanWriteCbr ? null : "cbz",
+                DefaultExtension = "cbz",
                 FileTypeChoices = new[]
                 {
                     new FilePickerFileType("Comic ZIP archive") { Patterns = new[] { "*.cbz" } },
                 },
             });
-            return target?.Path.LocalPath;
+            return target is null ? null : ArchiveStorage.IdOf(target.Path);
         }
         catch (System.Exception ex)
         {
@@ -1924,7 +1928,7 @@ public partial class MainView : UserControl
             SwitchToEditorForSelection(new[] { opened });
 
         _viewModel.StatusText =
-            $"Trimmed {trimmed} footer(s) into {System.IO.Path.GetFileName(destination)} - original untouched";
+            $"Trimmed {trimmed} footer(s) into {ArchiveStorage.Current.Name(destination)} - original untouched";
     }
 
     //95 measured comfortably past the visually-lossless mark on real pages while keeping the file
@@ -1938,7 +1942,7 @@ public partial class MainView : UserControl
             return null;
 
         IStorageFolder? startLocation = null;
-        var sourceDir = System.IO.Path.GetDirectoryName(sourcePath);
+        var sourceDir = ArchiveStorage.Current.IsFile(sourcePath) ? System.IO.Path.GetDirectoryName(sourcePath) : null;
         if (!string.IsNullOrEmpty(sourceDir))
         {
             try { startLocation = await topLevel.StorageProvider.TryGetFolderFromPathAsync(sourceDir); }
@@ -1950,15 +1954,15 @@ public partial class MainView : UserControl
             var target = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = "Save trimmed archive as",
-                SuggestedFileName = System.IO.Path.GetFileNameWithoutExtension(sourcePath) + " (trimmed)",
+                SuggestedFileName = System.IO.Path.GetFileNameWithoutExtension(ArchiveStorage.Current.Name(sourcePath)) + " (trimmed)",
                 SuggestedStartLocation = startLocation,
-                DefaultExtension = ArchiveStorage.CanWriteCbr ? null : "cbz",
+                DefaultExtension = "cbz",
                 FileTypeChoices = new[]
                 {
                     new FilePickerFileType("Comic ZIP archive") { Patterns = new[] { "*.cbz" } },
                 },
             });
-            return target?.Path.LocalPath;
+            return target is null ? null : ArchiveStorage.IdOf(target.Path);
         }
         catch (System.Exception ex)
         {

@@ -108,7 +108,7 @@
                     </StackPanel>
                 </StackPanel>
 
-                <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,6,0,0">
+                <StackPanel x:Name="FolderLinksPanel" Orientation="Horizontal" Spacing="16" Margin="0,6,0,0">
                     <Button Classes="hyperlink" Content="Open config folder" Click="OnOpenConfigFolder" />
                     <Button Classes="hyperlink" Content="Open themes folder" Click="OnOpenThemesFolder" />
                     <Button Classes="hyperlink" Content="Open logs folder" Click="OnOpenLogsFolder" />
@@ -123,11 +123,14 @@
                 </StackPanel>
                 <TextBlock x:Name="BackupStatus" FontSize="12" Opacity="0.85" TextWrapping="Wrap" />
 
-                <TextBlock Text="UPDATES" FontSize="11" FontWeight="SemiBold" Opacity="0.6" Margin="0,6,0,0" />
-                <CheckBox x:Name="CheckForUpdatesOnStartupCheck" Content="Check for updates on startup" />
-                <CheckBox x:Name="AutoUpdateEnabledCheck" Content="Enable automatic updates" />
-                <TextBlock Text="When on, an available update offers to download and install itself (with your confirmation first) instead of just linking the release."
-                           FontSize="12" Opacity="0.7" TextWrapping="Wrap" Margin="24,0,0,0" />
+                <!--the desktop's self-updater; an android app is updated through its store or release page-->
+                <StackPanel x:Name="UpdatesPanel" Spacing="12">
+                    <TextBlock Text="UPDATES" FontSize="11" FontWeight="SemiBold" Opacity="0.6" Margin="0,6,0,0" />
+                    <CheckBox x:Name="CheckForUpdatesOnStartupCheck" Content="Check for updates on startup" />
+                    <CheckBox x:Name="AutoUpdateEnabledCheck" Content="Enable automatic updates" />
+                    <TextBlock Text="When on, an available update offers to download and install itself (with your confirmation first) instead of just linking the release."
+                               FontSize="12" Opacity="0.7" TextWrapping="Wrap" Margin="24,0,0,0" />
+                </StackPanel>
             </StackPanel>
         </ScrollViewer>
 

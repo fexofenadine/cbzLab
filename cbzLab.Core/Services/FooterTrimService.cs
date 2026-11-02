@@ -228,13 +228,16 @@ public class FooterTrimService
         if (PathComparison.Same(Path.GetFullPath(sourcePath), Path.GetFullPath(destPath)))
             throw new ArgumentException("The trimmed archive must be written to a different file than the source.");
 
-        var tempPath = destPath + ".cbzlab-tmp";
+        //a document has no folder to put a sibling in
+        var tempPath = ArchiveStorage.Current.IsFile(destPath)
+            ? destPath + ".cbzlab-tmp"
+            : Path.Combine(Path.GetTempPath(), "cbzlab-" + Guid.NewGuid().ToString("N") + ".tmp");
         var trimmed = 0;
         try
         {
             using (var outStream = File.Create(tempPath))
             using (var zip = new ZipArchive(outStream, ZipArchiveMode.Create))
-            using (var source = File.OpenRead(sourcePath))
+            using (var source = ArchiveStorage.Current.OpenRead(sourcePath))
             using (var reader = ReaderFactory.OpenReader(source))
             {
                 var seen = 0;
@@ -278,7 +281,7 @@ public class FooterTrimService
                 }
             }
 
-            File.Move(tempPath, destPath, overwrite: true);
+            ArchiveStorage.Current.Replace(destPath, tempPath);
             _log.Info($"Trimmed {trimmed} footers from '{sourcePath}' into '{destPath}'");
             return trimmed;
         }
@@ -350,7 +353,7 @@ public class FooterTrimService
 
     private IEnumerable<(string Key, byte[] Bytes)> ReadImages(string archivePath, CancellationToken ct)
     {
-        using var stream = File.OpenRead(archivePath);
+        using var stream = ArchiveStorage.Current.OpenRead(archivePath);
         using var reader = ReaderFactory.OpenReader(stream);
         while (reader.MoveToNextEntry())
         {

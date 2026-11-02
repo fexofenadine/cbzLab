@@ -52,7 +52,7 @@ public class CombineService
         {
             if (SamePath(source, destPath))
                 throw new ArgumentException(
-                    $"'{Path.GetFileName(source)}' is both a source and the output - choose a different output name.");
+                    $"'{ArchiveStorage.Current.Name(source)}' is both a source and the output - choose a different output name.");
         }
 
         var workDir = Path.Combine(Path.GetTempPath(), "cbzLab-combine-" + Guid.NewGuid().ToString("N"));
@@ -68,7 +68,7 @@ public class CombineService
             for (var i = 0; i < sourcePaths.Count; i++)
             {
                 ct.ThrowIfCancellationRequested();
-                progress?.Invoke(i + 1, steps, $"Reading {Path.GetFileName(sourcePaths[i])}");
+                progress?.Invoke(i + 1, steps, $"Reading {ArchiveStorage.Current.Name(sourcePaths[i])}");
 
                 var bookDir = Path.Combine(workDir, i.ToString("D4"));
                 Directory.CreateDirectory(bookDir);
@@ -79,7 +79,7 @@ public class CombineService
 
                 if (pages.Count == 0)
                     throw new InvalidOperationException(
-                        $"'{Path.GetFileName(sourcePaths[i])}' contains no page images.");
+                        $"'{ArchiveStorage.Current.Name(sourcePaths[i])}' contains no page images.");
 
                 //storage order is never a reliable proxy for page order on a repacked archive
                 pages.Sort((a, b) => ArchiveService.NaturalCompare(a.RelativeKey, b.RelativeKey));
@@ -89,7 +89,7 @@ public class CombineService
             var total = books.Sum(b => b.Count);
             var naming = DetectNaming(books[0].Select(p => p.RelativeKey).ToList(), total);
 
-            progress?.Invoke(steps, steps, $"Writing {Path.GetFileName(destPath)}");
+            progress?.Invoke(steps, steps, $"Writing {ArchiveStorage.Current.Name(destPath)}");
             WriteCombined(books, xml, naming, destPath, ct);
 
             _log.Info($"Combined {sourcePaths.Count} archives into '{destPath}' ({total} pages)");
@@ -108,7 +108,7 @@ public class CombineService
         var pages = new List<ExtractedPage>();
         xml = null;
 
-        using var stream = File.OpenRead(archivePath);
+        using var stream = ArchiveStorage.Current.OpenRead(archivePath);
         using var reader = ReaderFactory.OpenReader(stream);
         while (reader.MoveToNextEntry())
         {
@@ -158,7 +158,7 @@ public class CombineService
     private void WriteCombined(
         List<List<ExtractedPage>> books, byte[]? xml, PageNaming naming, string destPath, CancellationToken ct)
     {
-        var tempPath = TempSibling(destPath);
+        var tempPath = ArchiveStorage.Current.IsFile(destPath) ? TempSibling(destPath) : TempAnywhere();
         try
         {
             using (var outStream = File.Create(tempPath))
@@ -187,7 +187,7 @@ public class CombineService
                 }
             }
 
-            File.Move(tempPath, destPath, overwrite: true);
+            ArchiveStorage.Current.Replace(destPath, tempPath);
         }
         finally
         {
@@ -281,6 +281,9 @@ public class CombineService
             return null;
         }
     }
+
+    //a document has no folder to put a sibling in
+    private static string TempAnywhere() => Path.Combine(Path.GetTempPath(), "cbzlab-" + Guid.NewGuid().ToString("N") + ".tmp");
 
     private static string TempSibling(string path)
     {

@@ -136,7 +136,6 @@ public sealed class AndroidArchiveStorage : IArchiveStorage
         }
 
         var expected = Hash(tempFile);
-        var length = new FileInfo(tempFile).Length;
 
         //the original, kept until the new copy has been read back and found identical
         var backup = Path.Combine(_backupDir, Guid.NewGuid().ToString("N") + ".bak");
@@ -154,7 +153,8 @@ public sealed class AndroidArchiveStorage : IArchiveStorage
                 target.Flush(true);
             }
 
-            if ((Length(id) is { } written && written != length) || Hash(id) != expected)
+            //the bytes read back are the proof; a provider's size column can lag behind a write
+            if (Hash(id) != expected)
                 throw new IOException("the saved copy didn't read back the same");
         }
         catch (Exception ex)

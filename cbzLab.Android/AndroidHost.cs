@@ -31,6 +31,7 @@ public static class AndroidHost
         Prepare(global::Android.App.Application.Context);
         var view = new MainView { TouchMode = true };
         View = view;
+        view.QuitRequested += async (_, _) => await LeaveAsync(view);
         view.Loaded += async (_, _) =>
         {
             if (_shown)

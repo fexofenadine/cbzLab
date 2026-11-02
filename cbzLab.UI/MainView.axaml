@@ -42,7 +42,7 @@
             <Menu Grid.Row="0">
                 <MenuItem Header="_File">
                     <MenuItem Header="Open…" Click="OnOpen" HotKey="Ctrl+O" />
-                    <MenuItem Header="Open Folder…" Click="OnOpenFolder" HotKey="Ctrl+Shift+O" />
+                    <MenuItem x:Name="OpenFolderItem" Header="Open Folder…" Click="OnOpenFolder" HotKey="Ctrl+Shift+O" />
                     <!--populated via RecentMenu.Items in code, see BuildRecentMenu-->
                     <MenuItem x:Name="RecentMenu" Header="Open Recent" />
                     <Separator />
@@ -152,8 +152,8 @@
                                 <MenuItem Header="Remove from List" Click="OnRemove" />
                                 <Separator />
                                 <MenuItem Header="Copy Fields to Rest of Selection" Click="OnCopyFieldsToSelection" />
-                                <Separator />
-                                <MenuItem Header="Open Containing Folder" Click="OnOpenContainingFolder" />
+                                <Separator x:Name="OpenContainingSeparator" />
+                                <MenuItem x:Name="OpenContainingItem" Header="Open Containing Folder" Click="OnOpenContainingFolder" />
                             </ContextMenu>
                         </ListBox.ContextMenu>
                         <!--AutomationProperties.Name must be set on the generated ListBoxItem container, not the DataTemplate content-->
