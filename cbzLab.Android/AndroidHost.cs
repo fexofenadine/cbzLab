@@ -1,0 +1,89 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using Android.Content;
+using cbzLab.Services;
+
+namespace cbzLab.Android;
+
+//what only an android app does around the shared MainView: unpacking the bundled files, choosing the
+//archive storage, handing over the books another app opened us with, and the lifecycle hooks
+public static class AndroidHost
+{
+    private static bool _prepared;
+    private static bool _shown;
+
+    public static MainActivity? Activity { get; set; }
+    public static MainView? View { get; private set; }
+
+    //the books the app was started with, or handed later, as document uris
+    public static List<string> PendingBooks(Intent? intent)
+    {
+        var books = new List<string>();
+        if (intent?.Action == Intent.ActionView && intent.Data is { } data)
+            books.Add(data.ToString()!);
+        return books;
+    }
+
+    public static MainView CreateView()
+    {
+        Prepare(global::Android.App.Application.Context);
+        var view = new MainView();
+        View = view;
+        view.Loaded += async (_, _) =>
+        {
+            if (_shown)
+                return;
+            _shown = true;
+            await view.OnShownAsync(PendingBooks(Activity?.Intent));
+        };
+        return view;
+    }
+
+    private static void Prepare(Context context)
+    {
+        if (_prepared)
+            return;
+        _prepared = true;
+
+        ArchiveStorage.Current = new AndroidArchiveStorage(context);
+        AppPaths.BundledAssetsDir = UnpackBundledAssets(context);
+    }
+
+    //the shared code reads the schema, themes and logo as ordinary files, which inside an apk they
+    //aren't. copied out once per version, so an update brings its new ones
+    private static string UnpackBundledAssets(Context context)
+    {
+        var target = Path.Combine(context.FilesDir!.AbsolutePath, "bundled");
+        var marker = Path.Combine(target, ".version");
+        var version = AppVersion.Display;
+        if (File.Exists(marker) && File.ReadAllText(marker) == version)
+            return target;
+
+        Directory.CreateDirectory(target);
+        CopyAssetDir(context, "bundled", target);
+        File.WriteAllText(marker, version);
+        return target;
+    }
+
+    private static void CopyAssetDir(Context context, string assetPath, string targetDir)
+    {
+        var assets = context.Assets!;
+        foreach (var name in assets.List(assetPath) ?? Array.Empty<string>())
+        {
+            var childAsset = assetPath + "/" + name;
+            var childTarget = Path.Combine(targetDir, name);
+            if ((assets.List(childAsset) ?? Array.Empty<string>()).Length > 0)
+            {
+                Directory.CreateDirectory(childTarget);
+                CopyAssetDir(context, childAsset, childTarget);
+            }
+            else
+            {
+                using var input = assets.Open(childAsset);
+                using var output = File.Create(childTarget);
+                input.CopyTo(output);
+            }
+        }
+    }
+}

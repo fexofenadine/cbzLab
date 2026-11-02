@@ -9,8 +9,11 @@ public static class FilenameGuessService
 
     public static Guess FromPath(string fullPath)
     {
-        var working = Path.GetFileNameWithoutExtension(fullPath);
-        var folderName = Path.GetFileName(Path.GetDirectoryName(fullPath) ?? "");
+        //a document uri has no folder, and its last segment isn't the file's name
+        var working = Path.GetFileNameWithoutExtension(ArchiveStorage.Current.Name(fullPath));
+        var folderName = ArchiveStorage.Current.IsFile(fullPath)
+            ? Path.GetFileName(Path.GetDirectoryName(fullPath) ?? "")
+            : "";
 
         //normalize separators before matching - "_" is a word character to
         //regex, so "Saga_012" has no \b before the digits until it's gone

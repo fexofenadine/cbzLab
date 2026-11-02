@@ -133,6 +133,16 @@ public partial class MainView : UserControl
         }
     }
 
+    //the android back button: closes the open dialog if there is one. false means nothing here used it
+    public bool HandleBack() => Dialogs.CancelTop();
+
+    //opens files after start-up (a book handed over by another app)
+    public Task OpenAsync(IReadOnlyList<string> paths) => OpenPathsAsync(paths.ToList());
+
+    //writes any unsaved edits to their crash-recovery drafts now, rather than at the next timer tick
+    //- for a phone about to move the app to the background, where it can be killed without warning
+    public void FlushAutosave() => SnapshotDirtyFiles();
+
     //the field column takes the editor's width up to this cap (none when fields fill the width)
     private void ApplyFieldColumnWidth() =>
         FieldGrid.ColumnDefinitions[0].MaxWidth = _viewModel.EditorFieldsMaxWidth;

@@ -36,7 +36,7 @@ public class SettingsService
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         ConfigDir = configDir ?? Path.Combine(appData, AppFolderName);
         ThemesDir = Path.Combine(ConfigDir, "themes");
-        BundledAssetsDir = Path.Combine(AppContext.BaseDirectory, "Assets");
+        BundledAssetsDir = AppPaths.BundledAssetsDir;
 
         Directory.CreateDirectory(ConfigDir);
         Directory.CreateDirectory(ThemesDir);

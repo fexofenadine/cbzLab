@@ -43,6 +43,15 @@ public sealed class DialogHost : Panel
         };
     }
 
+    //true if a dialog was open: asks the top one to cancel, as Esc does (the android back button)
+    public bool CancelTop()
+    {
+        if (_layers.Count == 0)
+            return false;
+        _layers[^1].Dialog.OnCancelRequested();
+        return true;
+    }
+
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
@@ -59,8 +68,7 @@ public sealed class DialogHost : Panel
 
     /// <summary>
     /// Shows a dialog over whatever <paramref name="owner"/> is in, and completes when it closes. An
-    /// owner with no host - a dialog that's still a window of its own, until they're all converted -
-    /// gets the dialog in a small window above it instead, where it can still be reached.
+    /// owner with no host is an error: every dialog opens in a host.
     /// </summary>
     public static Task ShowAsync(Visual owner, DialogBase dialog)
     {

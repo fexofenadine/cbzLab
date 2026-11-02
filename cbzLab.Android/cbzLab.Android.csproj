@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--the android app. not part of cbzLab.sln: building it needs the .net android workload, which the
+      desktop build and its CI don't have - build it on its own (see docs/ANDROID_PLAN.md)-->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-android</TargetFramework>
+    <SupportedOSPlatformVersion>26</SupportedOSPlatformVersion>
+    <Nullable>enable</Nullable>
+    <!--the automatic namespace imports clash with Avalonia's names (Application, Button), so every
+        using in this project is written out-->
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>cbzLab.Android</RootNamespace>
+    <AssemblyName>cbzLab.Android</AssemblyName>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <ApplicationId>io.github.fexofenadine.cbzlab</ApplicationId>
+    <ApplicationTitle>cbzLab</ApplicationTitle>
+    <AndroidPackageFormat>apk</AndroidPackageFormat>
+    <!--a debug build left loose for visual studio's fast deployment crashes when installed by hand-->
+    <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+    <AndroidUseAapt2>true</AndroidUseAapt2>
+  </PropertyGroup>
+
+  <!--one version for both apps: the desktop project's <Version> is the only place it's written, so
+      a release numbers both the same-->
+  <PropertyGroup>
+    <DesktopProject>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\cbzLab\cbzLab.csproj'))</DesktopProject>
+    <Version>$([System.Text.RegularExpressions.Regex]::Match($(DesktopProject), '&lt;Version&gt;([^&lt;]+)&lt;/Version&gt;').Groups[1].Value)</Version>
+    <ApplicationDisplayVersion>$(Version)</ApplicationDisplayVersion>
+    <!--android wants a whole number that only goes up: 2.3.0 is 20300-->
+    <ApplicationVersion>$([MSBuild]::Add($([MSBuild]::Add($([MSBuild]::Multiply($(Version.Split('.')[0]), 10000)), $([MSBuild]::Multiply($(Version.Split('.')[1]), 100)))), $(Version.Split('.')[2])))</ApplicationVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Android" Version="12.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\cbzLab.UI\cbzLab.UI.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--the schema, themes and logo the shared code reads from disk; unpacked on first run (AndroidHost)-->
+    <AndroidAsset Include="..\cbzLab\Assets\schema.json" Link="Assets\bundled\schema.json" />
+    <AndroidAsset Include="..\cbzLab\Assets\themes.json" Link="Assets\bundled\themes.json" />
+    <AndroidAsset Include="..\cbzLab\Assets\logo.png" Link="Assets\bundled\logo.png" />
+    <AndroidAsset Include="..\cbzLab\Assets\themes\*.json" Link="Assets\bundled\themes\%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>

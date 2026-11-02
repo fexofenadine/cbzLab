@@ -21,7 +21,7 @@ public partial class AboutDialog : DialogBase
     {
         try
         {
-            var path = Path.Combine(AppContext.BaseDirectory, "Assets", "logo.png");
+            var path = Path.Combine(AppPaths.BundledAssetsDir, "logo.png");
             using var stream = File.OpenRead(path);
             HeroImage.Source = Bitmap.DecodeToWidth(stream, 640);
         }

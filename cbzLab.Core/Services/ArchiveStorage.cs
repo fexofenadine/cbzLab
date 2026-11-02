@@ -23,6 +23,9 @@ public interface IArchiveStorage
     //makes the contents of a finished temp file the new contents of the archive; a document has
     //no atomic swap, so an implementation keeps a backup and restores it if the write fails
     void Replace(string id, string tempFile);
+
+    //called with the id of anything a picker returned, so a document's access can be kept for next time
+    void Keep(string id);
 }
 
 public sealed class FileArchiveStorage : IArchiveStorage
@@ -40,6 +43,10 @@ public sealed class FileArchiveStorage : IArchiveStorage
     public DateTime? Modified(string id) => new FileInfo(id).LastWriteTime;
 
     public void Replace(string id, string tempFile) => File.Move(tempFile, id, overwrite: true);
+
+    public void Keep(string id)
+    {
+    }
 }
 
 //one storage per app, set once at start-up by the platform head; the desktop never sets it
@@ -48,7 +55,12 @@ public static class ArchiveStorage
     public static IArchiveStorage Current { get; set; } = new FileArchiveStorage();
 
     //the id for something a file picker returned: a path for a file, the document uri otherwise
-    public static string IdOf(Uri uri) => uri.IsFile ? uri.LocalPath : uri.AbsoluteUri;
+    public static string IdOf(Uri uri)
+    {
+        var id = uri.IsFile ? uri.LocalPath : uri.AbsoluteUri;
+        Current.Keep(id);
+        return id;
+    }
 
     //false on android, where there is no tool to run; the ui hides cbr as a save choice
     public static bool CanWriteCbr => !OperatingSystem.IsAndroid();
