@@ -27,7 +27,7 @@
     <RuntimeIdentifiers>android-arm64;android-arm;android-x64</RuntimeIdentifiers>
   </PropertyGroup>
 
-  <!--one version for both apps: the desktop project's <Version> is the only place it's written, so
+  <!--one version for both apps: the desktop project's Version property is the only place it's written, so
       a release numbers both the same-->
   <PropertyGroup>
     <DesktopProject>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\cbzLab\cbzLab.csproj'))</DesktopProject>

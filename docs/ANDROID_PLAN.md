@@ -162,7 +162,7 @@ include, toolbar and dialog styles). The desktop app keeps only what only a desk
    Replace, Copy Fields, Multi Save.
 4. **ComicVine, Combine Archives and Trim Branding Footers (done 2026-11-02):** search, match, both review dialogs,
    combine and trim.
-5. **Fit and usability check, then release (done 2026-11-02, released as 2.3.0; the window fallback was removed and the main window now has a 560 x 420 minimum).** Every dialog opened at a normal window size, at the
+5. **Fit and usability check, then release (done 2026-11-02, shipping in 2.4.0 (2.3.0 was never tagged, see the changelog); the window fallback was removed and the main window now has a 560 x 420 minimum).** Every dialog opened at a normal window size, at the
    new minimum size, and stacked where it can stack; then the release.
 
 **Checks for each slice.** Build with no warnings; all tests pass; and in the published app, every

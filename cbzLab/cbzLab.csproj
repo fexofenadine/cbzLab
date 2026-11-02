@@ -24,15 +24,15 @@
     <!--2.0.0: parity with the winui original reached, beta tag dropped. This project itself
         was renamed from cbzLab.Avalonia/ to cbzLab/ once the winui original moved to
         cbzLab.winui3/ (see cbzLab.winui3/ARCHIVED.md) - this is now the primary and only
-        actively developed version. Since 2.2.0 this <Version> is the only place the version is
+        actively developed version. Since 2.2.0 the Version property below is the only place the version is
         written: the title bar, About box and update check all read it from the built app
         (cbzLab.Core's AppVersion).
         2.0.1: the rename above, plus a verified SharpCompress bump and first-ever
         confirmed macOS publish - also the first release actually cut via release.yml
         rather than by hand.-->
-    <Version>2.3.0</Version>
-    <AssemblyVersion>2.3.0.0</AssemblyVersion>
-    <FileVersion>2.3.0.0</FileVersion>
+    <Version>2.4.0</Version>
+    <AssemblyVersion>2.4.0.0</AssemblyVersion>
+    <FileVersion>2.4.0.0</FileVersion>
   </PropertyGroup>
 
   <!--scoped to Release only, not the main PropertyGroup above: SelfContained

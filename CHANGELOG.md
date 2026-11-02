@@ -10,7 +10,31 @@
 
 ## cbzLab (Avalonia)
 
-### 2.3.0 - 2026-11-02
+### 2.4.0 - 2026-11-02
+
+- Includes everything in 2.3.0 below (dialogs inside the main window, a minimum window size), which
+  was never published as a release of its own.
+- **cbzLab for Android.** The same editor for phones and tablets, built from the same code as the
+  desktop app, so the fields, validation, batch editing, Find & Replace, ComicVine lookup, Combine
+  Archives and Trim Branding Footers all behave the same way. Download `cbzLab-2.4.0-android.apk`
+  from the releases page (Android 8 or later). See "cbzLab for Android" in the user guide.
+  - Opens books through Android's file picker (several at a time) or "Open with cbzLab", and saves
+    over the book you opened, keeping the original aside until the saved copy has been read back and
+    checked.
+  - A narrow screen shows the file list and the editor one at a time, with **‹ Books** and the Back
+    button to return; a wide one shows both side by side. Rotating keeps your books, edits and tab.
+  - Long-press a book to select several for batch editing; number fields open the number keypad;
+    controls are at least 48 units tall; the view lifts above the on-screen keyboard.
+  - Unsaved edits are saved as recovery drafts when the app goes to the background and offered back
+    if Android ends it.
+  - CBR files open and can be edited, but a CBR can't be written on Android (that needs an external
+    RAR program): saving one asks where to save a CBZ copy.
+- On the desktop, a window narrower than 700 units now shows the file list and the editor one at a
+  time too (tap or click a book to edit it, **‹ Books** to return), and a window shorter than 480
+  hides the toolbar and the cover header so the fields get the height. Nothing changes at the
+  default window size.
+
+### 2.3.0 - 2026-11-02 (never published on its own; its changes ship in 2.4.0)
 
 - **Dialogs now open inside the main window** instead of as separate windows. A dimmed backdrop
   covers the app while one is open, so nothing behind it can be clicked, and menus and shortcuts
