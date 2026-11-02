@@ -10,6 +10,13 @@
 
 ## cbzLab (Avalonia)
 
+### 2.4.1 - 2026-11-02
+
+- Android: **File → Open with Another File Manager…** opens books through any app that can hand over
+  a file (Solid Explorer, Material Files and others, including their SMB, FTP and cloud locations),
+  not only the system document picker. Books handed over this way may be read-only; saving then
+  reports the problem and leaves the original untouched, and Save As picks somewhere writable.
+
 ### 2.4.0 - 2026-11-02
 
 - Includes everything in 2.3.0 below (dialogs inside the main window, a minimum window size), which

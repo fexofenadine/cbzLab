@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 using Android.Content;
 using Avalonia.Controls;
 using cbzLab.Services;
@@ -29,7 +30,7 @@ public static class AndroidHost
     public static MainView CreateView()
     {
         Prepare(global::Android.App.Application.Context);
-        var view = new MainView { TouchMode = true };
+        var view = new MainView { TouchMode = true, ExternalOpenPicker = PickFromAnyAppAsync };
         View = view;
         view.QuitRequested += async (_, _) => await LeaveAsync(view);
         view.Loaded += async (_, _) =>
@@ -58,6 +59,65 @@ public static class AndroidHost
             await view.OnShownAsync(PendingBooks(Activity?.Intent));
         };
         return view;
+    }
+
+    //---------------------------------------------------------------- picking from any app
+
+    private const int PickRequest = 4201;
+    private static TaskCompletionSource<IReadOnlyList<string>>? _pick;
+
+    //android's "get content" chooser lists every app that can hand over a file - Solid Explorer, Material
+    //Files and so on, including their network drives - not just the document providers the system picker
+    //shows. what comes back is a document uri like any other; a manager may make it read-only or a pipe
+    //(both handled: a failed save is reported with the original untouched, and a pipe is copied to read)
+    private static Task<IReadOnlyList<string>> PickFromAnyAppAsync()
+    {
+        var activity = Activity ?? throw new InvalidOperationException("no activity to ask from");
+        _pick?.TrySetResult(Array.Empty<string>());
+        _pick = new TaskCompletionSource<IReadOnlyList<string>>();
+
+        var intent = new Intent(Intent.ActionGetContent);
+        intent.SetType("*/*");
+        intent.AddCategory(Intent.CategoryOpenable);
+        intent.PutExtra(Intent.ExtraAllowMultiple, true);
+        //a hint, not a filter: many managers don't know the comic types, so none is excluded
+        intent.PutExtra(Intent.ExtraMimeTypes, new[]
+        {
+            "application/vnd.comicbook+zip", "application/vnd.comicbook-rar", "application/x-cbz", "application/x-cbr",
+            "application/zip", "application/x-rar-compressed", "application/vnd.rar", "application/octet-stream",
+        });
+        activity.StartActivityForResult(Intent.CreateChooser(intent, "Open comic archives with"), PickRequest);
+        return _pick.Task;
+    }
+
+    //called by the activity for every result; true if it was ours
+    public static bool OnActivityResult(int requestCode, global::Android.App.Result resultCode, Intent? data)
+    {
+        if (requestCode != PickRequest)
+            return false;
+
+        var ids = new List<string>();
+        if (resultCode == global::Android.App.Result.Ok && data is not null)
+        {
+            if (data.ClipData is { } clip)
+            {
+                for (var i = 0; i < clip.ItemCount; i++)
+                    if (clip.GetItemAt(i)?.Uri?.ToString() is { } id)
+                        ids.Add(id);
+            }
+            else if (data.Data?.ToString() is { } single)
+            {
+                ids.Add(single);
+            }
+        }
+
+        //kept where the provider allows it, so Open Recent works after a restart
+        foreach (var id in ids)
+            ArchiveStorage.Current.Keep(id);
+
+        _pick?.TrySetResult(ids);
+        _pick = null;
+        return true;
     }
 
     //leaving asks about unsaved edits first; unsaved edits that survive a kill are the autosave's job,

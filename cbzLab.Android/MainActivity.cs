@@ -45,6 +45,12 @@ public class MainActivity : AvaloniaMainActivity
         base.OnCreate(savedInstanceState);
     }
 
+    protected override void OnActivityResult(int requestCode, Result resultCode, Intent? data)
+    {
+        if (!AndroidHost.OnActivityResult(requestCode, resultCode, data))
+            base.OnActivityResult(requestCode, resultCode, data);
+    }
+
     //a book opened from another app while this one is already running
     protected override async void OnNewIntent(Intent? intent)
     {

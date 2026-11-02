@@ -265,6 +265,13 @@ need to allow installing apps from your browser or file manager the first time).
 several books at once. Choosing "Open with cbzLab" on a `.cbz` or `.cbr` in a file manager or
 a download opens it directly. Open Recent works across restarts.
 
+**Other file managers.** Open… uses Android's document picker, which lists the storage of every
+app that offers it (open its side menu to see them). **File → Open with Another File Manager…**
+asks Android for every app that can hand over a file, such as Solid Explorer or Material Files,
+including their network drives. Or, from inside the manager, choose "Open with" on a book and pick
+cbzLab. Books that arrive this way may be read-only, or slow to open over a network; if Save can't
+write back you're told, the original is left alone, and Save As lets you choose somewhere writable.
+
 **Layout.** On a narrow screen (a phone upright) the file list and the editor are separate
 screens: tap a book to edit it, and **‹ Books** (or the Back button) returns to the list. On a
 wider screen (a tablet, or a phone on its side) they sit side by side, as on the desktop. On a

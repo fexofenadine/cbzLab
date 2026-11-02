@@ -288,6 +288,37 @@ public partial class MainView : UserControl
     //keypad, and the desktop's hover and right-click habits are left out
     public bool TouchMode { get; set; }
 
+    //set by a host that can hand over files from other apps (android's "choose any app" picker, which
+    //lists file managers the system document picker doesn't): shows File > Open with Another File
+    //Manager and calls this for the ids it returns, empty if cancelled
+    public Func<Task<IReadOnlyList<string>>>? ExternalOpenPicker
+    {
+        get => _externalOpenPicker;
+        set
+        {
+            _externalOpenPicker = value;
+            OpenExternalItem.IsVisible = value is not null;
+        }
+    }
+    private Func<Task<IReadOnlyList<string>>>? _externalOpenPicker;
+
+    private async void OnOpenExternal(object? sender, RoutedEventArgs e)
+    {
+        if (_externalOpenPicker is null)
+            return;
+        try
+        {
+            var picked = await _externalOpenPicker();
+            if (picked.Count > 0)
+                await OpenPathsAsync(picked.ToList());
+        }
+        catch (System.Exception ex)
+        {
+            _log.Error("The other file manager's picker failed", ex);
+            _viewModel.StatusText = $"Could not open from that app: {ex.Message}";
+        }
+    }
+
     //opens files after start-up (a book handed over by another app)
     public Task OpenAsync(IReadOnlyList<string> paths) => OpenPathsAsync(paths.ToList());
 
