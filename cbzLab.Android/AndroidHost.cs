@@ -37,6 +37,14 @@ public static class AndroidHost
                 return;
             _shown = true;
 
+            //the keyboard: edge-to-edge windows ignore adjustResize, so the view is lifted by the
+            //height the keyboard covers, which keeps the field being typed into in sight
+            if (TopLevel.GetTopLevel(view)?.InputPane is { } pane)
+                pane.StateChanged += (_, e) =>
+                    view.Margin = new Avalonia.Thickness(0, 0, 0,
+                        e.NewState == Avalonia.Controls.Platform.InputPaneState.Open ? pane.OccludedRect.Height : 0);
+
+            //the back button: an open dialog
             //the back button: an open dialog, then the editor back to the list, then leaving
             if (TopLevel.GetTopLevel(view) is { } top)
                 top.BackRequested += (_, e) =>

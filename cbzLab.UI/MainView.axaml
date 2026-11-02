@@ -100,7 +100,7 @@
 
             <!--flat buttons, thin separators between groups, scroll-left/right overflow instead of wrapping.
                 ToolbarPanel is built in code from AppSettings.ToolbarButtons - see RebuildToolbar.-->
-            <Border Grid.Row="1" Background="{DynamicResource ThBg2}"
+            <Border x:Name="ToolbarBar" Grid.Row="1" Background="{DynamicResource ThBg2}"
                     BorderBrush="{DynamicResource ThSep}" BorderThickness="0,0,0,1">
                 <Grid ColumnDefinitions="Auto,*,Auto">
                     <Button Grid.Column="0" Classes="toolflat" Click="OnToolbarScrollLeft"

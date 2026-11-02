@@ -174,6 +174,8 @@ public partial class MainView : UserControl
 
         _narrow = width < NarrowBelow;
         _viewModel.IsCompactHeight = height < CompactBelow;
+        //the toolbar's actions are all in the menus too, so a short screen gives its height to the fields
+        ToolbarBar.IsVisible = !_viewModel.IsCompactHeight;
 
         //the editor can only be "open" with something to edit
         if (!_viewModel.HasSelection)
