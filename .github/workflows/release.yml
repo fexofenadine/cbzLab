@@ -39,7 +39,7 @@ jobs:
       #the version is written: the app reads its own at run time (DisplayVersion)
       - name: Verify tag matches the project version
         run: |
-          PROJECT_VERSION=$(grep -oP '(?<=<Version>)[^<]+' cbzLab/cbzLab.csproj)
+          PROJECT_VERSION=$(grep -oP '(?<=<Version>)[^<]+(?=</Version>)' cbzLab/cbzLab.csproj)
           if [ "$PROJECT_VERSION" != "${{ steps.version.outputs.version }}" ]; then
             echo "::error::Tag ${{ github.ref_name }} implies version ${{ steps.version.outputs.version }}, but cbzLab.csproj's <Version> is $PROJECT_VERSION - bump the csproj first."
             exit 1

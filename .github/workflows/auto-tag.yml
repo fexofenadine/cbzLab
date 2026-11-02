@@ -27,7 +27,7 @@ jobs:
       - name: Read version from cbzLab.csproj
         id: version
         run: |
-          VERSION=$(grep -oP '(?<=<Version>)[^<]+' cbzLab/cbzLab.csproj)
+          VERSION=$(grep -oP '(?<=<Version>)[^<]+(?=</Version>)' cbzLab/cbzLab.csproj)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
 
