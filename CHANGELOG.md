@@ -10,6 +10,10 @@
 
 ## cbzLab (Avalonia)
 
+### 2.4.3 - 2026-11-08
+
+- Dependency updates: Avalonia 12.1.5 across the desktop, shared UI and Android projects, SharpCompress 0.50.8.
+
 ### 2.4.2 - 2026-11-02
 
 - Android: a smaller download. `cbzLab-2.4.2-android-arm64.apk` (about 19 MB, down from 48 MB) suits
