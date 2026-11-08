@@ -54,9 +54,9 @@ public partial class CombineArchivesDialog : DialogBase
                 Opacity = 0.7,
             };
 
-            var upButton = new Button { Content = "▲", Width = 28, IsEnabled = index > 0 };
+            var upButton = new Button { Content = "▲", Width = 28, Padding = new Thickness(0), HorizontalContentAlignment = HorizontalAlignment.Center, IsEnabled = index > 0 };
             upButton.Click += (_, _) => MoveRow(index, -1);
-            var downButton = new Button { Content = "▼", Width = 28, IsEnabled = index < _rows.Count - 1 };
+            var downButton = new Button { Content = "▼", Width = 28, Padding = new Thickness(0), HorizontalContentAlignment = HorizontalAlignment.Center, IsEnabled = index < _rows.Count - 1 };
             downButton.Click += (_, _) => MoveRow(index, 1);
 
             var grid = new Grid

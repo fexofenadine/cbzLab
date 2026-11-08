@@ -8,7 +8,7 @@
     <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="20,12,20,20">
         <TextBlock x:Name="IntroText" Grid.Row="0" TextWrapping="Wrap" Margin="0,0,0,10" />
 
-        <ScrollViewer Grid.Row="1" MaxHeight="320">
+        <ScrollViewer Grid.Row="1">
             <StackPanel x:Name="ChecksPanel" Spacing="4" />
         </ScrollViewer>
 
