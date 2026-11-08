@@ -56,8 +56,8 @@ public partial class LibraryPage : UserControl
         Fab.Content = Icons.Make(Icons.Plus);
         EmptyLogo.Source = LoadLogo();
 
-        MoreButton.Flyout = MenuFor(BuildLibraryMenu);
-        SelectionMoreButton.Flyout = MenuFor(BuildSelectionMenu);
+        MobileMenu.Attach(MoreButton, BuildLibraryMenu);
+        MobileMenu.Attach(SelectionMoreButton, BuildSelectionMenu);
         Cards.ItemTemplate = new FuncDataTemplate<ComicFileViewModel>((file, _) => BuildCard(file), true);
 
         Vm.OpenFiles.CollectionChanged += (_, _) => UpdateEmptyState();
@@ -352,70 +352,48 @@ public partial class LibraryPage : UserControl
 
     //---------------------------------------------------------------- menus
 
-    //rebuilt each time it opens, so what's enabled matches the moment
-    private static MenuFlyout MenuFor(Action<MenuFlyout> build)
-    {
-        var flyout = new MenuFlyout { Placement = PlacementMode.BottomEdgeAlignedRight };
-        flyout.Opening += (_, _) =>
-        {
-            flyout.Items.Clear();
-            build(flyout);
-        };
-        return flyout;
-    }
-
-    internal static MenuItem Item(string header, Func<Task> action, bool enabled = true)
-    {
-        var item = new MenuItem { Header = header, IsEnabled = enabled };
-        item.Click += async (_, _) => await action();
-        return item;
-    }
-
-    internal static MenuItem Item(string header, Action action, bool enabled = true) =>
-        Item(header, () => { action(); return Task.CompletedTask; }, enabled);
-
     private void BuildLibraryMenu(MenuFlyout menu)
     {
         var any = Vm.OpenFiles.Count > 0;
-        menu.Items.Add(Item("Save all", Actions.SaveAllAsync, Vm.HasDirtyFiles));
-        menu.Items.Add(Item("Close all", () => Actions.RemoveAsync(Vm.OpenFiles.ToList()), any));
-        menu.Items.Add(Item("Reopen last closed", Actions.ReopenLastClosedAsync, Actions.HasRecentlyClosed));
+        menu.Items.Add(MobileMenu.Item("Save all", Actions.SaveAllAsync, Vm.HasDirtyFiles));
+        menu.Items.Add(MobileMenu.Item("Close all", () => Actions.RemoveAsync(Vm.OpenFiles.ToList()), any));
+        menu.Items.Add(MobileMenu.Item("Reopen last closed", Actions.ReopenLastClosedAsync, Actions.HasRecentlyClosed));
         menu.Items.Add(new Separator());
-        menu.Items.Add(Item(Vm.IsGridViewActive ? "List view" : "Grid view", () => Vm.IsGridViewActive = !Vm.IsGridViewActive, any));
+        menu.Items.Add(MobileMenu.Item(Vm.IsGridViewActive ? "List view" : "Grid view", () => Vm.IsGridViewActive = !Vm.IsGridViewActive, any));
         if (Vm.IsGridViewActive)
-            menu.Items.Add(Item("Choose grid details", async () =>
+            menu.Items.Add(MobileMenu.Item("Choose grid details", async () =>
             {
                 if (await Actions.ChooseColumnsAsync())
                     Cards.ItemsSource = null;
                 Cards.ItemsSource = Vm.DisplayedFiles;
             }));
-        menu.Items.Add(Item("Find and replace", Actions.FindReplaceAsync, any));
-        menu.Items.Add(Item("Validate all", Actions.ValidateAllAsync, any));
+        menu.Items.Add(MobileMenu.Item("Find and replace", Actions.FindReplaceAsync, any));
+        menu.Items.Add(MobileMenu.Item("Validate all", Actions.ValidateAllAsync, any));
         menu.Items.Add(new Separator());
-        menu.Items.Add(Item("Settings", Actions.SettingsAsync));
-        menu.Items.Add(Item("What's new", Actions.WhatsNewAsync));
-        menu.Items.Add(Item("About cbzLab", Actions.AboutAsync));
+        menu.Items.Add(MobileMenu.Item("Settings", Actions.SettingsAsync));
+        menu.Items.Add(MobileMenu.Item("What's new", Actions.WhatsNewAsync));
+        menu.Items.Add(MobileMenu.Item("About cbzLab", Actions.AboutAsync));
     }
 
     private void BuildSelectionMenu(MenuFlyout menu)
     {
         var count = Vm.SelectedFiles.Count;
-        menu.Items.Add(Item("Close", async () =>
+        menu.Items.Add(MobileMenu.Item("Close", async () =>
         {
             if (await Actions.RemoveAsync(Vm.SelectedFiles.ToList()))
                 ExitSelection(clear: false);
         }, count > 0));
-        menu.Items.Add(Item("Revert", Actions.RevertAsync, count == 1));
+        menu.Items.Add(MobileMenu.Item("Revert", Actions.RevertAsync, count == 1));
         menu.Items.Add(new Separator());
         if (Vm.OnlineLookupEnabled)
-            menu.Items.Add(Item("Search ComicVine", Actions.SearchComicVineAsync, count > 0));
-        menu.Items.Add(Item("Guess from filename", Actions.GuessFromFilename, count > 0));
-        menu.Items.Add(Item("Extract publisher and year from summary", Actions.ExtractSummaryHeaderAsync, count > 0));
-        menu.Items.Add(Item("Copy fields from one book to the rest", CopyFieldsAsync, count > 1));
-        menu.Items.Add(Item("Find and replace", Actions.FindReplaceAsync, count > 0));
+            menu.Items.Add(MobileMenu.Item("Search ComicVine", Actions.SearchComicVineAsync, count > 0));
+        menu.Items.Add(MobileMenu.Item("Guess from filename", Actions.GuessFromFilename, count > 0));
+        menu.Items.Add(MobileMenu.Item("Extract publisher and year from summary", Actions.ExtractSummaryHeaderAsync, count > 0));
+        menu.Items.Add(MobileMenu.Item("Copy fields from one book to the rest", CopyFieldsAsync, count > 1));
+        menu.Items.Add(MobileMenu.Item("Find and replace", Actions.FindReplaceAsync, count > 0));
         menu.Items.Add(new Separator());
-        menu.Items.Add(Item("Combine into one book", Actions.CombineArchivesAsync, count > 1));
-        menu.Items.Add(Item("Trim branding footers", Actions.TrimFootersAsync, count == 1));
+        menu.Items.Add(MobileMenu.Item("Combine into one book", Actions.CombineArchivesAsync, count > 1));
+        menu.Items.Add(MobileMenu.Item("Trim branding footers", Actions.TrimFootersAsync, count == 1));
     }
 
     //which book's fields go to the others

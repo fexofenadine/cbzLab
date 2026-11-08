@@ -101,6 +101,8 @@ public partial class MobileShell : UserControl
     //false means nothing used it, and the app may leave
     public bool HandleBack()
     {
+        if (MobileMenu.CloseOpen())
+            return true;
         if (Dialogs.CancelTop())
             return true;
         if (Library.HandleBack())

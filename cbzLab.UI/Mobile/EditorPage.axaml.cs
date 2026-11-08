@@ -39,13 +39,7 @@ public partial class EditorPage : UserControl
         var tab = settings.RememberLastTab ? settings.ActiveTab : 0;
         Tabs.SelectedIndex = tab >= 0 && tab < SchemaService.TabOrder.Length ? tab : 0;
 
-        var menu = new MenuFlyout { Placement = PlacementMode.BottomEdgeAlignedRight };
-        menu.Opening += (_, _) =>
-        {
-            menu.Items.Clear();
-            BuildMenu(menu);
-        };
-        MoreButton.Flyout = menu;
+        MobileMenu.Attach(MoreButton, BuildMenu);
 
         Vm.PropertyChanged += OnViewModelChanged;
         Vm.VisibleFields.CollectionChanged += (_, _) => UpdateNoFields();
@@ -139,31 +133,24 @@ public partial class EditorPage : UserControl
     {
         var single = Vm.IsSingleFileMode;
         var any = Vm.HasSelection;
-        menu.Items.Add(LibraryPage.Item("Save as", Actions.SaveAsAsync, single));
-        menu.Items.Add(LibraryPage.Item("Save all", Actions.SaveAllAsync, Vm.HasDirtyFiles));
-        menu.Items.Add(LibraryPage.Item("Revert to saved", Actions.RevertAsync, single));
-        menu.Items.Add(LibraryPage.Item("Close", async () =>
+        menu.Items.Add(MobileMenu.Item("Save as", Actions.SaveAsAsync, single));
+        menu.Items.Add(MobileMenu.Item("Save all", Actions.SaveAllAsync, Vm.HasDirtyFiles));
+        menu.Items.Add(MobileMenu.Item("Revert to saved", Actions.RevertAsync, single));
+        menu.Items.Add(MobileMenu.Item("Close", async () =>
         {
             if (await Actions.RemoveAsync(Vm.SelectedFiles.ToList()))
                 _shell.CloseEditor();
         }, any));
         menu.Items.Add(new Separator());
-        menu.Items.Add(Check("Show all fields", Vm.ShowAllFields, () => Vm.ShowAllFields = !Vm.ShowAllFields));
-        menu.Items.Add(Check("Show extra fields", Vm.ShowExtraFields, () => Vm.ShowExtraFields = !Vm.ShowExtraFields));
+        menu.Items.Add(MobileMenu.Check("Show all fields", Vm.ShowAllFields, () => Vm.ShowAllFields = !Vm.ShowAllFields));
+        menu.Items.Add(MobileMenu.Check("Show extra fields", Vm.ShowExtraFields, () => Vm.ShowExtraFields = !Vm.ShowExtraFields));
         menu.Items.Add(new Separator());
-        menu.Items.Add(LibraryPage.Item("Guess from filename", Actions.GuessFromFilename, any));
-        menu.Items.Add(LibraryPage.Item("Count pages", Actions.AutoPageCountAsync, single));
-        menu.Items.Add(LibraryPage.Item("Extract publisher and year from summary", Actions.ExtractSummaryHeaderAsync, any));
-        menu.Items.Add(LibraryPage.Item("Copy ComicInfo.xml", Actions.CopyXmlAsync, single));
-        menu.Items.Add(LibraryPage.Item("Paste ComicInfo.xml", Actions.PasteXmlAsync, single));
+        menu.Items.Add(MobileMenu.Item("Guess from filename", Actions.GuessFromFilename, any));
+        menu.Items.Add(MobileMenu.Item("Count pages", Actions.AutoPageCountAsync, single));
+        menu.Items.Add(MobileMenu.Item("Extract publisher and year from summary", Actions.ExtractSummaryHeaderAsync, any));
+        menu.Items.Add(MobileMenu.Item("Copy ComicInfo.xml", Actions.CopyXmlAsync, single));
+        menu.Items.Add(MobileMenu.Item("Paste ComicInfo.xml", Actions.PasteXmlAsync, single));
         menu.Items.Add(new Separator());
-        menu.Items.Add(LibraryPage.Item("Trim branding footers", Actions.TrimFootersAsync, single));
-    }
-
-    private static MenuItem Check(string header, bool on, Action toggle)
-    {
-        var item = new MenuItem { Header = header, ToggleType = MenuItemToggleType.CheckBox, IsChecked = on };
-        item.Click += (_, _) => toggle();
-        return item;
+        menu.Items.Add(MobileMenu.Item("Trim branding footers", Actions.TrimFootersAsync, single));
     }
 }
