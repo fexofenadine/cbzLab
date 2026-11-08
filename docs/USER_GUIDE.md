@@ -263,51 +263,68 @@ need to allow installing apps from your browser or file manager the first time).
 nearly every phone made since about 2017; `cbzLab-<version>-android.apk` is larger but also runs on
 older 32-bit phones and x86 devices such as some Chromebooks. Either installs over the other.
 
-**Opening books.** File → Open (or **Open…**) uses Android's own file picker and can select
-several books at once. Choosing "Open with cbzLab" on a `.cbz` or `.cbr` in a file manager or
-a download opens it directly. Open Recent works across restarts.
+**How it looks.** Since 2.5.0 the Android app has a layout of its own, in Google's Material
+Design: a list of your books with an **app bar** along the top (search, sort, and **⋮** for the
+rest), a round **+** button for opening books, and the editor as a screen of its own with a **←**
+back arrow. On a tablet, or anywhere 840 units wide or more, the list and the editor sit side by
+side. Short messages ("Saved 1 file") appear briefly along the bottom of the screen instead of in a
+status bar.
 
-**Opening a folder.** File → Open Folder… asks for a folder and opens every `.cbz` and `.cbr` in
-it and in its subfolders. Android asks once whether cbzLab may use that folder, and the
-permission lasts across restarts. Android doesn't allow choosing the top of Download or of the
-internal storage itself, so pick a folder inside them. **File → Open Folder with Another File
-Manager…** offers the same through any app that can pick a folder; not every file manager can,
-and those that can't aren't listed.
+**Colours.** Settings → Colours chooses between **System colours**, which follow your wallpaper
+and the phone's light or dark setting (Android 12 or later; older phones get a palette from the
+cbzLab logo), and **cbzLab theme**, which uses any of cbzLab's themes.
 
-**Other file managers.** Open… uses Android's document picker, which lists the storage of every
-app that offers it (open its side menu to see them). **File → Open with Another File Manager…**
-asks Android for every app that can hand over a file, such as Solid Explorer or Material Files,
-including their network drives. Or, from inside the manager, choose "Open with" on a book and pick
-cbzLab. Books that arrive this way may be read-only, or slow to open over a network; if Save can't
-write back you're told, the original is left alone, and Save As lets you choose somewhere writable.
+**Opening books.** Tap **+** (or **Open books** on an empty list). **Open books** uses Android's
+own file picker and can select several books at once; **Open a folder** opens every `.cbz` and
+`.cbr` in a folder and its subfolders; the five most recent books are listed underneath. Choosing
+"Open with cbzLab" on a `.cbz` or `.cbr` in a file manager or a download opens it directly.
 
-**Layout.** On a narrow screen (a phone upright) the file list and the editor are separate
-screens: tap a book to edit it, and **‹ Books** (or the Back button) returns to the list; a book
-opened from grid view shows **‹ Grid** instead, back to the grid. On a
-wider screen (a tablet, or a phone on its side) they sit side by side, as on the desktop. On a
-short screen the toolbar and the cover header go, so the fields get the height; every toolbar
-action is also in the menus, and View → Grid View switches to the grid. While you type with the
-phone on its side, the menus, tabs and list step aside so the field stays in view above the
-keyboard. Rotating the phone keeps your books, your edits and the open tab.
+**Folders.** Android asks once whether cbzLab may use a folder, and the permission lasts across
+restarts. Android doesn't allow choosing the top of Download or of the internal storage itself, so
+pick a folder inside them.
 
-**Editing several books.** Tap **Select** above the list (or long-press a book), tap books to
-add or remove them, then **Edit N books**; **Cancel** or Back leaves selecting. In grid view, tick
-the boxes at the start of the rows and tap **Edit N books**. The editor then works as batch
-editing does on the desktop. Whole-number fields (Issue #, Count, Volume, Year, Page Count)
-open the number keypad.
+**Other file managers.** Open books uses Android's document picker, which lists the storage of
+every app that offers it (open its side menu to see them). **Open with another app** asks Android
+for every app that can hand over a file, such as Solid Explorer or Material Files, including their
+network drives, and **Open a folder with another app** does the same for folders (not every file
+manager can, and those that can't aren't listed). Books that arrive this way may be read-only, or
+slow to open over a network; if Save can't write back you're told, the original is left alone, and
+**⋮ → Save as** lets you choose somewhere writable.
+
+**Editing.** Tap a book to edit it. Swipe sideways across the fields, or tap the tabs, to move
+between Basic Info, Publication, Creators, Story and Extras. Fields with a fixed list of choices
+open a list from the bottom of the screen, and the date has a calendar button as well as being
+typed. Long-press a field for Cut, Copy and Paste, **Undo changes to this field**, and **About this
+field**, which explains what it's for. Whole-number fields open the number keypad. The **Save**
+button carries a dot while the book has unsaved changes; **⋮** has Save as, Revert, Close, Show
+all fields, and the tools (Guess from filename, Count pages, Copy or Paste ComicInfo.xml, Trim
+branding footers).
+
+**Several books at once.** Long-press a book to start selecting, then tap others to add or remove
+them. The app bar shows how many are selected, with **Select all**, **Edit together** (the pencil),
+**Save** and **⋮** (Close, Search ComicVine, Find and replace, Copy fields from one book to the
+rest, Combine into one book). **✕** or Back stops selecting. Closing books offers **Undo** for a
+few seconds.
+
+**Grid view.** **⋮ → Grid view** shows the books as cards: the cover, with the details chosen in
+**⋮ → Choose grid details** underneath. Tap a card to edit it, long-press to start selecting.
+
+**Back.** Back closes an open menu or dialog first, then stops selecting or searching, then goes
+from the editor to the list. Back from the list leaves the app, after asking about unsaved edits.
+Rotating the phone keeps your books, your edits and the open tab.
 
 **Saving.** Save writes over the book you opened, then reads it back to check it; the original
 is kept aside until that check passes and put back if it fails. If a save can't be completed
-you're told, and the book is left as it was. If Android kills the app in the background,
-unsaved edits are recovered the next time you open it.
+you're told, and the book is left as it was. If Android closes the app in the background, unsaved
+edits are recovered the next time you open it.
 
 **CBR files.** They open and can be edited, but cbzLab can't write a CBR on Android, because
 that needs an external RAR program. Saving a book that came as a CBR asks where to save a CBZ
 copy; the original CBR is never touched.
 
-**Not on Android.** Open Containing Folder, the RAR tool setting, the folder shortcuts in
-Settings, and the self-updater (install new versions from the releases page). Grid view is the
-desktop table and scrolls sideways on a phone.
+**Not on Android.** Open Containing Folder, the RAR tool setting, the editor font and layout
+settings, the folder shortcuts in Settings, the customisable toolbar, and the self-updater (install
+new versions from the releases page).
 
 ### How it compares
 
@@ -316,7 +333,7 @@ desktop table and scrolls sideways on a phone.
 | Open, edit, validate and save CBZ | Yes | Yes, saved over the original document |
 | Open and edit CBR | Yes | Yes |
 | Write CBR | With an external RAR tool | No: saves a CBZ copy instead |
-| Batch editing, Find & Replace, Copy fields | Yes | Yes (Select, or long-press) |
+| Batch editing, Find & Replace, Copy fields | Yes | Yes (long-press to select) |
 | ComicVine search, single and batch | Yes | Yes |
 | Combine Archives, Trim Branding Footers | Yes | Yes; very large books are slower on a phone |
 | Open Folder | Yes | Yes, through Android's folder picker |

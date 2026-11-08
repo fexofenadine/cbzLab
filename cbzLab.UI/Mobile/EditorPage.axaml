@@ -15,7 +15,7 @@
             <Button x:Name="ComicVineButton" Grid.Column="2" Classes="icon" Click="OnComicVine"
                     IsVisible="{Binding OnlineLookupEnabled}"
                     ToolTip.Tip="Search ComicVine" AutomationProperties.Name="Search ComicVine" />
-            <Panel Grid.Column="3">
+            <Panel Grid.Column="3" IsVisible="{Binding HasSelection}">
                 <Button x:Name="SaveButton" Classes="icon" Click="OnSave"
                         ToolTip.Tip="Save" AutomationProperties.Name="Save" />
                 <!--material's small badge: unsaved changes in what's being edited-->
@@ -24,7 +24,7 @@
                          Stroke="{DynamicResource M3Surface}" StrokeThickness="2"
                          IsVisible="{Binding SelectionHasUnsaved}" />
             </Panel>
-            <Button x:Name="MoreButton" Grid.Column="4" Classes="icon" Margin="0,0,4,0"
+            <Button x:Name="MoreButton" Grid.Column="4" Classes="icon" Margin="0,0,4,0" IsVisible="{Binding HasSelection}"
                     ToolTip.Tip="More options" AutomationProperties.Name="More options" />
         </Grid>
 

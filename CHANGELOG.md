@@ -10,6 +10,29 @@
 
 ## cbzLab (Avalonia)
 
+### 2.5.0 - 2026-11-09
+
+- **Android: a new look, in Google's Material Design**, so cbzLab looks and works like other
+  Android apps. The desktop app is unchanged.
+  - The book list has an app bar with search, sort and a **⋮** menu, and a round **+** button for
+    opening books (and your recent ones). Covers are larger, and an empty list says how to start.
+  - The editor is a screen of its own with a back arrow, Save and **⋮** in its app bar, tabs you
+    can swipe between, and outlined fields whose label sits on the border. Fields with a fixed set
+    of choices open a list from the bottom of the screen, and the date has a calendar.
+  - Long-press a book to select several: the app bar shows the count, with Select all, Edit
+    together, Save and the tools that work on several books. Closing books offers Undo.
+  - Grid view shows the books as cards with their covers, instead of a table that scrolled sideways.
+  - Dialogs are Material dialogs; larger ones such as Settings, ComicVine and Combine fill the
+    screen on a phone. Short messages appear briefly along the bottom instead of in a status bar.
+  - **Settings → Colours**: follow the phone's own colours (Material You, with its light or dark
+    setting) or use one of cbzLab's themes.
+  - On a tablet the list and the editor sit side by side, and turning it upright keeps the book
+    you were editing in front.
+  - Long-press a field for **About this field**, the explanation the desktop shows on hover.
+  - The app draws under the status and navigation bars, which take its colours.
+- Android: fixed Back leaving the app straight away, and the keyboard covering fields, after
+  leaving cbzLab and reopening it soon afterwards. Leaving with Back now fully closes the app.
+
 ### 2.4.4 - 2026-11-08
 
 - **Help → What's New** lists the new features and changes in each release, on the desktop and

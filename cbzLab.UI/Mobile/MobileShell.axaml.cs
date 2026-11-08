@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using cbzLab.Services;
@@ -52,7 +53,11 @@ public partial class MobileShell : UserControl
 
         _actions.ApplySettingsToView();
         SizeChanged += (_, _) => ApplyLayout();
-        AttachedToVisualTree += (_, _) => _appearance.Apply();
+        AttachedToVisualTree += (_, _) =>
+        {
+            _appearance.Apply();
+            DrawEdgeToEdge();
+        };
     }
 
     public AppActions Actions => _actions;
@@ -113,6 +118,18 @@ public partial class MobileShell : UserControl
             return true;
         }
         return false;
+    }
+
+    //the app draws under the status and navigation bars, as android 15 expects. avalonia keeps the
+    //content clear of them itself (TopLevel.AutoSafeAreaPadding), so what shows behind the bars is
+    //the window's own background, painted the surface colour
+    private void DrawEdgeToEdge()
+    {
+        if (TopLevel.GetTopLevel(this) is not { } top)
+            return;
+        top.Bind(TemplatedControl.BackgroundProperty, top.GetResourceObservable("M3Surface"));
+        if (top.InsetsManager is { } insets)
+            insets.DisplayEdgeToEdgePreference = true;
     }
 
     //---------------------------------------------------------------- navigation

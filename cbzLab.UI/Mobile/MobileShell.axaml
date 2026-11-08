@@ -2,7 +2,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:dlg="using:cbzLab.Dialogs"
              xmlns:m="using:cbzLab.Mobile"
-             x:Class="cbzLab.Mobile.MobileShell">
+             x:Class="cbzLab.Mobile.MobileShell"
+             Background="{DynamicResource M3Surface}">
 
     <!--the phone and tablet layout: the library and the editor as screens of their own on a phone,
         side by side on a tablet. dialogs, sheets and snackbars sit above both-->

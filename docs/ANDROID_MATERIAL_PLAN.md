@@ -1,6 +1,6 @@
 # cbzLab for Android - Material redesign plan
 
-Status: **proposed, awaiting approval.** Nothing here is built yet.
+Status: **built, released in 2.5.0.** See "What was built" at the end for how it turned out.
 
 ## Goal
 
@@ -192,3 +192,57 @@ no icon font to ship.
 - What the app can do on Android: every feature available today stays reachable (see the menu table).
 - Saving rules: still byte-for-byte page copies, a read-back check before replacing a book, CBR
   saved as a CBZ copy.
+
+## What was built (2.5.0), and where it differs
+
+Added 2026-11-09, after all phases were done. The sections above stay as the plan.
+
+- **Phase 0 (spike):** Material.Avalonia 3.21.0 built and rendered against Avalonia 12.1.5, but its
+  look is Material 2 (uppercase square buttons, swatch palettes, a flat coloured app bar), and
+  setting its palette at run time didn't repaint. **Decision: our own Material 3 styles on Fluent**
+  (`cbzLab.UI/Mobile/MaterialStyles.axaml`), which also keeps ThemeService's live repainting. Icons
+  are path data copied from the Material.Icons package (MIT; Pictogrammers set, the Google-drawn
+  icons Apache 2.0) into `Mobile/Icons.cs`, rather than shipping the 5.7 MB package.
+- **Phase 1 (actions):** `cbzLab.UI/Actions/AppActions*.cs` owns the services, the view model and
+  every action; `MainView` keeps its layout and calls in. `AppPaths.ConfigDir` lets a harness point
+  the services at a scratch folder. The desktop was checked by driving the real `MainView`
+  headlessly (Avalonia.Headless with Skia, rendering real frames): opening books, an edit and save
+  with pages verified byte-identical, then every menu item, each screenshotted.
+- **Phases 2-4 (shell, library, editor, selection, cards):** `Mobile/MobileShell`, `LibraryPage`,
+  `EditorPage`, `MobileFields` (outlined fields with floating labels), `BottomSheet`,
+  `DatePickerDialog`, `MobileMenu`. Results reach the snackbar through a new
+  `MainViewModel.Notice` event (every status message except the running summary).
+- **Phase 5 (dialogs):** a Material mode on the existing `DialogHost` rather than new dialogs:
+  rounded cards, bottom sheets (`DialogBase.IsSheet`), and full-screen on a phone for any dialog
+  with a fixed height (`DialogBase.FullScreenOnPhone` overrides; About stays a card). The dialogs'
+  own buttons stay at their foot rather than moving into the full-screen bar.
+- **Phase 6 (colours):** `MaterialColors` (the M3 role brushes, generated from the system's tonal
+  palettes, a seed colour, or a cbzLab theme) and `MaterialAppearance` (picks one, follows light and
+  dark). In System mode a matching palette is fed back through `ThemeService.ApplyColours`, so the
+  shared dialogs and Fluent's controls match. The Android head reads the system palette by resource
+  name (`system_accent1_500` and so on).
+- **Phase 7 (tablets):** list-detail at 840 units and up, checked on a new `cbzlab-tablet` AVD
+  (Pixel Tablet, Android 15) in landscape, and in portrait by changing the display size, since
+  `user_rotation` didn't rotate the app reliably on that emulator.
+- **Phase 8 (polish):** snackbar Undo for closing books; **About this field** in a field's
+  long-press menu replaces the hover tooltip; the editor's width is capped at 840 on wide screens.
+
+**Not done, or done differently:**
+
+- **Edge-to-edge drawing:** done through Avalonia's insets manager (`DisplayEdgeToEdgePreference`),
+  with the window's background painted the surface colour; Avalonia's own safe-area padding keeps
+  the content clear of the bars. Setting the bar colours directly does nothing on Android 15.
+- **Predictive Back animation:** not done. Avalonia registers a back callback, but the animation
+  wasn't attempted.
+- **Swipe a row to close it:** not done; closing is in the selection bar's menu and the editor's.
+- **Combine and Trim:** in the selection bar's ⋮ (Combine needs several books) and the editor's ⋮
+  (Trim needs one), not the library's ⋮ as the table above has it.
+- **Settings:** the existing dialog, full-screen on a phone, with Colours added and the editor
+  font, fill-width and compact-spacing options hidden on Android (they'd change nothing there). It
+  isn't regrouped into Material's preference-list style.
+
+**Found and fixed along the way:** the ⋮ menus opened empty on Android when filled from the
+flyout's Opening event (now built before showing); Back while a menu was open also left the screen
+behind it; and, from 2.4.x, a process Android kept cached after leaving gave the next launch a new
+window without the Back and keyboard hooks, so Back exited at once. Leaving now ends the process,
+and each new window gets its hooks.

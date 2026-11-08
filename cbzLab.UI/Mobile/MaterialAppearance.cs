@@ -62,8 +62,13 @@ public sealed class MaterialAppearance
 
         Applied?.Invoke(MaterialColors.Current, dark);
 
-        //fluent's own controls follow the same variant
+        //fluent's own controls follow the same variant, and the phone's status and navigation bars
+        //take the surface colour (avalonia draws them on android; no effect elsewhere)
         if (TopLevel.GetTopLevel(_view) is { } top)
+        {
             top.RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light;
+            if (top.InsetsManager is { } insets)
+                insets.SystemBarColor = MaterialColors.Current["Surface"];
+        }
     }
 }

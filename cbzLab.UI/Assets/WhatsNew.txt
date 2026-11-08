@@ -1,3 +1,12 @@
+2.5.0
+• Android: a new look in Material Design, like other Android apps
+• Android: swipe between tabs, pick choices from a list, and a calendar for the date
+• Android: long-press to select several books; closing books can be undone
+• Android: grid view shows covers as cards
+• Android: use your phone's own colours, or a cbzLab theme
+• Android: the list and the editor side by side on a tablet
+• Some bugs were squashed
+
 2.4.4
 • Help → What's New, the list you're reading now
 • Some bugs were squashed
