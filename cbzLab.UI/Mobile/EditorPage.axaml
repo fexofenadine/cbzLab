@@ -43,7 +43,8 @@
         </Border>
 
         <ScrollViewer x:Name="FieldScroll" Grid.Row="2" IsVisible="{Binding HasSelection}">
-            <StackPanel Margin="0,8,0,24">
+            <!--a readable width on a tablet: fields stretched across a whole landscape screen are hard to scan-->
+            <StackPanel Margin="0,8,0,24" MaxWidth="840">
                 <!--one book: its cover and names-->
                 <Grid ColumnDefinitions="Auto,*" Margin="16,8,16,8" IsVisible="{Binding IsSingleFileMode}">
                     <Border Width="64" Height="96" CornerRadius="8" ClipToBounds="True"

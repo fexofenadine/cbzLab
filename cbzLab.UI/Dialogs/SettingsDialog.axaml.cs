@@ -35,10 +35,27 @@ public partial class SettingsDialog : DialogBase
 
         //there is no folder to open and no self-updater on a phone
         FolderLinksPanel.IsVisible = UpdatesPanel.IsVisible = !OperatingSystem.IsAndroid();
+
+        //the phone layout's fields always fill the width and keep material's spacing, so these two
+        //would change nothing there; android has a choice of colours instead
+        //and its font choices are desktop fonts a phone doesn't have
+        FillWidthCheck.IsVisible = CompactCheck.IsVisible = FontFamilyPanel.IsVisible = !OperatingSystem.IsAndroid();
+        ColoursPanel.IsVisible = OperatingSystem.IsAndroid();
+        ColoursHint.Text = cbzLab.Mobile.MaterialAppearance.HasSystemPalette
+            ? "System colours follow your wallpaper and the phone's light or dark setting."
+            : "This phone doesn't share its colours (that needs Android 12 or later), so System colours use a palette from the cbzLab logo, light or dark as the phone is set.";
+    }
+
+    private void OnColoursChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        ThemePanel.IsVisible = !OperatingSystem.IsAndroid() || ColoursCombo.SelectedIndex == 1;
+        ColoursHint.IsVisible = ColoursCombo.SelectedIndex == 0;
     }
 
     private void Populate(AppSettingsSnapshot s)
     {
+        ColoursCombo.SelectedIndex = s.AndroidColours == "theme" ? 1 : 0;
+        ThemePanel.IsVisible = !OperatingSystem.IsAndroid() || ColoursCombo.SelectedIndex == 1;
         foreach (var name in _theme!.ThemeNames)
             ThemeCombo.Items.Add(name);
         ThemeCombo.SelectedItem = _theme.ThemeNames.Contains(s.Theme) ? s.Theme : _theme.CurrentThemeName;
@@ -277,6 +294,8 @@ public partial class SettingsDialog : DialogBase
             return (false, false);
 
         s.Theme = dlg.ThemeCombo.SelectedItem as string ?? s.Theme;
+        if (OperatingSystem.IsAndroid())
+            s.AndroidColours = dlg.ColoursCombo.SelectedIndex == 1 ? "theme" : "system";
         s.EditorFontSize = (double)(dlg.FontSizeBox.Value ?? (decimal)s.EditorFontSize);
         s.EditorFontFamily = dlg.FontFamilyCombo.SelectedItem as string ?? s.EditorFontFamily;
         s.CoverSource = dlg.CoverSourceCombo.SelectedIndex == 1 ? "last" : "first";
@@ -312,7 +331,7 @@ internal readonly record struct AppSettingsSnapshot(
     string DefaultSaveFormat, bool ConfirmBatchSave, bool AutoPageCount, int MaxRecentFiles,
     bool AutoSelectFirstOnOpen, bool ClearFilterOnOpen, string LiveValidationMode, int MaxRecentValues,
     string RarToolPath, bool ComicVineEnabled, string ComicVineApiKey, bool ComicVineAlwaysReview,
-    bool CheckForUpdatesOnStartup, bool AutoUpdateEnabled)
+    bool CheckForUpdatesOnStartup, bool AutoUpdateEnabled, string AndroidColours)
 {
     public AppSettingsSnapshot(Models.AppSettings s) : this(
         s.Theme, s.EditorFontSize, s.EditorFontFamily, s.CoverSource, s.EditorFieldsFillWidth,
@@ -320,7 +339,7 @@ internal readonly record struct AppSettingsSnapshot(
         s.DefaultSaveFormat, s.ConfirmBatchSave, s.AutoPageCount, s.MaxRecentFiles,
         s.AutoSelectFirstOnOpen, s.ClearFilterOnOpen, s.LiveValidationMode, s.MaxRecentValues,
         s.RarToolPath, s.ComicVineEnabled, s.ComicVineApiKey, s.ComicVineAlwaysReview,
-        s.CheckForUpdatesOnStartup, s.AutoUpdateEnabled)
+        s.CheckForUpdatesOnStartup, s.AutoUpdateEnabled, s.AndroidColours)
     {
     }
 }

@@ -17,6 +17,7 @@ public static class AndroidHost
 {
     private static bool _prepared;
     private static bool _shown;
+    private static TopLevel? _hookedTop;
 
     public static MainActivity? Activity { get; set; }
     public static MobileShell? View { get; private set; }
@@ -38,8 +39,13 @@ public static class AndroidHost
         view.QuitRequested += async (_, _) => await LeaveAsync(view);
         view.Loaded += async (_, _) =>
         {
-            if (_shown)
+            //once per window: a process android kept cached gives a new activity, with a new window,
+            //which needs the keyboard and back hooks of its own
+            var host = TopLevel.GetTopLevel(view);
+            if (host is null || ReferenceEquals(host, _hookedTop))
                 return;
+            _hookedTop = host;
+            var first = !_shown;
             _shown = true;
 
             //the keyboard: edge-to-edge windows ignore adjustResize, so the view is lifted by the
@@ -81,7 +87,10 @@ public static class AndroidHost
                         _ = LeaveAsync(view);
                 };
 
-            await view.OnShownAsync(PendingBooks(Activity?.Intent));
+            if (first)
+                await view.OnShownAsync(PendingBooks(Activity?.Intent));
+            else if (PendingBooks(Activity?.Intent) is { Count: > 0 } books)
+                await view.OpenAsync(books);
         };
         return view;
     }
@@ -289,6 +298,9 @@ public static class AndroidHost
         view.PrepareForExit();
         view.Settings.Save();
         Activity?.FinishAndRemoveTask();
+        //leaving is quitting: everything is saved or deliberately discarded by now, so the process goes
+        //too, rather than lingering with the closed books still open for the next launch to find
+        global::Android.OS.Process.KillProcess(global::Android.OS.Process.MyPid());
     }
 
     private static void Prepare(Context context)
@@ -345,6 +357,9 @@ public static class AndroidHost
         if (Activity?.Window is not { } window)
             return;
         var colour = global::Android.Graphics.Color.Argb(255, surface.R, surface.G, surface.B);
+        //android 15 draws edge to edge and ignores the bar colours below: the bars show the window's
+        //own background, so that is painted too
+        window.DecorView.SetBackgroundColor(colour);
 #pragma warning disable CA1422
         window.SetStatusBarColor(colour);
         window.SetNavigationBarColor(colour);

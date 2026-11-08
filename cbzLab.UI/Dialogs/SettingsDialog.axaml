@@ -18,7 +18,17 @@
     <Grid RowDefinitions="*,Auto" Margin="20,12,20,20">
         <ScrollViewer Grid.Row="0">
             <StackPanel Spacing="12">
-                <StackPanel Spacing="4">
+                <!--android only: the phone's own colours, or one of the themes below-->
+                <StackPanel x:Name="ColoursPanel" Spacing="4" IsVisible="False">
+                    <TextBlock Text="Colours" />
+                    <ComboBox x:Name="ColoursCombo" Width="240" HorizontalAlignment="Left"
+                              SelectionChanged="OnColoursChanged">
+                        <ComboBoxItem Content="System colours" />
+                        <ComboBoxItem Content="cbzLab theme" />
+                    </ComboBox>
+                    <TextBlock x:Name="ColoursHint" FontSize="12" Opacity="0.7" TextWrapping="Wrap" />
+                </StackPanel>
+                <StackPanel x:Name="ThemePanel" Spacing="4">
                     <TextBlock Text="Theme" />
                     <ComboBox x:Name="ThemeCombo" Width="200" HorizontalAlignment="Left" />
                 </StackPanel>
@@ -26,7 +36,7 @@
                     <TextBlock Text="Editor font size" />
                     <NumericUpDown x:Name="FontSizeBox" Minimum="10" Maximum="28" Increment="1" FormatString="0" HorizontalAlignment="Left" Width="140" />
                 </StackPanel>
-                <StackPanel Spacing="4">
+                <StackPanel x:Name="FontFamilyPanel" Spacing="4">
                     <TextBlock Text="Editor font" />
                     <ComboBox x:Name="FontFamilyCombo" Width="200" HorizontalAlignment="Left" />
                 </StackPanel>

@@ -138,7 +138,7 @@ public partial class EditorPage : UserControl
         menu.Items.Add(MobileMenu.Item("Revert to saved", Actions.RevertAsync, single));
         menu.Items.Add(MobileMenu.Item("Close", async () =>
         {
-            if (await Actions.RemoveAsync(Vm.SelectedFiles.ToList()))
+            if (await _shell.CloseBooksAsync(Vm.SelectedFiles.ToList()))
                 _shell.CloseEditor();
         }, any));
         menu.Items.Add(new Separator());

@@ -143,6 +143,9 @@ public partial class MobileShell : UserControl
         var expanded = Bounds.Width >= ExpandedFrom;
         if (!force && expanded == _expanded)
             return;
+        //two panes becoming one (a tablet turned upright): the book being edited stays in front
+        if (_expanded == true && !expanded && ViewModel.HasSelection)
+            _editorOpen = true;
         _expanded = expanded;
 
         if (!ViewModel.HasSelection)
@@ -169,6 +172,18 @@ public partial class MobileShell : UserControl
         }
         Editor.SetExpanded(expanded);
         Library.SetExpanded(expanded);
+    }
+
+    //closes books (asking first about unsaved edits) and offers them back for a few seconds;
+    //false if the user kept them
+    public async Task<bool> CloseBooksAsync(IReadOnlyList<ComicFileViewModel> files)
+    {
+        var paths = files.Select(f => f.Path).ToList();
+        if (!await _actions.RemoveAsync(files))
+            return false;
+        ShowSnackbar(paths.Count == 1 ? "Closed 1 book" : $"Closed {paths.Count} books", "Undo",
+            () => _actions.OpenPathsAsync(paths));
+        return true;
     }
 
     //---------------------------------------------------------------- snackbar

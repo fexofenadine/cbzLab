@@ -282,6 +282,12 @@
         <Setter Property="BorderBrush" Value="{DynamicResource M3Primary}" />
     </Style>
 
+    <Style Selector="ComboBoxItem">
+        <Setter Property="MinHeight" Value="48" />
+        <Setter Property="Padding" Value="16,0" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
     <!--lists: selection is a secondary-container tint-->
     <Style Selector="ListBox">
         <Setter Property="Background" Value="Transparent" />
@@ -360,6 +366,11 @@
     <!--checkboxes and switches take the primary colour-->
     <Style Selector="CheckBox">
         <Setter Property="Foreground" Value="{DynamicResource M3OnSurface}" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <!--the box itself sits at the top of fluent's template, which a 48-unit row leaves above its label-->
+    <Style Selector="CheckBox /template/ Grid#RootGrid > Grid">
+        <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
 
 </Styles>

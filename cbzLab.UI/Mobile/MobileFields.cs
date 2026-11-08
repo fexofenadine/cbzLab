@@ -237,6 +237,13 @@ public sealed class MobileFields
     private void AttachFieldMenu(TextBox box, FieldViewModel field)
     {
         var menu = new ContextMenu();
+        if (field.Tooltip.Length > 0)
+        {
+            var about = new MenuItem { Header = "About this field" };
+            about.Click += async (_, _) => await cbzLab.Dialogs.MessageDialog.ShowAsync(_owner, field.Label, field.Tooltip);
+            menu.Items.Add(about);
+            menu.Items.Add(new Separator());
+        }
         var cut = new MenuItem { Header = "Cut" };
         cut.Click += (_, _) => box.Cut();
         cut.Bind(MenuItem.IsEnabledProperty, new Binding(nameof(TextBox.CanCut)) { Source = box });

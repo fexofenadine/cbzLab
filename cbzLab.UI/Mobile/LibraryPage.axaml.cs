@@ -356,7 +356,7 @@ public partial class LibraryPage : UserControl
     {
         var any = Vm.OpenFiles.Count > 0;
         menu.Items.Add(MobileMenu.Item("Save all", Actions.SaveAllAsync, Vm.HasDirtyFiles));
-        menu.Items.Add(MobileMenu.Item("Close all", () => Actions.RemoveAsync(Vm.OpenFiles.ToList()), any));
+        menu.Items.Add(MobileMenu.Item("Close all", () => _shell.CloseBooksAsync(Vm.OpenFiles.ToList()), any));
         menu.Items.Add(MobileMenu.Item("Reopen last closed", Actions.ReopenLastClosedAsync, Actions.HasRecentlyClosed));
         menu.Items.Add(new Separator());
         menu.Items.Add(MobileMenu.Item(Vm.IsGridViewActive ? "List view" : "Grid view", () => Vm.IsGridViewActive = !Vm.IsGridViewActive, any));
@@ -380,7 +380,7 @@ public partial class LibraryPage : UserControl
         var count = Vm.SelectedFiles.Count;
         menu.Items.Add(MobileMenu.Item("Close", async () =>
         {
-            if (await Actions.RemoveAsync(Vm.SelectedFiles.ToList()))
+            if (await _shell.CloseBooksAsync(Vm.SelectedFiles.ToList()))
                 ExitSelection(clear: false);
         }, count > 0));
         menu.Items.Add(MobileMenu.Item("Revert", Actions.RevertAsync, count == 1));
