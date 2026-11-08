@@ -14,7 +14,7 @@ public class LogService
     public LogService(string? logDir = null)
     {
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        _logDir = logDir ?? Path.Combine(appData, SettingsService.AppFolderName, "logs");
+        _logDir = logDir ?? Path.Combine(AppPaths.ConfigDir ?? Path.Combine(appData, SettingsService.AppFolderName), "logs");
         try
         {
             Directory.CreateDirectory(_logDir);

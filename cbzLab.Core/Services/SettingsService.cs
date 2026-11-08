@@ -34,7 +34,7 @@ public class SettingsService
     {
         _log = log;
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        ConfigDir = configDir ?? Path.Combine(appData, AppFolderName);
+        ConfigDir = configDir ?? AppPaths.ConfigDir ?? Path.Combine(appData, AppFolderName);
         ThemesDir = Path.Combine(ConfigDir, "themes");
         BundledAssetsDir = AppPaths.BundledAssetsDir;
 
