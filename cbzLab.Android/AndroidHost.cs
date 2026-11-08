@@ -295,6 +295,7 @@ public static class AndroidHost
             return;
         _prepared = true;
 
+        AppVersion.UseAssembly(typeof(AndroidHost).Assembly);
         ArchiveStorage.Current = new AndroidArchiveStorage(context);
         //fingertip-sized targets, app-wide so menus and dialogs get them too
         Avalonia.Application.Current!.Styles.Add(new Avalonia.Markup.Xaml.Styling.StyleInclude(new Uri("avares://cbzLab.UI/"))

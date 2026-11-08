@@ -1,0 +1,33 @@
+2.4.4
+• Help → What's New, the list you're reading now
+• Some bugs were squashed
+
+2.4.3
+• Updated the libraries cbzLab is built on
+
+2.4.2
+• Android: a much smaller download for most phones
+• Android: open every book in a folder and its subfolders
+• Android: a Select button for picking several books, and tick boxes in grid view
+• Android: a way back to the grid from a book opened there
+• An unexpected error is now shown and your unsaved edits kept, instead of the app closing
+• Some bugs were squashed
+
+2.4.1
+• Android: open books through any file manager, including network and cloud locations
+
+2.4.0
+• cbzLab for Android: the same editor on phones and tablets
+• A narrow desktop window shows the book list and the editor one at a time
+
+2.3.0
+• Dialogs open inside the main window, and shrink to fit it
+• The main window has a minimum size
+
+2.2.0
+• Runs on .NET 10
+• Some bugs were squashed
+
+2.1.1
+• A refreshed logo
+• cbzLite: the editor in a web browser, nothing to install

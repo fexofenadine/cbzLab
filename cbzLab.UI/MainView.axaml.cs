@@ -1812,6 +1812,16 @@ public partial class MainView : UserControl
     private async void OnAbout(object? sender, RoutedEventArgs e) =>
         await AboutDialog.ShowAsync(Owner);
 
+    //new features and changes per release, bundled with the app (Assets/WhatsNew.txt)
+    private async void OnWhatsNew(object? sender, RoutedEventArgs e)
+    {
+        string text;
+        using (var stream = Avalonia.Platform.AssetLoader.Open(new Uri("avares://cbzLab.UI/Assets/WhatsNew.txt")))
+        using (var reader = new StreamReader(stream))
+            text = reader.ReadToEnd().Trim();
+        await MessageDialog.ShowAsync(Owner, "What's New", text);
+    }
+
     private void OnCheckForUpdates(object? sender, RoutedEventArgs e) =>
         CheckForUpdatesRequested?.Invoke(this, EventArgs.Empty);
 

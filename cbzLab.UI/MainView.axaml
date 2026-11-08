@@ -99,6 +99,7 @@
                     <!--hidden unless the host can update the app (the desktop can; Android updates from its store)-->
                     <MenuItem x:Name="CheckForUpdatesItem" Header="Check for Updates…" Click="OnCheckForUpdates" IsVisible="False" />
                     <Separator x:Name="CheckForUpdatesSeparator" IsVisible="False" />
+                    <MenuItem Header="What's New" Click="OnWhatsNew" />
                     <MenuItem Header="About cbzLab" Click="OnAbout" />
                 </MenuItem>
             </Menu>

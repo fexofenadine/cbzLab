@@ -9,12 +9,21 @@ namespace cbzLab.Services;
 /// </summary>
 public static class AppVersion
 {
-    public static readonly string Display = Read();
+    private static Assembly? _app;
+    private static string? _display;
+
+    public static string Display => _display ??= Read(_app ?? Assembly.GetEntryAssembly());
+
+    //android has no entry assembly, so its host names the app's own before anything reads the version
+    public static void UseAssembly(Assembly app)
+    {
+        _app = app;
+        _display = null;
+    }
 
     //the informational version carries "+<commit>" when built from a git checkout
-    private static string Read()
+    private static string Read(Assembly? assembly)
     {
-        var assembly = Assembly.GetEntryAssembly();
         if (assembly is null)
             return "0.0.0";
         var informational = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;

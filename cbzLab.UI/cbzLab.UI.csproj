@@ -22,6 +22,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!--help > what's new: features and changes only, updated alongside CHANGELOG.md-->
+    <AvaloniaResource Include="Assets\WhatsNew.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\cbzLab.Core\cbzLab.Core.csproj" />
   </ItemGroup>
 

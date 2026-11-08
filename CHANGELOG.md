@@ -10,6 +10,15 @@
 
 ## cbzLab (Avalonia)
 
+### 2.4.4 - 2026-11-08
+
+- **Help → What's New** lists the new features and changes in each release, on the desktop and
+  on Android.
+- Android: fixed the About box showing version 0.0.0. Android apps have no "entry" program file for
+  the version to be read from, so the Android app now names its own. This also means an update
+  refreshes the bundled schema and themes again, which were only copied out when the version
+  changed and so never were after the first install.
+
 ### 2.4.3 - 2026-11-08
 
 - Dependency updates: Avalonia 12.1.5 across the desktop, shared UI and Android projects, SharpCompress 0.50.8.
