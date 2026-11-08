@@ -60,6 +60,13 @@ public class MainActivity : AvaloniaMainActivity
             await view.OpenAsync(books);
     }
 
+    //the wallpaper (and with it the system colours) or light and dark may have changed while away
+    protected override void OnResume()
+    {
+        base.OnResume();
+        AndroidHost.View?.Appearance.Apply();
+    }
+
     //going to the background is where the system may kill the app without a word, so unsaved edits
     //are written to their recovery drafts, and the settings saved, before it can
     protected override void OnPause()

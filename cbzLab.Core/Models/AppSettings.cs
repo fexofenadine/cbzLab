@@ -128,4 +128,8 @@ public class AppSettings
     //controls whether that offer appears at all instead of just linking the release
     [JsonPropertyName("auto_update_enabled")]
     public bool AutoUpdateEnabled { get; set; }
+
+    //android only: "system" follows the phone's own colours (material you), "theme" uses Theme above
+    [JsonPropertyName("android_colours")]
+    public string AndroidColours { get; set; } = "system";
 }

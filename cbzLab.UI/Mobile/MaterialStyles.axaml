@@ -1,0 +1,365 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--material 3 for the phone layout, added app-wide by the android host on top of AppStyles and
+        TouchStyles, so the shared dialogs get it too. colours are the M3* roles MaterialColors keeps
+        current; shapes and type follow material's defaults. the desktop never loads this-->
+
+    <!--type scale-->
+    <Style Selector="TextBlock.headline">
+        <Setter Property="FontSize" Value="24" />
+    </Style>
+    <Style Selector="TextBlock.title-large">
+        <Setter Property="FontSize" Value="22" />
+    </Style>
+    <Style Selector="TextBlock.title-medium">
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+    <Style Selector="TextBlock.body-large">
+        <Setter Property="FontSize" Value="16" />
+    </Style>
+    <Style Selector="TextBlock.body-medium">
+        <Setter Property="FontSize" Value="14" />
+    </Style>
+    <Style Selector="TextBlock.body-small">
+        <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="TextBlock.label-large">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+    <Style Selector="TextBlock.variant">
+        <Setter Property="Foreground" Value="{DynamicResource M3OnSurfaceVariant}" />
+    </Style>
+
+    <!--buttons: tonal pills by default; the default button of a dialog is filled-->
+    <Style Selector="Button">
+        <Setter Property="CornerRadius" Value="20" />
+        <Setter Property="Padding" Value="24,0" />
+        <Setter Property="MinHeight" Value="40" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Background" Value="{DynamicResource M3SecondaryContainer}" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnSecondaryContainer}" />
+    </Style>
+    <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource M3SecondaryContainer}" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnSecondaryContainer}" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
+    <Style Selector="Button:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource M3SecondaryContainerPressed}" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnSecondaryContainer}" />
+    </Style>
+    <Style Selector="Button:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource M3OnSurfaceDisabledContainer}" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnSurfaceDisabled}" />
+    </Style>
+
+    <Style Selector="Button[IsDefault=True]">
+        <Setter Property="Background" Value="{DynamicResource M3Primary}" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnPrimary}" />
+    </Style>
+    <Style Selector="Button[IsDefault=True]:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource M3Primary}" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnPrimary}" />
+    </Style>
+    <Style Selector="Button[IsDefault=True]:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource M3PrimaryPressed}" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnPrimary}" />
+    </Style>
+
+    <!--text buttons: dialog actions and links-->
+    <Style Selector="Button.text">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource M3Primary}" />
+        <Setter Property="Padding" Value="12,0" />
+    </Style>
+    <Style Selector="Button.text:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource M3Primary}" />
+    </Style>
+    <Style Selector="Button.text:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource M3StateLayer}" />
+        <Setter Property="Foreground" Value="{DynamicResource M3Primary}" />
+    </Style>
+
+    <!--icon buttons: app bars and trailing field actions-->
+    <Style Selector="Button.icon">
+        <Setter Property="Width" Value="48" />
+        <Setter Property="Height" Value="48" />
+        <Setter Property="MinWidth" Value="48" />
+        <Setter Property="CornerRadius" Value="24" />
+        <Setter Property="Padding" Value="12" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnSurfaceVariant}" />
+    </Style>
+    <Style Selector="Button.icon:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnSurfaceVariant}" />
+    </Style>
+    <Style Selector="Button.icon:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource M3StateLayer}" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnSurface}" />
+    </Style>
+    <Style Selector="Button.icon:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnSurfaceDisabled}" />
+    </Style>
+    <Style Selector="Button.icon.on-primary">
+        <Setter Property="Foreground" Value="{DynamicResource M3OnSecondaryContainer}" />
+    </Style>
+
+    <!--floating action button-->
+    <Style Selector="Button.fab">
+        <Setter Property="Width" Value="56" />
+        <Setter Property="Height" Value="56" />
+        <Setter Property="MinWidth" Value="56" />
+        <Setter Property="CornerRadius" Value="16" />
+        <Setter Property="Padding" Value="16" />
+        <Setter Property="Background" Value="{DynamicResource M3PrimaryContainer}" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnPrimaryContainer}" />
+    </Style>
+    <Style Selector="Button.fab:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource M3PrimaryContainer}" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnPrimaryContainer}" />
+    </Style>
+    <Style Selector="Button.fab:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource M3PrimaryContainerPressed}" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnPrimaryContainer}" />
+    </Style>
+
+    <!--a full-width row in a list or bottom sheet: icon, label, maybe a trailing note-->
+    <Style Selector="Button.row">
+        <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="Padding" Value="24,0" />
+        <Setter Property="MinHeight" Value="56" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="FontWeight" Value="Normal" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnSurface}" />
+    </Style>
+    <Style Selector="Button.row:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnSurface}" />
+    </Style>
+    <Style Selector="Button.row:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource M3StateLayer}" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnSurface}" />
+    </Style>
+
+    <!--filled buttons outside dialogs-->
+    <Style Selector="Button.filled">
+        <Setter Property="Background" Value="{DynamicResource M3Primary}" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnPrimary}" />
+    </Style>
+    <Style Selector="Button.filled:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource M3Primary}" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnPrimary}" />
+    </Style>
+    <Style Selector="Button.filled:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource M3PrimaryPressed}" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnPrimary}" />
+    </Style>
+
+    <!--a choice field: looks like an outlined text field, opens a sheet-->
+    <Style Selector="Button.field">
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="MinHeight" Value="56" />
+        <Setter Property="Padding" Value="16,0,12,0" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="FontWeight" Value="Normal" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{DynamicResource M3Outline}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnSurface}" />
+    </Style>
+    <Style Selector="Button.field:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{DynamicResource M3OnSurface}" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnSurface}" />
+    </Style>
+    <Style Selector="Button.field:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource M3StateLayer}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource M3Primary}" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnSurface}" />
+    </Style>
+
+    <!--grid view cards: filled cards-->
+    <Style Selector="Button.card">
+        <Setter Property="Background" Value="{DynamicResource M3SurfaceContainerHighest}" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnSurface}" />
+        <Setter Property="FontWeight" Value="Normal" />
+    </Style>
+    <Style Selector="Button.card:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource M3SurfaceContainerHighest}" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnSurface}" />
+    </Style>
+    <Style Selector="Button.card:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource M3SurfaceContainerHigh}" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnSurface}" />
+    </Style>
+
+    <!--outlined text fields. the box's own background and border are set on the TextBox too: fluent's
+        template binds its border element to them, and a template binding outranks a style on the part-->
+    <Style Selector="TextBox">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{DynamicResource M3Outline}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="MinHeight" Value="56" />
+        <Setter Property="Padding" Value="16,8" />
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnSurface}" />
+        <Setter Property="CaretBrush" Value="{DynamicResource M3Primary}" />
+        <Setter Property="SelectionBrush" Value="{DynamicResource M3PrimaryContainer}" />
+    </Style>
+    <Style Selector="TextBox /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{DynamicResource M3Outline}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="4" />
+    </Style>
+    <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{DynamicResource M3OnSurface}" />
+    </Style>
+    <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{DynamicResource M3Primary}" />
+        <Setter Property="BorderThickness" Value="2" />
+    </Style>
+    <Style Selector="TextBox.error /template/ Border#PART_BorderElement">
+        <Setter Property="BorderBrush" Value="{DynamicResource M3Error}" />
+    </Style>
+    <Style Selector="TextBox:focus">
+        <Setter Property="Foreground" Value="{DynamicResource M3OnSurface}" />
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="TextBox:pointerover">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <!--a text box with no box: the search field in the app bar-->
+    <Style Selector="TextBox.bare /template/ Border#PART_BorderElement">
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="TextBox.bare:focus /template/ Border#PART_BorderElement">
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="TextBox.bare">
+        <Setter Property="Padding" Value="4,0" />
+        <Setter Property="MinHeight" Value="48" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <!--combo boxes, outlined like the text fields-->
+    <Style Selector="ComboBox">
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="MinHeight" Value="56" />
+        <Setter Property="Padding" Value="16,8" />
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnSurface}" />
+    </Style>
+    <Style Selector="ComboBox /template/ Border#Background">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{DynamicResource M3Outline}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="ComboBox:pointerover /template/ Border#Background">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{DynamicResource M3OnSurface}" />
+    </Style>
+    <Style Selector="ComboBox:pressed /template/ Border#Background">
+        <Setter Property="Background" Value="{DynamicResource M3StateLayer}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource M3Primary}" />
+    </Style>
+
+    <!--lists: selection is a secondary-container tint-->
+    <Style Selector="ListBox">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="ListBoxItem">
+        <Setter Property="Padding" Value="0" />
+    </Style>
+    <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="ListBoxItem:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource M3StateLayer}" />
+    </Style>
+    <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource M3SecondaryContainer}" />
+    </Style>
+    <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource M3SecondaryContainer}" />
+    </Style>
+    <Style Selector="ListBoxItem:selected:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource M3SecondaryContainerPressed}" />
+    </Style>
+
+    <!--primary tabs: label colour plus a 3-unit indicator under the selected one-->
+    <Style Selector="TabStripItem">
+        <Setter Property="MinHeight" Value="48" />
+        <Setter Property="Padding" Value="16,0" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnSurfaceVariant}" />
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="TabStripItem:pointerover /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="TabStripItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource M3OnSurfaceVariant}" />
+    </Style>
+    <Style Selector="TabStripItem:pressed /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="{DynamicResource M3StateLayer}" />
+    </Style>
+    <Style Selector="TabStripItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource M3Primary}" />
+    </Style>
+    <Style Selector="TabStripItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource M3Primary}" />
+    </Style>
+    <Style Selector="TabStripItem /template/ Border#PART_SelectedPipe">
+        <Setter Property="Background" Value="{DynamicResource M3Primary}" />
+        <Setter Property="Height" Value="3" />
+        <Setter Property="CornerRadius" Value="3,3,0,0" />
+        <Setter Property="Margin" Value="8,0" />
+    </Style>
+
+    <!--menus: material's dropdown menus-->
+    <Style Selector="MenuFlyoutPresenter">
+        <Setter Property="Background" Value="{DynamicResource M3SurfaceContainer}" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Padding" Value="0,8" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="MinWidth" Value="200" />
+    </Style>
+    <Style Selector="ContextMenu">
+        <Setter Property="Background" Value="{DynamicResource M3SurfaceContainer}" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Padding" Value="0,8" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="MenuItem">
+        <Setter Property="MinHeight" Value="48" />
+        <Setter Property="Padding" Value="12,0" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnSurface}" />
+    </Style>
+
+    <!--checkboxes and switches take the primary colour-->
+    <Style Selector="CheckBox">
+        <Setter Property="Foreground" Value="{DynamicResource M3OnSurface}" />
+    </Style>
+
+</Styles>

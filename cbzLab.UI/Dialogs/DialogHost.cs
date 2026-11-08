@@ -7,6 +7,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Layout;
+using Avalonia.Controls.Documents;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -33,6 +34,13 @@ public sealed class DialogHost : Panel
 
     //the app content behind the dialogs, disabled while any are open
     public Control? Covered { get; set; }
+
+    //the phone layout's look: rounded material cards, bottom sheets, and big dialogs full-screen on a
+    //phone-sized screen. off on the desktop, which keeps its own cards
+    public bool MaterialMode { get; set; }
+
+    //below this width a screen counts as a phone (material's "compact" size)
+    public const double CompactBelow = 600;
 
     public DialogHost()
     {
@@ -91,7 +99,7 @@ public sealed class DialogHost : Panel
             _layers[^1].Card.IsEnabled = false;
         }
 
-        var card = BuildCard(dialog);
+        var card = MaterialMode ? BuildMaterialCard(dialog) : BuildCard(dialog);
         var backdrop = new Border
         {
             //a background makes the backdrop catch every click meant for what's behind it
@@ -172,6 +180,11 @@ public sealed class DialogHost : Panel
     //the dialog's own size, shrunk to fit the app with a margin all round
     private void Fit(Layer layer)
     {
+        if (MaterialMode)
+        {
+            FitMaterial(layer);
+            return;
+        }
         var width = Math.Max(0, Bounds.Width - 2 * Gutter);
         var height = Math.Max(0, Bounds.Height - 2 * Gutter);
         if (width == 0 || height == 0)
@@ -180,6 +193,137 @@ public sealed class DialogHost : Panel
         layer.Card.MaxHeight = height;
         layer.Card.Height = double.IsNaN(layer.Dialog.DialogHeight) ? double.NaN : Math.Min(layer.Dialog.DialogHeight, height);
     }
+
+    //---------------------------------------------------------------- material mode
+
+    private bool IsFullScreen(DialogBase dialog) =>
+        Bounds.Width < CompactBelow && (dialog.FullScreenOnPhone ?? !double.IsNaN(dialog.DialogHeight));
+
+    private static Border BuildMaterialCard(DialogBase dialog)
+    {
+        var content = new Grid { RowDefinitions = new RowDefinitions("Auto,Auto,*") };
+
+        //full-screen: a top bar with a close button, as material's full-screen dialogs have
+        var bar = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), Height = 64 };
+        var close = new Button { Content = cbzLab.Mobile.Icons.Make(cbzLab.Mobile.Icons.Close), Margin = new Thickness(4, 0, 0, 0) };
+        close.Classes.Add("icon");
+        close.Click += (_, _) => dialog.OnCancelRequested();
+        bar.Children.Add(close);
+        var barTitle = new TextBlock
+        {
+            Text = dialog.Title,
+            FontSize = 22,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(12, 0, 16, 0),
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        };
+        Grid.SetColumn(barTitle, 1);
+        bar.Children.Add(barTitle);
+
+        //a card or a sheet: a plain headline, with a sheet's drag handle above it
+        var head = new StackPanel();
+        if (dialog.IsSheet)
+        {
+            var handle = new Border
+            {
+                Width = 32,
+                Height = 4,
+                CornerRadius = new CornerRadius(2),
+                Margin = new Thickness(0, 16, 0, 8),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Opacity = 0.4,
+            };
+            handle.Bind(Border.BackgroundProperty, handle.GetResourceObservable("M3OnSurfaceVariant"));
+            head.Children.Add(handle);
+        }
+        if (dialog.Title.Length > 0)
+        {
+            head.Children.Add(new TextBlock
+            {
+                Text = dialog.Title,
+                FontSize = dialog.IsSheet ? 16 : 24,
+                FontWeight = dialog.IsSheet ? FontWeight.Medium : FontWeight.Normal,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = dialog.IsSheet ? new Thickness(24, 4, 24, 4) : new Thickness(24, 24, 24, 0),
+            });
+        }
+        Grid.SetRow(head, 1);
+        content.Children.Add(bar);
+        content.Children.Add(head);
+        Grid.SetRow(dialog, 2);
+        content.Children.Add(dialog);
+
+        var card = new Border
+        {
+            ClipToBounds = true,
+            Focusable = true,
+            Child = content,
+            BoxShadow = BoxShadows.Parse("0 8 24 0 #40000000"),
+        };
+        card.Classes.Add("m3-dialog");
+        card.Bind(TextElement.ForegroundProperty, card.GetResourceObservable("M3OnSurface"));
+        KeyboardNavigation.SetTabNavigation(card, KeyboardNavigationMode.Cycle);
+        card.KeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Escape)
+            {
+                e.Handled = true;
+                dialog.OnCancelRequested();
+            }
+        };
+        return card;
+    }
+
+    //re-run on every resize, so a rotation moves a dialog between full-screen and a card
+    private void FitMaterial(Layer layer)
+    {
+        var dialog = layer.Dialog;
+        var card = layer.Card;
+        if (Bounds.Width <= 0 || Bounds.Height <= 0)
+            return;
+        var content = (Grid)card.Child!;
+        var bar = content.Children[0];
+        var head = content.Children[1];
+
+        if (dialog.IsSheet)
+        {
+            bar.IsVisible = false;
+            head.IsVisible = true;
+            card.Width = Math.Min(640, Bounds.Width);
+            card.Height = double.NaN;
+            card.MaxHeight = Bounds.Height * 0.9;
+            card.HorizontalAlignment = HorizontalAlignment.Center;
+            card.VerticalAlignment = VerticalAlignment.Bottom;
+            card.CornerRadius = new CornerRadius(28, 28, 0, 0);
+            card.Bind(Border.BackgroundProperty, card.GetResourceObservable("M3SurfaceContainerLow"));
+        }
+        else if (IsFullScreen(dialog))
+        {
+            bar.IsVisible = true;
+            head.IsVisible = false;
+            card.Width = Bounds.Width;
+            card.Height = Bounds.Height;
+            card.MaxHeight = double.PositiveInfinity;
+            card.HorizontalAlignment = HorizontalAlignment.Stretch;
+            card.VerticalAlignment = VerticalAlignment.Stretch;
+            card.CornerRadius = default;
+            card.Bind(Border.BackgroundProperty, card.GetResourceObservable("M3Surface"));
+        }
+        else
+        {
+            const double gutter = 24;
+            bar.IsVisible = false;
+            head.IsVisible = true;
+            card.Width = Math.Min(Math.Max(dialog.DialogWidth, 280), Math.Max(0, Bounds.Width - 2 * gutter));
+            card.MaxHeight = Math.Max(0, Bounds.Height - 2 * gutter);
+            card.Height = double.IsNaN(dialog.DialogHeight) ? double.NaN : Math.Min(dialog.DialogHeight, card.MaxHeight);
+            card.HorizontalAlignment = HorizontalAlignment.Center;
+            card.VerticalAlignment = VerticalAlignment.Center;
+            card.CornerRadius = new CornerRadius(28);
+            card.Bind(Border.BackgroundProperty, card.GetResourceObservable("M3SurfaceContainerHigh"));
+        }
+    }
+
 
     //the default button when there is one, so Enter and a screen reader both start there; otherwise
     //the card itself, so a stray Enter can't press something like Cancel on a progress dialog

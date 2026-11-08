@@ -1,0 +1,33 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:dlg="using:cbzLab.Dialogs"
+             xmlns:m="using:cbzLab.Mobile"
+             x:Class="cbzLab.Mobile.MobileShell">
+
+    <!--the phone and tablet layout: the library and the editor as screens of their own on a phone,
+        side by side on a tablet. dialogs, sheets and snackbars sit above both-->
+    <Grid x:Name="RootGrid">
+        <Grid x:Name="Panes" Background="{DynamicResource M3Surface}">
+            <m:LibraryPage x:Name="Library" />
+            <Border x:Name="PaneDivider" Width="1" IsVisible="False" HorizontalAlignment="Left"
+                    Background="{DynamicResource M3OutlineVariant}" />
+            <m:EditorPage x:Name="Editor" IsVisible="False" />
+        </Grid>
+
+        <!--short messages: what an action did, sometimes with an undo-->
+        <Border x:Name="Snackbar" IsVisible="False" VerticalAlignment="Bottom" HorizontalAlignment="Stretch"
+                Margin="12" MinHeight="48" MaxWidth="560" CornerRadius="4"
+                Background="{DynamicResource M3InverseSurface}"
+                BoxShadow="0 3 8 0 #40000000">
+            <Grid ColumnDefinitions="*,Auto" Margin="16,0,8,0">
+                <TextBlock x:Name="SnackbarText" Classes="body-medium" TextWrapping="Wrap" VerticalAlignment="Center"
+                           Margin="0,14" Foreground="{DynamicResource M3InverseOnSurface}" />
+                <Button x:Name="SnackbarAction" Grid.Column="1" Classes="text" IsVisible="False"
+                        Foreground="{DynamicResource M3InversePrimary}" Margin="8,0,0,0" Click="OnSnackbarAction" />
+            </Grid>
+        </Border>
+
+        <dlg:DialogHost x:Name="Dialogs" MaterialMode="True" />
+    </Grid>
+
+</UserControl>

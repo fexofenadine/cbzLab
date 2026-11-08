@@ -1,0 +1,83 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:cbzLab.ViewModels"
+             x:Class="cbzLab.Mobile.EditorPage"
+             x:DataType="vm:MainViewModel">
+
+    <Grid RowDefinitions="64,Auto,*">
+
+        <!--top app bar-->
+        <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" Background="{DynamicResource M3Surface}">
+            <Button x:Name="BackButton" Classes="icon" Margin="4,0,0,0" Click="OnBack"
+                    ToolTip.Tip="Back to books" AutomationProperties.Name="Back to books" />
+            <TextBlock x:Name="TitleText" Grid.Column="1" Classes="title-large" VerticalAlignment="Center"
+                       Margin="12,0,4,0" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource M3OnSurface}" />
+            <Button x:Name="ComicVineButton" Grid.Column="2" Classes="icon" Click="OnComicVine"
+                    IsVisible="{Binding OnlineLookupEnabled}"
+                    ToolTip.Tip="Search ComicVine" AutomationProperties.Name="Search ComicVine" />
+            <Panel Grid.Column="3">
+                <Button x:Name="SaveButton" Classes="icon" Click="OnSave"
+                        ToolTip.Tip="Save" AutomationProperties.Name="Save" />
+                <!--material's small badge: unsaved changes in what's being edited-->
+                <Ellipse Width="10" Height="10" Margin="0,8,8,0" HorizontalAlignment="Right" VerticalAlignment="Top"
+                         IsHitTestVisible="False" Fill="{DynamicResource M3Error}"
+                         Stroke="{DynamicResource M3Surface}" StrokeThickness="2"
+                         IsVisible="{Binding SelectionHasUnsaved}" />
+            </Panel>
+            <Button x:Name="MoreButton" Grid.Column="4" Classes="icon" Margin="0,0,4,0"
+                    ToolTip.Tip="More options" AutomationProperties.Name="More options" />
+        </Grid>
+
+        <!--scrollable tabs-->
+        <Border Grid.Row="1" BorderBrush="{DynamicResource M3OutlineVariant}" BorderThickness="0,0,0,1"
+                IsVisible="{Binding HasSelection}">
+            <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
+                <TabStrip x:Name="Tabs" SelectionChanged="OnTabChanged" Margin="8,0">
+                    <TabStrip.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </TabStrip.ItemsPanel>
+                </TabStrip>
+            </ScrollViewer>
+        </Border>
+
+        <ScrollViewer x:Name="FieldScroll" Grid.Row="2" IsVisible="{Binding HasSelection}">
+            <StackPanel Margin="0,8,0,24">
+                <!--one book: its cover and names-->
+                <Grid ColumnDefinitions="Auto,*" Margin="16,8,16,8" IsVisible="{Binding IsSingleFileMode}">
+                    <Border Width="64" Height="96" CornerRadius="8" ClipToBounds="True"
+                            Background="{DynamicResource M3SurfaceContainerHighest}">
+                        <Image Source="{Binding CurrentFile.CoverImage}" Stretch="UniformToFill"
+                               IsVisible="{Binding CurrentFile.HasCover}" />
+                    </Border>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="16,0,0,0">
+                        <TextBlock Classes="title-medium" Text="{Binding CurrentFile.FileName}" TextWrapping="Wrap"
+                                   MaxLines="2" Foreground="{DynamicResource M3OnSurface}" />
+                        <TextBlock Classes="body-medium variant" Text="{Binding CurrentFile.Subtitle}"
+                                   Opacity="{Binding CurrentFile.SubtitleOpacity}" Margin="0,4,0,0" />
+                    </StackPanel>
+                </Grid>
+                <!--several books: which ones-->
+                <StackPanel Margin="16,8,16,8" IsVisible="{Binding IsBatchMode}">
+                    <TextBlock x:Name="BatchText" Classes="body-medium variant" TextWrapping="Wrap" />
+                </StackPanel>
+
+                <!--the editor font setting applies to the fields themselves, see MobileFields-->
+                <ItemsControl x:Name="FieldList" ItemsSource="{Binding VisibleFields}" />
+                <TextBlock x:Name="NoFieldsText" Classes="body-medium variant" Margin="16,24" TextWrapping="Wrap"
+                           Text="Nothing on this tab yet. More options › Show all fields lists the empty ones too." />
+            </StackPanel>
+        </ScrollViewer>
+
+        <!--a tablet's editor with nothing chosen yet-->
+        <StackPanel Grid.Row="2" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8"
+                    IsVisible="{Binding !HasSelection}">
+            <TextBlock Classes="title-medium" Text="No book selected" HorizontalAlignment="Center"
+                       Foreground="{DynamicResource M3OnSurface}" />
+            <TextBlock Classes="body-medium variant" Text="Choose a book from the list to edit it."
+                       HorizontalAlignment="Center" />
+        </StackPanel>
+    </Grid>
+
+</UserControl>

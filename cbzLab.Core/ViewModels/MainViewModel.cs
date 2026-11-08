@@ -179,8 +179,18 @@ public class MainViewModel : ViewModelBase
     public string StatusText
     {
         get => _statusText;
-        set => SetProperty(ref _statusText, value);
+        set
+        {
+            SetProperty(ref _statusText, value);
+            if (!_summarising)
+                Notice?.Invoke(value);
+        }
     }
+
+    //every status message except the running "N files open" summary: what an action reports, which
+    //the phone layout shows as a snackbar rather than in a status bar
+    public event Action<string>? Notice;
+    private bool _summarising;
 
     public MainViewModel(SchemaService schema, SettingsService settings, ValidationService validation,
         RecentValuesService recentValues)
@@ -606,7 +616,9 @@ public class MainViewModel : ViewModelBase
         DirtyCount = dirty;
         SelectionHasUnsaved = dirty > 0 && SelectedFiles.Any(f => f.IsDirty);
         var files = OpenFiles.Count == 1 ? "1 file open" : $"{OpenFiles.Count} files open";
-        StatusText = dirty == 0 ? files : $"{files} · {dirty} unsaved";
+        _summarising = true;
+        try { StatusText = dirty == 0 ? files : $"{files} · {dirty} unsaved"; }
+        finally { _summarising = false; }
     }
 
     //recomputes DisplayedFiles: filter then sort, via Insert/Remove/Move only (never Clear)

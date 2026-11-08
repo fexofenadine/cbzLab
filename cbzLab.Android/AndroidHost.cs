@@ -5,11 +5,13 @@ using System.Linq;
 using System.Threading.Tasks;
 using Android.Content;
 using Avalonia.Controls;
+using cbzLab.Mobile;
 using cbzLab.Services;
 
 namespace cbzLab.Android;
 
-//what only an android app does around the shared MainView: unpacking the bundled files, choosing the
+//what only an android app does around the shared phone layout (MobileShell): unpacking the bundled
+//files, the system colours, choosing the
 //archive storage, handing over the books another app opened us with, and the lifecycle hooks
 public static class AndroidHost
 {
@@ -17,7 +19,7 @@ public static class AndroidHost
     private static bool _shown;
 
     public static MainActivity? Activity { get; set; }
-    public static MainView? View { get; private set; }
+    public static MobileShell? View { get; private set; }
 
     //the books the app was started with, or handed later, as document uris
     public static List<string> PendingBooks(Intent? intent)
@@ -28,10 +30,10 @@ public static class AndroidHost
         return books;
     }
 
-    public static MainView CreateView()
+    public static MobileShell CreateView()
     {
         Prepare(global::Android.App.Application.Context);
-        var view = new MainView { TouchMode = true, ExternalOpenPicker = PickFromAnyAppAsync, FolderPicker = PickFolderAsync };
+        var view = new MobileShell { ExternalOpenPicker = PickFromAnyAppAsync, FolderPicker = PickFolderAsync };
         View = view;
         view.QuitRequested += async (_, _) => await LeaveAsync(view);
         view.Loaded += async (_, _) =>
@@ -280,7 +282,7 @@ public static class AndroidHost
 
     //leaving asks about unsaved edits first; unsaved edits that survive a kill are the autosave's job,
     //but a deliberate exit resolves them (saved or discarded) like closing the desktop window does
-    private static async System.Threading.Tasks.Task LeaveAsync(MainView view)
+    private static async System.Threading.Tasks.Task LeaveAsync(MobileShell view)
     {
         if (!await view.ConfirmCloseAsync())
             return;
@@ -302,7 +304,57 @@ public static class AndroidHost
         {
             Source = new Uri("avares://cbzLab.UI/TouchStyles.axaml"),
         });
+        //material 3 on top, for the phone layout and every dialog it opens
+        Avalonia.Application.Current!.Styles.Add(new Avalonia.Markup.Xaml.Styling.StyleInclude(new Uri("avares://cbzLab.UI/"))
+        {
+            Source = new Uri("avares://cbzLab.UI/Mobile/MaterialStyles.axaml"),
+        });
+        MaterialColors.SystemShade = SystemShade(context);
+        MaterialAppearance.Applied += (roles, dark) => TintSystemBars(roles["Surface"], dark);
         AppPaths.BundledAssetsDir = UnpackBundledAssets(context);
+    }
+
+    //the phone's own tonal palettes (material you), android 12 and later: looked up by resource name,
+    //system_accent1_500 and so on. null where there's no such palette
+    private static Func<string, int, Avalonia.Media.Color?>? SystemShade(Context context)
+    {
+        if (!OperatingSystem.IsAndroidVersionAtLeast(31))
+            return null;
+        var resources = context.Resources!;
+        var cache = new Dictionary<string, Avalonia.Media.Color?>();
+        return (palette, shade) =>
+        {
+            var name = $"system_{palette}_{shade}";
+            if (cache.TryGetValue(name, out var known))
+                return known;
+            Avalonia.Media.Color? colour = null;
+            var id = resources.GetIdentifier(name, "color", "android");
+            if (id != 0)
+            {
+                var argb = (uint)context.GetColor(id);
+                colour = Avalonia.Media.Color.FromUInt32(argb);
+            }
+            cache[name] = colour;
+            return colour;
+        };
+    }
+
+    //the status and navigation bars take the app's surface colour, with icons readable on it
+    public static void TintSystemBars(Avalonia.Media.Color surface, bool dark)
+    {
+        if (Activity?.Window is not { } window)
+            return;
+        var colour = global::Android.Graphics.Color.Argb(255, surface.R, surface.G, surface.B);
+#pragma warning disable CA1422
+        window.SetStatusBarColor(colour);
+        window.SetNavigationBarColor(colour);
+#pragma warning restore CA1422
+        if (OperatingSystem.IsAndroidVersionAtLeast(30) && window.InsetsController is { } insets)
+        {
+            var light = (int)(global::Android.Views.WindowInsetsControllerAppearance.LightStatusBars
+                              | global::Android.Views.WindowInsetsControllerAppearance.LightNavigationBars);
+            insets.SetSystemBarsAppearance(dark ? 0 : light, light);
+        }
     }
 
     //the shared code reads the schema, themes and logo as ordinary files, which inside an apk they

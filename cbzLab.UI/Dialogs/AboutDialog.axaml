@@ -2,7 +2,7 @@
                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                 xmlns:dlg="using:cbzLab.Dialogs"
                 x:Class="cbzLab.Dialogs.AboutDialog"
-                DialogWidth="460" DialogHeight="380"
+                DialogWidth="460" FullScreenOnPhone="False" DialogHeight="380"
                 Background="#0D0221">
 
     <!--fixed Synthwave Dark palette always, regardless of the app's active theme (by

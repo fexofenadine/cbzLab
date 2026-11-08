@@ -22,6 +22,13 @@ public class DialogBase : UserControl
     //NaN sizes the dialog to its content; either way it never outgrows the app
     public double DialogHeight { get; set; } = double.NaN;
 
+    //material mode (the phone layout) only: true shows the dialog full-screen on a phone-sized screen,
+    //false never does; unset, a dialog with a fixed height (a list or a form) goes full-screen
+    public bool? FullScreenOnPhone { get; set; }
+
+    //material mode only: shown as a bottom sheet rising from the bottom edge rather than a centred card
+    public bool IsSheet { get; set; }
+
     internal Task Closed => _closed.Task;
 
     protected void Close() => _closed.TrySetResult();

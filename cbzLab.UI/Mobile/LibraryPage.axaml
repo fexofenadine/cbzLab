@@ -1,0 +1,121 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:cbzLab.ViewModels"
+             x:Class="cbzLab.Mobile.LibraryPage"
+             x:DataType="vm:MainViewModel">
+
+    <Grid RowDefinitions="64,*">
+
+        <!--top app bar-->
+        <Grid x:Name="AppBar" ColumnDefinitions="*,Auto,Auto,Auto" Background="{DynamicResource M3Surface}">
+            <TextBlock Classes="title-large" Text="cbzLab" Margin="16,0" VerticalAlignment="Center"
+                       Foreground="{DynamicResource M3OnSurface}" />
+            <Button x:Name="SearchButton" Grid.Column="1" Classes="icon" Click="OnSearch"
+                    ToolTip.Tip="Search books" AutomationProperties.Name="Search books" />
+            <Button x:Name="SortButton" Grid.Column="2" Classes="icon" Click="OnSort"
+                    ToolTip.Tip="Sort" AutomationProperties.Name="Sort" />
+            <Button x:Name="MoreButton" Grid.Column="3" Classes="icon" Margin="0,0,4,0"
+                    ToolTip.Tip="More options" AutomationProperties.Name="More options" />
+        </Grid>
+
+        <!--searching: the app bar becomes a search field-->
+        <Grid x:Name="SearchBar" ColumnDefinitions="Auto,*,Auto" IsVisible="False"
+              Background="{DynamicResource M3SurfaceContainerHigh}">
+            <Button x:Name="SearchBackButton" Classes="icon" Margin="4,0,0,0" Click="OnSearchBack"
+                    AutomationProperties.Name="Stop searching" />
+            <TextBox x:Name="SearchBox" Grid.Column="1" Classes="bare" PlaceholderText="Search books"
+                     Text="{Binding FileFilterText, Mode=TwoWay}" VerticalAlignment="Center" />
+            <Button x:Name="SearchClearButton" Grid.Column="2" Classes="icon" Margin="0,0,4,0" Click="OnSearchClear"
+                    AutomationProperties.Name="Clear search" />
+        </Grid>
+
+        <!--selecting several books: the app bar becomes a selection bar-->
+        <Grid x:Name="SelectionBar" ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto" IsVisible="False"
+              Background="{DynamicResource M3SecondaryContainer}">
+            <Button x:Name="SelectionCloseButton" Classes="icon on-primary" Margin="4,0,0,0" Click="OnSelectionClose"
+                    AutomationProperties.Name="Stop selecting" />
+            <TextBlock x:Name="SelectionCount" Grid.Column="1" Classes="title-large" VerticalAlignment="Center"
+                       Margin="12,0" Foreground="{DynamicResource M3OnSecondaryContainer}" />
+            <Button x:Name="SelectAllButton" Grid.Column="2" Classes="icon on-primary" Click="OnSelectAll"
+                    ToolTip.Tip="Select all" AutomationProperties.Name="Select all" />
+            <Button x:Name="EditSelectionButton" Grid.Column="3" Classes="icon on-primary" Click="OnEditSelection"
+                    ToolTip.Tip="Edit together" AutomationProperties.Name="Edit together" />
+            <Button x:Name="SaveSelectionButton" Grid.Column="4" Classes="icon on-primary" Click="OnSaveSelection"
+                    ToolTip.Tip="Save" AutomationProperties.Name="Save" />
+            <Button x:Name="SelectionMoreButton" Grid.Column="5" Classes="icon on-primary" Margin="0,0,4,0"
+                    ToolTip.Tip="More options" AutomationProperties.Name="More options" />
+        </Grid>
+
+        <!--the books-->
+        <ListBox x:Name="Books" Grid.Row="1" ItemsSource="{Binding DisplayedFiles}" SelectionMode="Multiple"
+                 SelectionChanged="OnBooksSelectionChanged" Tapped="OnBooksTapped"
+                 ContextRequested="OnBooksContextRequested" Padding="0,0,0,88">
+            <ListBox.Styles>
+                <Style Selector="ListBoxItem" x:DataType="vm:ComicFileViewModel">
+                    <Setter Property="AutomationProperties.Name" Value="{Binding FileName}" />
+                </Style>
+                <Style Selector="Border.selected-check">
+                    <Setter Property="IsVisible" Value="False" />
+                </Style>
+                <Style Selector="ListBox.selecting ListBoxItem:selected Border.selected-check">
+                    <Setter Property="IsVisible" Value="True" />
+                </Style>
+            </ListBox.Styles>
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:ComicFileViewModel">
+                    <Grid ColumnDefinitions="Auto,*,Auto" Height="88" Margin="16,0,16,0">
+                        <!--attach and detach load the cover only while the row is on screen-->
+                        <Border Width="48" Height="72" CornerRadius="4" ClipToBounds="True" VerticalAlignment="Center"
+                                Background="{DynamicResource M3SurfaceContainerHighest}"
+                                AttachedToVisualTree="OnCoverAttached" DetachedFromVisualTree="OnCoverDetached">
+                            <Image Source="{Binding CoverImage}" Stretch="UniformToFill" IsVisible="{Binding HasCover}" />
+                        </Border>
+                        <!--while selecting, a chosen book's cover carries a check-->
+                        <Border Classes="selected-check" Width="48" Height="72" CornerRadius="4"
+                                IsHitTestVisible="False" Background="{DynamicResource M3Primary}" Opacity="0.85">
+                            <PathIcon Width="28" Height="28" Foreground="{DynamicResource M3OnPrimary}"
+                                      Data="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" />
+                        </Border>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="16,0,8,0">
+                            <TextBlock Classes="body-large" Text="{Binding FileName}" TextTrimming="CharacterEllipsis"
+                                       Foreground="{DynamicResource M3OnSurface}" />
+                            <TextBlock Classes="body-medium variant" Text="{Binding Subtitle}" TextTrimming="CharacterEllipsis"
+                                       Opacity="{Binding SubtitleOpacity}" Margin="0,2,0,0" />
+                        </StackPanel>
+                        <Ellipse Grid.Column="2" Width="10" Height="10" VerticalAlignment="Center"
+                                 Fill="{DynamicResource M3Tertiary}" IsVisible="{Binding IsDirty}"
+                                 ToolTip.Tip="Unsaved changes" />
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <!--grid view: cards, filled in code (see BuildCards)-->
+        <ScrollViewer x:Name="CardScroll" Grid.Row="1" IsVisible="False">
+            <ItemsControl x:Name="Cards" ItemsSource="{Binding DisplayedFiles}" Margin="12,4,12,88">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!--nothing open yet-->
+        <StackPanel x:Name="EmptyState" Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center"
+                    Spacing="16" Margin="32" MaxWidth="320">
+            <Image x:Name="EmptyLogo" Width="160" Height="160" Stretch="Uniform" Opacity="0.9" />
+            <TextBlock Classes="title-medium" Text="No books open" HorizontalAlignment="Center"
+                       Foreground="{DynamicResource M3OnSurface}" />
+            <TextBlock Classes="body-medium variant" TextWrapping="Wrap" TextAlignment="Center"
+                       Text="Open comic archives (CBZ or CBR) to edit their ComicInfo.xml metadata." />
+            <Button x:Name="EmptyOpenButton" Content="Open books" HorizontalAlignment="Center"
+                    IsDefault="False" Classes="filled" Click="OnFab" />
+        </StackPanel>
+
+        <!--opening books-->
+        <Button x:Name="Fab" Grid.Row="1" Classes="fab" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                Margin="16" Click="OnFab" ToolTip.Tip="Open books" AutomationProperties.Name="Open books" />
+    </Grid>
+
+</UserControl>

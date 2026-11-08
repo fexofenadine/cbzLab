@@ -247,7 +247,13 @@ public class ThemeService
         if (!_themes.ContainsKey(name))
             name = _themes.ContainsKey(DefaultThemeName) ? DefaultThemeName : FallbackThemeName;
 
-        var theme = _themes[name];
+        ApplyColours(name, _themes[name]);
+    }
+
+    //a palette that isn't one of the named themes (android's system colours), applied the same way;
+    //keys it lacks come from the fallback theme
+    public void ApplyColours(string name, IReadOnlyDictionary<string, string> theme)
+    {
         var fallback = _themes.TryGetValue(FallbackThemeName, out var f) ? f : HardFallback;
 
         foreach (var key in HardFallback.Keys)
