@@ -1,3 +1,7 @@
+3.1.0
+• Android: settings apply as soon as you change them, with no Save button
+• Android: a smaller download, with one APK for each kind of phone
+
 3.0.0
 • Undo and redo for every change to field values: Edit → Undo, Ctrl+Z
 • Rename files from their metadata, such as "Saga #007 (2012)", with every new name shown first

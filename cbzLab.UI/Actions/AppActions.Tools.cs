@@ -359,7 +359,8 @@ public sealed partial class AppActions
 
     public async Task SettingsAsync()
     {
-        var (saved, resetToDefaults) = await SettingsDialog.ShowAsync(Owner, Settings, Archive, ComicVine, ComicVineCache, Theme, Log);
+        var (saved, resetToDefaults) = await SettingsDialog.ShowAsync(Owner, Settings, Archive, ComicVine, ComicVineCache, Theme, Log,
+            ApplySettingsToView);
         if (!saved && !resetToDefaults)
             return;
         ApplySettingsToView();

@@ -10,6 +10,22 @@
 
 ## cbzLab (Avalonia)
 
+### 3.1.0 - 2026-11-11
+
+- **Android: settings apply as you change them**, as in Android's own settings. Picking a theme
+  used to do nothing until Save was pressed, and it was easy to leave without pressing it; now a new
+  theme repaints straight away, and there's no Save or Cancel. The back arrow (or Back) closes
+  Settings with everything kept. A typed setting such as the ComicVine API key applies once you
+  leave its box, and a lower "Max recent files" trims the list when Settings closes, so typing 12
+  never passes through 1 on the way. The desktop keeps Save and Cancel.
+- **Android: one APK per kind of device**, in place of the 48 MB universal one: `-android-arm64.apk`
+  for nearly every phone, `-android-arm.apk` for older 32-bit phones and `-android-x64.apk` for x86
+  devices such as emulators and some Chromebooks. All three share a version and signing key, so any
+  installs over 3.0.0 or earlier.
+- **Android: about 2 MB smaller** (19.6 MB to 17.7 MB measured on the x64 APK). The Java side is now
+  shrunk with R8, and the bundled logo is stored at the 640 pixels it's actually shown at rather than
+  1200 (the desktop's About box looks the same).
+
 ### 3.0.0 - 2026-11-11
 
 - **Undo and redo** for every change to field values: **Edit → Undo / Redo** (Ctrl+Z, Ctrl+Y or

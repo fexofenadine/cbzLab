@@ -1,9 +1,7 @@
 # cbzLab for Android - plan
 
 Status: **built** (2026-11-02): every phase below is implemented and was run on an Android 15
-emulator. What is not done, and what still needs a real phone, is listed under "Left over" at the
-end. The first release, 2.4.0, attaches its APK once the signing secrets are set on the repository
-(see "Release procedure").
+emulator, and released from 2.4.0 on. What is still open is listed under "Left over" at the end.
 
 ## Goal
 
@@ -284,18 +282,31 @@ plan; this records what actually happened.
 
 ### Left over
 
-- **A real phone.** Everything above ran on one Android 15 emulator. Touch feel, the keyboard, real
-  rotation and other makers' file managers need a phone. The "first tap after launch ignored"
-  question from phase 0 was not seen again, but wasn't specifically hunted.
+Checked against the code on 2026-11-11 (3.1.0).
+
+Still open:
+
+- **Testing on phones.** The app is in use on a real phone, but the checks before each release run
+  on the `cbzlab-test` emulator (Android 15) and a `cbzlab-tablet` one. Other makers' file managers
+  and real rotation haven't been tried deliberately. The "first tap after launch ignored" question
+  from phase 0 hasn't come up again, but wasn't specifically hunted.
 - **Other document providers.** Saving was tested on the Downloads provider through both the `raw:`
   and `msf:` document forms. SD cards and cloud drives (which may hand back streams that can't seek,
   handled by copying to a temp file) are untested.
-- **Grid view cards.** On a narrow screen grid view is still the desktop table, scrolling sideways.
-- **Date picker and field info buttons.** The Publication Date is typed, as on the desktop; there is
-  no system date picker, and tooltips have no touch replacement.
-- **Open Folder.** Added in 2.4.2 through the document tree (`ACTION_OPEN_DOCUMENT_TREE`), with the grant kept across restarts.
-- **The signing secrets.** Writing them to the repository's Actions secrets was not done as part of
-  this work; see "Release procedure" below.
+- **Predictive Back animation** (from the Material plan): not done. Avalonia registers a back
+  callback, but the animation wasn't attempted.
+- **Swipe a row to close it** (from the Material plan): not done; closing is in the selection bar's
+  menu and the editor's.
+
+Done since this list was first written:
+
+- **Grid view cards:** on a phone, grid view shows cards (2.5.0), not the desktop table.
+- **Field info:** long-press a field for **About this field** (2.5.0), replacing the tooltips.
+- **Date picker:** a calendar button on the date row (3.0.0).
+- **Open Folder:** through the document tree (`ACTION_OPEN_DOCUMENT_TREE`), with the grant kept
+  across restarts (2.4.2).
+- **Signing secrets:** set on the repository on 2026-11-02; every release since 2.4.0 builds and
+  signs the APKs in CI.
 
 ## Release procedure for the Android app
 
@@ -304,9 +315,10 @@ plan; this records what actually happened.
 2. Add four repository secrets: `ANDROID_KEYSTORE_BASE64` (the keystore, base64),
    `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_PASSWORD` and `ANDROID_KEY_ALIAS` (`cbzlab`).
 3. A version bump pushed to master tags and releases as before; the `android` job then builds,
-   signs and attaches `cbzLab-<version>-android-arm64.apk` (arm64 only, about 19 MB) and
-   `cbzLab-<version>-android.apk` (universal, about 48 MB). For a version already released, re-run the
-   workflow for its tag.
+   signs and attaches one APK per ABI: `cbzLab-<version>-android-arm64.apk`, `-android-arm.apk` and
+   `-android-x64.apk` (about 17-18 MB each since 3.1.0, with R8 shrinking the Java side). The
+   universal APK (all three in one, about 48 MB) was dropped in 3.1.0. For a version already
+   released, re-run the workflow for its tag.
 
 ## Testing
 

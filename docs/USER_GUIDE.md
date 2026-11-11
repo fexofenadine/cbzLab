@@ -305,8 +305,9 @@ the fields, validation, batch editing, ComicVine lookup, Combine Archives and Tr
 Footers all behave the same way. Install `cbzLab-<version>-android-arm64.apk` from the
 [releases page](https://github.com/fexofenadine/cbzLab/releases) (Android 8 or later; you may
 need to allow installing apps from your browser or file manager the first time). That one suits
-nearly every phone made since about 2017; `cbzLab-<version>-android.apk` is larger but also runs on
-older 32-bit phones and x86 devices such as some Chromebooks. Either installs over the other.
+nearly every phone made since about 2017. Older 32-bit phones need `cbzLab-<version>-android-arm.apk`
+instead, and x86 devices such as emulators and some Chromebooks `cbzLab-<version>-android-x64.apk`.
+If you pick the wrong one, Android says the app isn't compatible and nothing is installed.
 
 **How it looks.** Since 2.5.0 the Android app has a layout of its own, in Google's Material
 Design: a list of your books with an **app bar** along the top (search, sort, and **⋮** for the
@@ -318,6 +319,10 @@ status bar.
 **Colours.** Settings → Colours chooses between **System colours**, which follow your wallpaper
 and the phone's light or dark setting (Android 12 or later; older phones get a palette from the
 cbzLab logo), and **cbzLab theme**, which uses any of cbzLab's themes.
+
+**Settings apply as you change them**, as in Android's own settings: there's no Save button, a new
+theme repaints straight away, and the back arrow (or Back) closes Settings with everything kept.
+A typed setting such as the ComicVine API key applies once you leave its box.
 
 **Opening books.** Tap **+** (or **Open books** on an empty list). **Open books** uses Android's
 own file picker and can select several books at once; **Open a folder** opens every `.cbz` and

@@ -21,13 +21,15 @@
     <AndroidUseAapt2>true</AndroidUseAapt2>
   </PropertyGroup>
 
-  <!--release builds: one universal apk for the three abis phones ship (the debug build's emulator needs
-      only x64). signing comes from the command line (see the release workflow), never from this file.
-      -p:ApkAbis=android-arm64 builds a single-abi apk instead; RuntimeIdentifiers itself can't be passed
-      on the command line, since it would reach the plain net10.0 libraries this project references-->
+  <!--release builds: the release workflow builds one apk per abi with -p:ApkAbis=android-arm64 (or
+      android-arm, android-x64); left unset it's one apk holding all three. signing comes from the
+      command line, never from this file. RuntimeIdentifiers itself can't be passed on the command line,
+      since it would reach the plain net10.0 libraries this project references.
+      r8 shrinks the java side (classes.dex)-->
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <ApkAbis Condition="'$(ApkAbis)' == ''">android-arm64;android-arm;android-x64</ApkAbis>
     <RuntimeIdentifiers>$(ApkAbis)</RuntimeIdentifiers>
+    <AndroidLinkTool>r8</AndroidLinkTool>
   </PropertyGroup>
 
   <!--one version for both apps: the desktop project's Version property is the only place it's written, so

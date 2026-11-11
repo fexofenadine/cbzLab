@@ -134,7 +134,7 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           {
             echo "**Downloads:** \`cbzLab-$VERSION-win-x64.exe\` for Windows, \`cbzLab-$VERSION-linux-x64\` for Linux"
-            echo "(run \`chmod +x\` on it first), \`cbzLab-$VERSION-android-arm64.apk\` for Android phones, or the larger \`cbzLab-$VERSION-android.apk\` for older 32-bit phones and x86 devices (both added by the android job a few minutes after the rest). The \`-debug.zip\` files add debug symbols for crash reports;"
+            echo "(run \`chmod +x\` on it first), \`cbzLab-$VERSION-android-arm64.apk\` for Android phones, \`cbzLab-$VERSION-android-arm.apk\` for older 32-bit phones, or \`cbzLab-$VERSION-android-x64.apk\` for x86 devices such as emulators and some Chromebooks (all three added by the android job a few minutes after the rest). The \`-debug.zip\` files add debug symbols for crash reports;"
             echo "the \`.zip\`/\`.tar.gz\` files are for the in-app updater in older versions."
             echo
             cat changelog-notes.md
@@ -221,8 +221,8 @@ jobs:
         run: |
           echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/cbzlab-release.keystore"
           VERSION="${GITHUB_REF_NAME#v}"
-          #two builds of the same version and key, so either installs over the other: arm64 alone
-          #(nearly every phone, about 19 MB) and a universal one with 32-bit arm and x64 too (about 48 MB)
+          #one apk per abi, same version and key: arm64 (nearly every phone), 32-bit arm (older phones)
+          #and x64 (emulators, some chromebooks). a universal apk would carry all three at once
           publish() {
             dotnet publish cbzLab.Android/cbzLab.Android.csproj -c Release \
               -p:AndroidSdkDirectory="$ANDROID_HOME" -p:JavaSdkDirectory="$JAVA_HOME" \
@@ -233,10 +233,10 @@ jobs:
               -p:AndroidSigningKeyPass=env:ANDROID_KEY_PASSWORD \
               "$@"
           }
-          publish -p:ApkAbis=android-arm64 -o publish/android-arm64
-          cp publish/android-arm64/io.github.fexofenadine.cbzlab-Signed.apk "cbzLab-$VERSION-android-arm64.apk"
-          publish -o publish/android
-          cp publish/android/io.github.fexofenadine.cbzlab-Signed.apk "cbzLab-$VERSION-android.apk"
+          for abi in arm64 arm x64; do
+            publish -p:ApkAbis=android-$abi -o publish/android-$abi
+            cp publish/android-$abi/io.github.fexofenadine.cbzlab-Signed.apk "cbzLab-$VERSION-android-$abi.apk"
+          done
           rm -f "$RUNNER_TEMP/cbzlab-release.keystore"
 
       - name: Attach the APKs to the release
@@ -245,4 +245,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          gh release upload "${{ github.ref_name }}" "cbzLab-$VERSION-android-arm64.apk" "cbzLab-$VERSION-android.apk" --clobber
+          gh release upload "${{ github.ref_name }}" cbzLab-$VERSION-android-*.apk --clobber

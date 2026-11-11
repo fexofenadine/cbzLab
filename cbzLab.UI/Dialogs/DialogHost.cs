@@ -205,7 +205,11 @@ public sealed class DialogHost : Panel
 
         //full-screen: a top bar with a close button, as material's full-screen dialogs have
         var bar = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), Height = 64 };
-        var close = new Button { Content = cbzLab.Mobile.Icons.Make(cbzLab.Mobile.Icons.Close), Margin = new Thickness(4, 0, 0, 0) };
+        var close = new Button
+        {
+            Content = cbzLab.Mobile.Icons.Make(dialog.CloseIsBack ? cbzLab.Mobile.Icons.ArrowLeft : cbzLab.Mobile.Icons.Close),
+            Margin = new Thickness(4, 0, 0, 0),
+        };
         close.Classes.Add("icon");
         close.Click += (_, _) => dialog.OnCancelRequested();
         bar.Children.Add(close);

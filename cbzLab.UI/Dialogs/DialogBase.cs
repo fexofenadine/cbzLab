@@ -29,6 +29,10 @@ public class DialogBase : UserControl
     //material mode only: shown as a bottom sheet rising from the bottom edge rather than a centred card
     public bool IsSheet { get; set; }
 
+    //material mode, full-screen only: a back arrow instead of the close cross, for a screen whose
+    //changes are already applied and so has nothing to cancel
+    public bool CloseIsBack { get; set; }
+
     internal Task Closed => _closed.Task;
 
     protected void Close() => _closed.TrySetResult();

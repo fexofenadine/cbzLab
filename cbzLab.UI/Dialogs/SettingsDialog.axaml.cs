@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
 using Avalonia.Platform.Storage;
 using cbzLab.Services;
 
@@ -40,6 +41,13 @@ public partial class SettingsDialog : DialogBase
     private bool _saved;
     private bool _resetToDefaults;
 
+    //android: every change is written and applied as it's made, with no save or cancel, as phone
+    //settings screens work. _applied repaints the app; _populating keeps filling the form from
+    //counting as changes
+    private bool _instant;
+    private bool _populating;
+    private Action? _applied;
+
     public SettingsDialog()
     {
         InitializeComponent();
@@ -68,6 +76,20 @@ public partial class SettingsDialog : DialogBase
 
     private void Populate(AppSettingsSnapshot s)
     {
+        _populating = true;
+        try
+        {
+            Fill(s);
+        }
+        finally
+        {
+            _populating = false;
+        }
+    }
+
+    private void Fill(AppSettingsSnapshot s)
+    {
+        ThemeCombo.Items.Clear();
         ColoursCombo.SelectedIndex = s.AndroidColours == "theme" ? 1 : 0;
         ThemePanel.IsVisible = !OperatingSystem.IsAndroid() || ColoursCombo.SelectedIndex == 1;
         foreach (var name in _theme!.ThemeNames)
@@ -120,6 +142,71 @@ public partial class SettingsDialog : DialogBase
     {
         _saved = false;
         Close();
+    }
+
+    //android's back button and the back arrow: everything is already applied, so leaving keeps it
+    protected internal override void OnCancelRequested()
+    {
+        _saved = _instant;
+        Close();
+    }
+
+    //each control applies as it changes; typed boxes wait until they're left, so a half-typed api
+    //key is never used
+    private void WireInstantApply()
+    {
+        foreach (var combo in this.GetLogicalDescendants().OfType<ComboBox>())
+            combo.SelectionChanged += (_, _) => ApplyNow();
+        foreach (var check in this.GetLogicalDescendants().OfType<CheckBox>())
+            check.IsCheckedChanged += (_, _) => ApplyNow();
+        foreach (var number in this.GetLogicalDescendants().OfType<NumericUpDown>())
+            number.ValueChanged += (_, _) => ApplyNow();
+        foreach (var box in this.GetLogicalDescendants().OfType<TextBox>())
+            box.LostFocus += (_, _) => ApplyNow();
+    }
+
+    private void ApplyNow()
+    {
+        if (!_instant || _populating || _settings is null)
+            return;
+        WriteBack(trimRecentFiles: false);
+        _applied?.Invoke();
+    }
+
+    //the recent-files limit only trims when settings closes: applied as typed, "12" would pass
+    //through "1" and cut the list down on the way
+    private void WriteBack(bool trimRecentFiles)
+    {
+        var s = _settings!.Settings;
+        s.Theme = ThemeCombo.SelectedItem as string ?? s.Theme;
+        if (OperatingSystem.IsAndroid())
+            s.AndroidColours = ColoursCombo.SelectedIndex == 1 ? "theme" : "system";
+        s.EditorFontSize = (double)(FontSizeBox.Value ?? (decimal)s.EditorFontSize);
+        s.EditorFontFamily = FontFamilyCombo.SelectedItem as string ?? s.EditorFontFamily;
+        s.CoverSource = CoverSourceCombo.SelectedIndex == 1 ? "last" : "first";
+        s.EditorFieldsFillWidth = FillWidthCheck.IsChecked == true;
+        s.RememberLastTab = RememberTabCheck.IsChecked == true;
+        s.CompactDensity = CompactCheck.IsChecked == true;
+        s.ShowAllFieldsDefault = ShowAllCheck.IsChecked == true;
+        s.ShowExtraFieldsDefault = ShowExtraCheck.IsChecked == true;
+        s.DefaultSaveFormat = FormatCombo.SelectedIndex == 1 ? "cbr" : "cbz";
+        s.ConfirmBatchSave = ConfirmBatchCheck.IsChecked == true;
+        s.AutoPageCount = AutoPageCheck.IsChecked == true;
+        s.MaxRecentFiles = (int)(RecentFilesBox.Value ?? s.MaxRecentFiles);
+        //a lower limit applies now, not at the next file opened
+        if (trimRecentFiles)
+            _settings.TrimRecentFiles();
+        s.AutoSelectFirstOnOpen = AutoSelectCheck.IsChecked == true;
+        s.ClearFilterOnOpen = ClearFilterCheck.IsChecked == true;
+        s.LiveValidationMode = LiveValidationCombo.SelectedIndex switch { 1 => "blur", 2 => "off", _ => "keystroke" };
+        s.MaxRecentValues = (int)(RecentValuesBox.Value ?? s.MaxRecentValues);
+        s.RarToolPath = (RarToolBox.Text ?? "").Trim();
+        s.ComicVineEnabled = ComicVineEnabledCheck.IsChecked == true;
+        s.ComicVineApiKey = (ApiKeyBox.Text ?? "").Trim();
+        s.ComicVineAlwaysReview = AlwaysReviewCheck.IsChecked == true;
+        s.CheckForUpdatesOnStartup = CheckForUpdatesOnStartupCheck.IsChecked == true;
+        s.AutoUpdateEnabled = AutoUpdateEnabledCheck.IsChecked == true;
+        _settings.Save();
     }
 
     //resets immediately on confirmation; Save's own field-by-field writeback never runs
@@ -290,16 +377,24 @@ public partial class SettingsDialog : DialogBase
     }
 
     //ResetToDefaults writes every field directly, bypassing the writeback below
+    //applied is called after each change on android, where changes apply as they're made
     public static async Task<(bool Saved, bool ResetToDefaults)> ShowAsync(
         Visual owner, SettingsService settings, ArchiveService archive, ComicVineService comicVine,
-        ComicVineCacheService comicVineCache, ThemeService theme, LogService log)
+        ComicVineCacheService comicVineCache, ThemeService theme, LogService log, Action? applied = null)
     {
+        var instant = OperatingSystem.IsAndroid();
         var dlg = new SettingsDialog
         {
             _comicVine = comicVine, _comicVineCache = comicVineCache, _theme = theme, _settings = settings, _log = log,
+            _instant = instant, _applied = applied, CloseIsBack = instant,
         };
         var s = settings.Settings;
         dlg.Populate(new AppSettingsSnapshot(s));
+        if (instant)
+        {
+            dlg.SaveButton.IsVisible = dlg.CancelButton.IsVisible = false;
+            dlg.WireInstantApply();
+        }
 
         var found = archive.FindRarTool();
         var problem = archive.ConfiguredToolProblem();
@@ -315,35 +410,8 @@ public partial class SettingsDialog : DialogBase
         if (!dlg._saved)
             return (false, false);
 
-        s.Theme = dlg.ThemeCombo.SelectedItem as string ?? s.Theme;
-        if (OperatingSystem.IsAndroid())
-            s.AndroidColours = dlg.ColoursCombo.SelectedIndex == 1 ? "theme" : "system";
-        s.EditorFontSize = (double)(dlg.FontSizeBox.Value ?? (decimal)s.EditorFontSize);
-        s.EditorFontFamily = dlg.FontFamilyCombo.SelectedItem as string ?? s.EditorFontFamily;
-        s.CoverSource = dlg.CoverSourceCombo.SelectedIndex == 1 ? "last" : "first";
-        s.EditorFieldsFillWidth = dlg.FillWidthCheck.IsChecked == true;
-        s.RememberLastTab = dlg.RememberTabCheck.IsChecked == true;
-        s.CompactDensity = dlg.CompactCheck.IsChecked == true;
-        s.ShowAllFieldsDefault = dlg.ShowAllCheck.IsChecked == true;
-        s.ShowExtraFieldsDefault = dlg.ShowExtraCheck.IsChecked == true;
-        s.DefaultSaveFormat = dlg.FormatCombo.SelectedIndex == 1 ? "cbr" : "cbz";
-        s.ConfirmBatchSave = dlg.ConfirmBatchCheck.IsChecked == true;
-        s.AutoPageCount = dlg.AutoPageCheck.IsChecked == true;
-        s.MaxRecentFiles = (int)(dlg.RecentFilesBox.Value ?? s.MaxRecentFiles);
-        //a lower limit applies now, not at the next file opened
-        settings.TrimRecentFiles();
-        s.AutoSelectFirstOnOpen = dlg.AutoSelectCheck.IsChecked == true;
-        s.ClearFilterOnOpen = dlg.ClearFilterCheck.IsChecked == true;
-        s.LiveValidationMode = dlg.LiveValidationCombo.SelectedIndex switch { 1 => "blur", 2 => "off", _ => "keystroke" };
-        s.MaxRecentValues = (int)(dlg.RecentValuesBox.Value ?? s.MaxRecentValues);
-        s.RarToolPath = (dlg.RarToolBox.Text ?? "").Trim();
-        s.ComicVineEnabled = dlg.ComicVineEnabledCheck.IsChecked == true;
-        s.ComicVineApiKey = (dlg.ApiKeyBox.Text ?? "").Trim();
-        s.ComicVineAlwaysReview = dlg.AlwaysReviewCheck.IsChecked == true;
-        s.CheckForUpdatesOnStartup = dlg.CheckForUpdatesOnStartupCheck.IsChecked == true;
-        s.AutoUpdateEnabled = dlg.AutoUpdateEnabledCheck.IsChecked == true;
-
-        settings.Save();
+        //on android this also catches a typed box still focused when settings was left
+        dlg.WriteBack(trimRecentFiles: true);
         return (true, false);
     }
 }
