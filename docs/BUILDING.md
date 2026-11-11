@@ -35,12 +35,23 @@ NuGet packages restore automatically on first build.
 dotnet test cbzLab.Tests/cbzLab.Tests.csproj
 ```
 
-29 xUnit tests cover the pure/injectable logic - `DateFieldHelper`,
-`ComicInfoXml`, `JsonFileStore`, `AutosaveService`. `SettingsService`,
-`SchemaService`, and `ValidationService` aren't tested directly: all three
-resolve to the real, shared `%APPDATA%\cbzLab` directory with no injectable
-override today, so constructing them for real in a test would risk touching
-your actual settings/schema/logs.
+About 340 xUnit tests cover the services and view models: archives, ComicInfo
+XML, validation, settings, undo, Find & Replace, file-name patterns, the
+updater's asset choice and hash check, and more. Tests that need real settings
+get a throwaway config folder of their own (`TestConfig`), so they never touch
+your actual `%APPDATA%\cbzLab`.
+
+The tests run with reflection-based JSON switched off, as the trimmed release
+build does (see below), so a stored type that's missing from `StoreJson` fails a
+test rather than a release.
+
+To try a build of your own without touching your real settings, point it at a
+scratch folder first:
+
+```powershell
+$env:CBZLAB_CONFIG_DIR = "$env:TEMP\cbzlab-scratch"
+dotnet run --project cbzLab/cbzLab.csproj
+```
 
 ## Building a distributable executable
 
@@ -59,6 +70,18 @@ dotnet publish cbzLab/cbzLab.csproj -c Release -r linux-x64 --self-contained tru
 These are exactly the commands the project's own release workflow
 (`.github/workflows/release.yml`) runs for each platform, so a passing publish
 here means the same thing a real release build does.
+
+Release publishes are **trimmed** (`PublishTrimmed`, `TrimMode=partial`): the parts
+of .NET and Avalonia the app never calls are left out, which halves the
+executable (about 25 MB on Windows). Two consequences for anyone changing the code:
+
+- A trimmed build has no reflection-based JSON. Every type saved to or read from
+  the config folder, and every ComicVine response shape, has a source-generated
+  serialiser listed in `cbzLab.Core/Services/StoreJson.cs`. A new stored type must
+  be added there.
+- `partial` keeps cbzLab's own assemblies whole, which is what lets the views'
+  name-based bindings (`new Binding("Value")`) find their properties. Switching to
+  full trimming would need those turned into compiled bindings first.
 
 Without an explicit `-o`, the output lands in
 `cbzLab/bin/Release/net10.0/<rid>/publish/`. Managed dependencies (including
@@ -83,9 +106,9 @@ can test isn't worth the CI time.
 
 | Package | Version | Used for |
 |---|---|---|
-| `Avalonia` / `Avalonia.Desktop` / `Avalonia.Themes.Fluent` | 12.1.4 | the UI framework itself, desktop windowing, and the Fluent theme (default light/dark chrome - cbzLab's own themes layer on top via `ThemeService`) |
+| `Avalonia` / `Avalonia.Desktop` / `Avalonia.Themes.Fluent` | 12.1.5 | the UI framework itself, desktop windowing, and the Fluent theme (default light/dark chrome - cbzLab's own themes layer on top via `ThemeService`) |
 | `Avalonia.Controls.DataGrid` | 12.1.2 | grid view's table control - needs its own `StyleInclude` in `App.axaml`, since `FluentTheme` alone doesn't style it |
-| `SharpCompress` | 0.50.7 | reading `.cbr`/RAR archives (`ArchiveService`, in `cbzLab.Core`) |
+| `SharpCompress` | 0.50.8 | reading `.cbr`/RAR archives (`ArchiveService`, in `cbzLab.Core`) |
 | `SkiaSharp` | 3.119.4 | cropping and re-encoding pages for Trim Branding Footers (`FooterTrimService`, in `cbzLab.Core`) - pinned to the version Avalonia's own renderer uses; never bump it on its own |
 
 `Avalonia.Diagnostics` (the F12 dev-time inspector) is deliberately not
@@ -144,11 +167,14 @@ cbzLab.UI/                  everything the apps show, shared with the Android ap
   AppStyles.axaml         the Fluent theme and DataGrid styles every app includes
   Dialogs/                 one dialog per .axaml + .cs pair; DialogHost shows a DialogBase dialog
                            inside the window, over a dimmed backdrop
-  Converters/              FieldTemplateSelector (widget dispatch) and FieldValueConverter (grid cell values)
+  Converters/              FieldTemplateSelector (widget dispatch)
+  FieldUi.cs              what the desktop and phone field rows share: keypad hints, the clipboard
+                           menu, the date picker, and the grid's per-field cell binding
 cbzLab.Core/                the code shared with the Android app (see docs/ANDROID_PLAN.md);
                            namespaces are unchanged, still cbzLab.Services etc.
   Services/               settings, schema, themes, xml, archives, validation, ComicVine, autosave
-  ViewModels/              main/file/field view models - data flow, dirty tracking, composite fields
+  ViewModels/              main/file/field view models - data flow, dirty tracking, composite fields,
+                           and UndoHistory
   Models/                  settings, schema, and ComicVine data classes
 cbzLab.Tests/              xUnit tests for the pure/injectable services and helpers
 ```

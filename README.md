@@ -11,12 +11,13 @@ edits without installing anything. See [`cbzLite/`](cbzLite/) for what it can an
 
 A metadata editor for comic book archives. cbzLab opens CBZ and CBR files, lets you
 view and edit the `ComicInfo.xml` metadata inside them (single files or whole
-batches at once), and writes changes back safely without ever touching the page
-images.
+batches at once, with undo), and writes changes back safely without ever touching
+the page images. It can also look books up on ComicVine, find and replace across a
+library, and rename files from their metadata.
 
 Built with C# / .NET 10 and **Avalonia UI**. Pre-built releases target Windows and
-Linux, deployed as an unpackaged self-contained executable - no installer, no
-store. (Avalonia itself also runs on macOS, but the project doesn't build or
+Linux, deployed as a single self-contained executable of about 25 MB - no
+installer, no store. (Avalonia itself also runs on macOS, but the project doesn't build or
 ship a macOS release - see [Building from source](#documentation) if you want
 one.)
 

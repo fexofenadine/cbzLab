@@ -48,12 +48,29 @@
   Year, Month and Day. Type a full date in your own locale's order, a month and
   year (`03/2019`, `March 2019` or `2019-03`), or a year alone - a partial date
   stays partial rather than gaining a day of 1. The year needs all four digits,
-  so a half-typed date isn't applied until it's complete.
+  so a half-typed date isn't applied until it's complete. The calendar button
+  beside it picks a full date instead; cancelling it leaves the date as it was.
 - Single-line fields (Writer, Publisher, Imprint, and so on) remember what you've
   typed into them before. A small picker button appears beside the field once
   it has any history - click it to pick a recent value instead of retyping.
   Doesn't apply to multi-line fields (Summary, Notes) or dropdown fields (which
   already have their own curated list of options).
+
+## Undo and redo
+
+**Edit → Undo** (Ctrl+Z) and **Edit → Redo** (Ctrl+Y or Ctrl+Shift+Z) step back
+and forward through changes to field values, across every open book. The menu
+names the step it would act on ("Undo Find & Replace").
+
+- Typing in a field is one step, however many keystrokes, until you leave the
+  field. A batch edit is one step for every book it touched.
+- A tool run is one step too, whatever it changed: Find & Replace, Guess from
+  Filename, Auto Page Count, Paste XML, Copy Fields, a ComicVine match.
+- While the cursor is in a field, Ctrl+Z undoes your typing in that box, as in
+  any text box. Click elsewhere first, or use the Edit menu, for the app's undo.
+- Undo reaches back past a save (the book is simply unsaved again), but not past
+  closing or reverting a book, which forget that book's steps.
+- Undo and Redo can also go on the toolbar (Tools → Customize Toolbar).
 
 ## Batch editing
 
@@ -154,8 +171,8 @@ the RAR format can only be created by WinRAR's own `rar.exe`:
   fields that are currently empty; never overwrites anything you've already
   set. Works across a whole batch selection, since each file's own path is
   used independently.
-- **Auto Page Count** - counts image files in the current archive and writes the
-  result to the Page Count field. Also runs automatically on open (fills the field
+- **Auto Page Count** - counts image files in each selected archive and writes the
+  result to its Page Count field. Also runs automatically on open (fills the field
   only when it's empty, without marking the file unsaved - it's written along
   with your next real edit; configurable in Settings). macOS leftovers such as
   `__MACOSX` folders and `._` files are never counted as pages.
@@ -163,12 +180,32 @@ the RAR format can only be created by WinRAR's own `rar.exe`:
   on the clipboard.
 - **Paste XML** - replaces the current file's metadata from ComicInfo XML on the
   clipboard. Handy for cloning metadata between files.
+- **Find & Replace** - replaces text in one field, or in **All fields** at once,
+  across the selected files (every open file when none are selected). Tick
+  **Regular expression** for patterns: `^(\S+) (.+)$` replaced with `$2, $1` turns
+  "Elena Marsh" into "Marsh, Elena". Before anything changes you're told how many
+  values and files it would touch, with an example of one change.
+
+  ![Find & Replace confirming a regular-expression change to the Writer field, Gruvbox Dark theme](screenshots/findreplace-gruvbox-dark.png)
+
+- **Rename Files from Metadata** - renames the selected files (every open file when
+  none are selected) from a pattern such as `{Series} #{Number:000} ({Year})`. Any
+  ComicInfo field can go in braces; `{Number:000}` pads a number to three digits.
+  A field with no value leaves nothing behind, brackets and `#` included, and
+  characters a file name can't hold are replaced. Every new name is shown before
+  anything happens, updating as you type the pattern. A file whose new name is
+  already taken, on disk or by another book in the same rename, is left as it is:
+  nothing is ever overwritten. Files are renamed where they are, contents
+  untouched, and the pattern is remembered for next time. Desktop only.
+
+  ![Rename Files from Metadata previewing seven books, Nord theme](screenshots/rename-nord.png)
 
 ## Settings, themes and storage
 
 ![Settings dialog, Tokyo Night theme](screenshots/settings-tokyo-night.png)
 
-**Tools → Settings** covers theme, editor font size and font, default field
+**Tools → Settings** covers theme, editor font size and font (any font installed
+on your computer), default field
 visibility, default save format, batch-save confirmation, auto page count,
 recent-files length, the RAR tool path, whether the first opened file is
 auto-selected, whether the sidebar filter clears when new files are opened,
@@ -198,10 +235,13 @@ find the matching issue - confirming an auto-match rather than applying it
 silently, since issue-number matching can be genuinely ambiguous (variant
 covers, facsimile editions, reprints). A series you've already matched is
 remembered, so tagging several issues from the same run only needs one real
-search. Once an issue is confirmed, a review dialog shows only the fields
-where ComicVine's data actually differs from what's already in the file -
-current value and proposed value shown side by side - so you can judge each
-one before it's applied. Nothing is written unless you tick it and confirm.
+search. Once an issue is confirmed, a review dialog names the series and issue
+it matched, and shows only the fields where ComicVine's data actually differs
+from what's already in the file - current value and proposed value shown side
+by side - so you can judge each one before it's applied. Nothing is written
+unless you tick it and confirm. If the remembered series turns out to be the
+wrong one, **Change Series…** (in the issue list or the review) searches again,
+and remembers the series you pick instead.
 
 Selecting **multiple files** and running Search ComicVine does one series
 search for the whole batch, then matches each file to its own issue
@@ -215,14 +255,19 @@ files carry it, since that's exactly the situation worth a second look
 before applying - it might be a genuine change partway through the run, or
 it might be a mismatch. Fields that are naturally expected to vary issue to
 issue (Number, Title, dates, Summary) aren't held to that comparison at
-all. Any file that can't be matched is skipped and named at the end so it
-can be re-run on its own.
+all. When a file's issue has to be picked by hand, **Skip This Book** leaves
+it out and carries on with the rest, and **Cancel All** stops the whole run
+with nothing changed. Any file that's skipped is named at the end so it can be
+re-run on its own.
 
 Two more preferences are remembered automatically, without a Settings control,
 since they're already directly adjustable in the main window itself: the sidebar
-sort mode (the dropdown above the file list) and the window's size and position.
+sort mode (the dropdown above the file list) and the window's size and position,
+including whether it was maximised.
 
-Everything lives in `%APPDATA%\cbzLab`:
+Everything lives in `%APPDATA%\cbzLab` (`~/.config/cbzLab` on Linux), unless the
+`CBZLAB_CONFIG_DIR` environment variable names another folder - handy for trying
+a build without touching your real settings, or for a portable copy:
 
 | File / folder            | Purpose                                              |
 |--------------------------|------------------------------------------------------|
@@ -296,14 +341,15 @@ between Basic Info, Publication, Creators, Story and Extras. Fields with a fixed
 open a list from the bottom of the screen, and the date has a calendar button as well as being
 typed. Long-press a field for Cut, Copy and Paste, **Undo changes to this field**, and **About this
 field**, which explains what it's for. Whole-number fields open the number keypad. The **Save**
-button carries a dot while the book has unsaved changes; **⋮** has Save as, Revert, Close, Show
-all fields, and the tools (Guess from filename, Count pages, Copy or Paste ComicInfo.xml, Trim
-branding footers).
+button carries a dot while the book has unsaved changes; **⋮** has Undo and Redo (naming the step,
+as on the desktop), Save as, Revert, Close, Show all fields, and the tools (Guess from filename,
+Count pages, Copy or Paste ComicInfo.xml, Trim branding footers). The library's **⋮** has Undo and
+Redo too.
 
 **Several books at once.** Long-press a book to start selecting, then tap others to add or remove
 them. The app bar shows how many are selected, with **Select all**, **Edit together** (the pencil),
-**Save** and **⋮** (Close, Search ComicVine, Find and replace, Copy fields from one book to the
-rest, Combine into one book). **✕** or Back stops selecting. Closing books offers **Undo** for a
+**Save** and **⋮** (Close, Search ComicVine, Guess from filename, Count pages, Find and replace,
+Copy fields from one book to the rest, Combine into one book). **✕** or Back stops selecting. Closing books offers **Undo** for a
 few seconds.
 
 **Grid view.** **⋮ → Grid view** shows the books as cards: the cover, with the details chosen in
@@ -322,9 +368,10 @@ edits are recovered the next time you open it.
 that needs an external RAR program. Saving a book that came as a CBR asks where to save a CBZ
 copy; the original CBR is never touched.
 
-**Not on Android.** Open Containing Folder, the RAR tool setting, the editor font and layout
-settings, the folder shortcuts in Settings, the customisable toolbar, and the self-updater (install
-new versions from the releases page).
+**Not on Android.** Open Containing Folder, Rename Files from Metadata (Android hands cbzLab
+documents, not files it can rename), the RAR tool setting, the editor font and layout settings, the
+folder shortcuts in Settings, the customisable toolbar, and the self-updater (install new versions
+from the releases page).
 
 ### How it compares
 
@@ -334,6 +381,8 @@ new versions from the releases page).
 | Open and edit CBR | Yes | Yes |
 | Write CBR | With an external RAR tool | No: saves a CBZ copy instead |
 | Batch editing, Find & Replace, Copy fields | Yes | Yes (long-press to select) |
+| Undo and redo | Yes | Yes, from the ⋮ menus |
+| Rename files from metadata | Yes | No |
 | ComicVine search, single and batch | Yes | Yes |
 | Combine Archives, Trim Branding Footers | Yes | Yes; very large books are slower on a phone |
 | Open Folder | Yes | Yes, through Android's folder picker |
