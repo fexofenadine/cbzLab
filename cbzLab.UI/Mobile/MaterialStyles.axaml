@@ -260,6 +260,19 @@
         <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
 
+    <!--number spinners: the value sits centred like a combo box's, not at the top as in the labelled
+        text fields above. set on the spinner, since its template passes these to its inner text box
+        and a template binding outranks a style on the part-->
+    <Style Selector="NumericUpDown">
+        <Setter Property="Padding" Value="16,0" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="FontSize" Value="16" />
+    </Style>
+    <Style Selector="NumericUpDown /template/ TextBox#PART_TextBox">
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Padding" Value="16,0" />
+    </Style>
+
     <!--combo boxes, outlined like the text fields-->
     <Style Selector="ComboBox">
         <Setter Property="CornerRadius" Value="4" />

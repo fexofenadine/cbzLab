@@ -10,6 +10,13 @@
 
 ## cbzLab (Avalonia)
 
+### Unreleased
+
+- **Android: number boxes in Settings** (Editor font size, Max recent files, Recently typed values)
+  showed their value too high and too far left in the box. They inherited the phone layout's
+  labelled-field style, which keeps text near the top to leave room for a label; the value is now
+  centred and lines up with the dropdowns above it.
+
 ### 3.1.0 - 2026-11-11
 
 - **Android: settings apply as you change them**, as in Android's own settings. Picking a theme
