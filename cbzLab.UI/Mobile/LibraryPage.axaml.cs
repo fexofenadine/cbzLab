@@ -22,6 +22,7 @@ namespace cbzLab.Mobile;
 
 //the library screen: the open books as a list (or cards), the open button, search, sort, and
 //selecting several books to work on together
+[System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "binds by name to cbzLab's own view models, which a partial trim keeps whole, and to registered Avalonia properties")]
 public partial class LibraryPage : UserControl
 {
     private MobileShell _shell = null!;
@@ -33,7 +34,6 @@ public partial class LibraryPage : UserControl
     //lifting the finger after the long press that started selecting arrives as a tap, which would
     //toggle that book straight back out; for a moment it's put back
     private ComicFileViewModel? _selectingFirst;
-    private bool _expanded;
 
     public LibraryPage()
     {
@@ -95,12 +95,6 @@ public partial class LibraryPage : UserControl
             ExitSelection(clear: true);
     }
 
-    public void SetExpanded(bool expanded)
-    {
-        _expanded = expanded;
-        //on a tablet the selected book stays highlighted, since the editor beside it shows it
-    }
-
     public void LiftForSnackbar(bool lifted) => Fab.Margin = new Thickness(16, 16, 16, lifted ? 80 : 16);
 
     //---------------------------------------------------------------- selection
@@ -142,11 +136,7 @@ public partial class LibraryPage : UserControl
             CloseSearch();
             return true;
         }
-        if (!_shell.EditorOpen || _shell.IsExpanded)
-        {
-            //a back from the library itself leaves the app
-            return false;
-        }
+        //a back from the library itself leaves the app
         return false;
     }
 
@@ -359,6 +349,8 @@ public partial class LibraryPage : UserControl
         menu.Items.Add(MobileMenu.Item("Close all", () => _shell.CloseBooksAsync(Vm.OpenFiles.ToList()), any));
         menu.Items.Add(MobileMenu.Item("Reopen last closed", Actions.ReopenLastClosedAsync, Actions.HasRecentlyClosed));
         menu.Items.Add(new Separator());
+        MobileMenu.AddUndoItems(menu, Vm);
+        menu.Items.Add(new Separator());
         menu.Items.Add(MobileMenu.Item(Vm.IsGridViewActive ? "List view" : "Grid view", () => Vm.IsGridViewActive = !Vm.IsGridViewActive, any));
         if (Vm.IsGridViewActive)
             menu.Items.Add(MobileMenu.Item("Choose grid details", async () =>
@@ -368,6 +360,9 @@ public partial class LibraryPage : UserControl
                 Cards.ItemsSource = Vm.DisplayedFiles;
             }));
         menu.Items.Add(MobileMenu.Item("Find and replace", Actions.FindReplaceAsync, any));
+        //a document handed over by android has no path to rename
+        if (!OperatingSystem.IsAndroid())
+            menu.Items.Add(MobileMenu.Item("Rename files from metadata", Actions.RenameFilesAsync, any));
         menu.Items.Add(MobileMenu.Item("Validate all", Actions.ValidateAllAsync, any));
         menu.Items.Add(new Separator());
         menu.Items.Add(MobileMenu.Item("Settings", Actions.SettingsAsync));
@@ -388,6 +383,7 @@ public partial class LibraryPage : UserControl
         if (Vm.OnlineLookupEnabled)
             menu.Items.Add(MobileMenu.Item("Search ComicVine", Actions.SearchComicVineAsync, count > 0));
         menu.Items.Add(MobileMenu.Item("Guess from filename", Actions.GuessFromFilename, count > 0));
+        menu.Items.Add(MobileMenu.Item("Count pages", Actions.AutoPageCountAsync, count > 0));
         menu.Items.Add(MobileMenu.Item("Extract publisher and year from summary", Actions.ExtractSummaryHeaderAsync, count > 0));
         menu.Items.Add(MobileMenu.Item("Copy fields from one book to the rest", CopyFieldsAsync, count > 1));
         menu.Items.Add(MobileMenu.Item("Find and replace", Actions.FindReplaceAsync, count > 0));
@@ -408,8 +404,6 @@ public partial class LibraryPage : UserControl
     }
 
     //---------------------------------------------------------------- grid view cards
-
-    private readonly FieldValueConverter _fieldValue = new();
 
     //a cover with the chosen grid details as lines under it; tap opens, long press selects
     private Control BuildCard(ComicFileViewModel file)
@@ -438,10 +432,7 @@ public partial class LibraryPage : UserControl
             var line = new TextBlock { TextTrimming = TextTrimming.CharacterEllipsis };
             line.Classes.Add("body-small");
             line.Classes.Add("variant");
-            line.Bind(TextBlock.TextProperty, new Binding
-            {
-                Converter = new FuncValueConverterWithLabel(_fieldValue, tag, label),
-            });
+            line.Bind(TextBlock.TextProperty, FieldUi.ValueBinding(tag, label));
             lines.Children.Add(line);
         }
 
@@ -483,29 +474,5 @@ public partial class LibraryPage : UserControl
         var width = Math.Max(Bounds.Width, 320) - 24;
         var columns = Math.Max(2, (int)(width / 180));
         return Math.Floor(width / columns) - 8;
-    }
-
-    //shows "Label: value", or nothing when the field is empty
-    private sealed class FuncValueConverterWithLabel : Avalonia.Data.Converters.IValueConverter
-    {
-        private readonly FieldValueConverter _inner;
-        private readonly string _tag;
-        private readonly string _label;
-
-        public FuncValueConverterWithLabel(FieldValueConverter inner, string tag, string label)
-        {
-            _inner = inner;
-            _tag = tag;
-            _label = label;
-        }
-
-        public object? Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
-        {
-            var text = _inner.Convert(value, typeof(string), _tag, culture) as string;
-            return string.IsNullOrEmpty(text) ? "" : $"{_label}: {text}";
-        }
-
-        public object? ConvertBack(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture) =>
-            throw new NotSupportedException();
     }
 }

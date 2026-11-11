@@ -136,6 +136,32 @@ public class UpdateServiceTests
     }
 
     [Theory]
+    [InlineData("sha256:2CF24DBA5FB0A30E26E83B2AC5B9E29E1B161E5C1FA7425E73043362938B9824", "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824")]
+    [InlineData("SHA256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824", "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824")]
+    [InlineData("sha256:2cf24dba", null)]
+    [InlineData("sha256:zzf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824", null)]
+    [InlineData("md5:5d41402abc4b2a76b9719d911017c592", null)]
+    [InlineData("", null)]
+    [InlineData(null, null)]
+    public void ReadsOnlyAWellFormedSha256Digest(string? digest, string? expected) =>
+        Assert.Equal(expected, UpdateService.ParseSha256Digest(digest));
+
+    [Fact]
+    public void HashesAFileAsGitHubListsIt()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "cbzLabTests_hash_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            File.WriteAllText(path, "hello");
+            Assert.Equal("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824", UpdateService.Sha256Of(path));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Theory]
     [InlineData("cbzLab-2.0.10-win-x64.zip", true)]
     [InlineData("cbzLab-2.0.10-linux-x64.tar.gz", true)]
     [InlineData("cbzLab-2.0.10-win-x64.exe", false)]

@@ -14,6 +14,9 @@ public partial class ProgressDialog : DialogBase
 
     public bool IsCancelled => _cts.IsCancellationRequested;
 
+    //for work that runs elsewhere and takes a token, rather than checking IsCancelled between files
+    public CancellationToken Token => _cts.Token;
+
     public ProgressDialog()
     {
         InitializeComponent();

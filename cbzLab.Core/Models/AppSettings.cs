@@ -57,6 +57,10 @@ public class AppSettings
     [JsonPropertyName("window_y")]
     public int WindowY { get; set; } = int.MinValue;
 
+    //the size and position above are the window's restored ones, kept while it's maximised
+    [JsonPropertyName("window_maximised")]
+    public bool WindowMaximised { get; set; }
+
     [JsonPropertyName("auto_select_first_on_open")]
     public bool AutoSelectFirstOnOpen { get; set; } = true;
 
@@ -128,6 +132,10 @@ public class AppSettings
     //controls whether that offer appears at all instead of just linking the release
     [JsonPropertyName("auto_update_enabled")]
     public bool AutoUpdateEnabled { get; set; }
+
+    //the last pattern used by Rename Files from Metadata
+    [JsonPropertyName("rename_template")]
+    public string RenameTemplate { get; set; } = Services.FileNameTemplate.Default;
 
     //android only: "system" follows the phone's own colours (material you), "theme" uses Theme above
     [JsonPropertyName("android_colours")]

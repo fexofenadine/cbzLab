@@ -30,7 +30,8 @@ public class FieldViewModel : ViewModelBase
     public string Tooltip => Definition.Tooltip;
     public string Widget => Definition.Widget;
     public bool IsExtraField => Definition.IsExtra;
-    public List<string> Options => Definition.Options ?? new List<string>();
+    public List<string> Options => Definition.Options ?? NoOptions;
+    private static readonly List<string> NoOptions = new();
 
     //raised when the user edits the field (not when values are loaded programmatically)
     public event Action<FieldViewModel, string>? Edited;

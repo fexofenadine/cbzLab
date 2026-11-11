@@ -30,6 +30,7 @@ namespace cbzLab;
 //directly by the activity on Android. nothing here may assume a Window exists - anything only a
 //window can do (its size and position, closing, updating the app) is left to the host, through
 //the members in the "host" section below
+[System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "binds by name to cbzLab's own view models, which a partial trim keeps whole, and to registered Avalonia properties")]
 public partial class MainView : UserControl
 {
     //the app's actions and services, shared with the phone layout; this view only shows them
@@ -39,7 +40,6 @@ public partial class MainView : UserControl
     private readonly SchemaService _schema;
     private readonly ThemeService _theme;
     private readonly MainViewModel _viewModel;
-    private readonly FieldValueConverter _fieldValueConverter = new();
     private ComicFileViewModel? _lastRightTappedFile;
 
     public MainView()
@@ -49,7 +49,7 @@ public partial class MainView : UserControl
 
         //a folder is a path the desktop can walk; android hands out documents, and its host sets FolderPicker
         if (OperatingSystem.IsAndroid())
-            OpenFolderItem.IsVisible = OpenContainingItem.IsVisible = OpenContainingSeparator.IsVisible = false;
+            OpenFolderItem.IsVisible = OpenContainingItem.IsVisible = OpenContainingSeparator.IsVisible = RenameFilesItem.IsVisible = false;
         SizeChanged += (_, _) => ApplyLayoutMode();
 
         _actions = new AppActions(this);
@@ -96,7 +96,6 @@ public partial class MainView : UserControl
 
     //---------------------------------------------------------------- host
 
-    //dialogs open in this view's own dialog host
     //dialogs open in this view's own dialog host
     private Visual Owner => this;
 
@@ -497,7 +496,6 @@ public partial class MainView : UserControl
         }
     }
 
-    private static bool IsSupportedArchive(string path) => ArchiveService.IsSupportedArchive(path);
     private void OnDragOver(object? sender, DragEventArgs e) =>
         e.DragEffects = e.DataTransfer.Contains(DataFormat.File) ? DragDropEffects.Copy : DragDropEffects.None;
 
@@ -511,7 +509,7 @@ public partial class MainView : UserControl
         if (files is null)
             return;
 
-        var paths = files.Select(f => ArchiveStorage.IdOf(f.Path)).Where(IsSupportedArchive).ToList();
+        var paths = files.Select(f => ArchiveStorage.IdOf(f.Path)).Where(ArchiveService.IsSupportedArchive).ToList();
         if (paths.Count == 0)
         {
             _viewModel.StatusText = "Drop cbz/cbr files to open them";
@@ -590,12 +588,25 @@ public partial class MainView : UserControl
 
     //---------------------------------------------------------------- keyboard accelerators
 
-    //Ctrl+1..5 jump to a tab, Ctrl+Tab/Ctrl+Shift+Tab cycle, F6 focuses the file list, Shift+F6 focuses search
+    //Ctrl+1..5 jump to a tab, Ctrl+Tab/Ctrl+Shift+Tab cycle, F6 focuses the file list, Shift+F6 focuses search,
+    //Ctrl+Z/Ctrl+Y undo and redo. a text box handles its own ctrl+z first (undoing typing), so the
+    //app's undo is reached from here only when the cursor isn't in one - or always from the Edit menu
     private void OnRootGridKeyDown(object? sender, KeyEventArgs e)
     {
         var tabCount = EditorTabs.ItemCount;
 
-        if (e.KeyModifiers == KeyModifiers.Control && e.Key is >= Key.D1 and <= Key.D5)
+        if (e.KeyModifiers == KeyModifiers.Control && e.Key == Key.Z)
+        {
+            _viewModel.Undo();
+            e.Handled = true;
+        }
+        else if ((e.KeyModifiers == KeyModifiers.Control && e.Key == Key.Y)
+                 || (e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift) && e.Key == Key.Z))
+        {
+            _viewModel.Redo();
+            e.Handled = true;
+        }
+        else if (e.KeyModifiers == KeyModifiers.Control && e.Key is >= Key.D1 and <= Key.D5)
         {
             var index = e.Key - Key.D1;
             if (index < tabCount)
@@ -684,17 +695,39 @@ public partial class MainView : UserControl
             return;
         try
         {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = "explorer.exe",
-                Arguments = $"/select,\"{file.Path}\"",
-                UseShellExecute = true,
-            });
+            System.Diagnostics.Process.Start(ShowInFolderCommand(file.Path));
         }
-        catch (System.Exception ex)
+        catch (Exception ex)
         {
             _log.Warning($"Could not open containing folder for '{file.Path}': {ex.Message}");
         }
+    }
+
+    //explorer and finder can open a folder with the file picked out in it; elsewhere the folder
+    //itself is opened in whatever file manager the desktop uses
+    private static System.Diagnostics.ProcessStartInfo ShowInFolderCommand(string path)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = $"/select,\"{path}\"",
+                UseShellExecute = true,
+            };
+        }
+        if (OperatingSystem.IsMacOS())
+        {
+            var reveal = new System.Diagnostics.ProcessStartInfo { FileName = "open", UseShellExecute = false };
+            reveal.ArgumentList.Add("-R");
+            reveal.ArgumentList.Add(path);
+            return reveal;
+        }
+        return new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = Path.GetDirectoryName(path) ?? path,
+            UseShellExecute = true,
+        };
     }
 
     //the right-clicked file is the source; every other selected file is a target
@@ -721,10 +754,15 @@ public partial class MainView : UserControl
         ("SaveAll", "Save All", 0),
         ("Remove", "Remove", 1),
         ("Revert", "Revert", 1),
+        ("Undo", "Undo", 7),
+        ("Redo", "Redo", 7),
         ("CopyXml", "Copy XML", 2),
         ("PasteXml", "Paste XML", 2),
         ("GuessFromFilename", "Guess from Filename", 3),
         ("ExtractSummaryHeader", "Extract Publisher/Year from Summary", 3),
+        ("AutoPageCount", "Auto Page Count", 3),
+        ("FindReplace", "Find & Replace…", 3),
+        ("RenameFiles", "Rename Files from Metadata…", 3),
         ("Combine", "Combine Archives…", 3),
         ("TrimFooters", "Trim Branding Footers…", 3),
         ("SearchComicVine", "Search ComicVine…", 4),
@@ -740,7 +778,7 @@ public partial class MainView : UserControl
         int? lastGroup = null;
         foreach (var id in _settings.Settings.ToolbarButtons)
         {
-            var index = System.Array.FindIndex(ToolbarCatalog, d => d.Id == id);
+            var index = Array.FindIndex(ToolbarCatalog, d => d.Id == id);
             if (index < 0)
                 continue;
             var def = ToolbarCatalog[index];
@@ -767,6 +805,14 @@ public partial class MainView : UserControl
         "SaveAll" => BuildSaveAllButton(),
         "Remove" => MakeToolButton("Remove", OnRemove, "Remove the selected file(s) from the list (not from disk)"),
         "Revert" => MakeToolButton("Revert", OnRevert, "Discard edits on the current file and reload from disk"),
+        "Undo" => MakeToolButton("Undo", OnUndo, "Undo the last change to field values"),
+        "Redo" => MakeToolButton("Redo", OnRedo, "Redo the change last undone"),
+        "AutoPageCount" => MakeToolButton("Page Count", OnAutoPageCount,
+            "Count the pages of the selected file(s) and fill in Page Count"),
+        "FindReplace" => MakeToolButton("Find & Replace…", OnFindReplace,
+            "Replace text in one field or all of them, across the selected files"),
+        "RenameFiles" => OperatingSystem.IsAndroid() ? null : MakeToolButton("Rename Files…", OnRenameFiles,
+            "Rename the selected files from their metadata, such as Series #Number (Year)"),
         "CopyXml" => MakeToolButton("Copy XML", OnCopyXml, "Copy the current file's ComicInfo.xml to the clipboard"),
         "PasteXml" => MakeToolButton("Paste XML", OnPasteXml, "Replace the current file's metadata from clipboard XML"),
         "GuessFromFilename" => MakeToolButton("Guess from Filename", OnGuessFromFilename,
@@ -787,7 +833,7 @@ public partial class MainView : UserControl
         _ => null,
     };
 
-    private static Button MakeToolButton(string content, System.EventHandler<RoutedEventArgs> handler, string tooltip)
+    private static Button MakeToolButton(string content, EventHandler<RoutedEventArgs> handler, string tooltip)
     {
         var button = new Button { Content = content };
         button.Classes.Add("toolflat");
@@ -797,7 +843,7 @@ public partial class MainView : UserControl
     }
 
     private static ToggleButton BuildToolToggle(
-        string content, string boundProperty, System.EventHandler<RoutedEventArgs> handler, string tooltip)
+        string content, string boundProperty, EventHandler<RoutedEventArgs> handler, string tooltip)
     {
         var toggle = new ToggleButton { Content = content };
         toggle.Classes.Add("toolflat");
@@ -901,14 +947,14 @@ public partial class MainView : UserControl
     private void OnToolbarScrollLeft(object? sender, RoutedEventArgs e)
     {
         var offset = ToolbarScroll.Offset;
-        ToolbarScroll.Offset = offset.WithX(System.Math.Max(0, offset.X - ToolbarScrollStep));
+        ToolbarScroll.Offset = offset.WithX(Math.Max(0, offset.X - ToolbarScrollStep));
     }
 
     private void OnToolbarScrollRight(object? sender, RoutedEventArgs e)
     {
         var offset = ToolbarScroll.Offset;
-        var maxX = System.Math.Max(0, ToolbarScroll.Extent.Width - ToolbarScroll.Viewport.Width);
-        ToolbarScroll.Offset = offset.WithX(System.Math.Min(maxX, offset.X + ToolbarScrollStep));
+        var maxX = Math.Max(0, ToolbarScroll.Extent.Width - ToolbarScroll.Viewport.Width);
+        ToolbarScroll.Offset = offset.WithX(Math.Min(maxX, offset.X + ToolbarScrollStep));
     }
 
     //---------------------------------------------------------------- menu bar
@@ -954,6 +1000,22 @@ public partial class MainView : UserControl
 
     private async void OnFindReplace(object? sender, RoutedEventArgs e) => await _actions.FindReplaceAsync();
 
+    private async void OnRenameFiles(object? sender, RoutedEventArgs e) => await _actions.RenameFilesAsync();
+
+    private void OnUndo(object? sender, RoutedEventArgs e) => _viewModel.Undo();
+
+    private void OnRedo(object? sender, RoutedEventArgs e) => _viewModel.Redo();
+
+    //each names the step it would act on: "Undo Find & Replace"
+    private void OnEditMenuOpened(object? sender, RoutedEventArgs e)
+    {
+        var history = _viewModel.History;
+        UndoItem.Header = history.UndoLabel is { } undo ? $"Undo {undo}" : "Undo";
+        UndoItem.IsEnabled = history.CanUndo;
+        RedoItem.Header = history.RedoLabel is { } redo ? $"Redo {redo}" : "Redo";
+        RedoItem.IsEnabled = history.CanRedo;
+    }
+
     private async void OnValidateAll(object? sender, RoutedEventArgs e) => await _actions.ValidateAllAsync();
 
     private async void OnCombineArchives(object? sender, RoutedEventArgs e) => await _actions.CombineArchivesAsync();
@@ -980,8 +1042,8 @@ public partial class MainView : UserControl
     }
 
 
-    //binds the whole row; resolves each column's value via FieldValueConverter keyed by that column's tag
-    //dirty-indicator, Size, Modified - see the matching fixed columns declared in MainWindow.axaml
+    //each column reads its tag's value from the row's book (see FieldUi.ValueBinding)
+    //tick box, dirty indicator, Size, Modified - the fixed columns declared in MainView.axaml
     private const int FixedGridColumnCount = 4;
 
     private void RebuildGridColumns()
@@ -995,7 +1057,7 @@ public partial class MainView : UserControl
             ComicsGrid.Columns.Add(new DataGridTextColumn
             {
                 Header = label,
-                Binding = new Binding { Converter = _fieldValueConverter, ConverterParameter = tag },
+                Binding = FieldUi.ValueBinding(tag),
             });
         }
     }
@@ -1081,22 +1143,36 @@ public partial class MainView : UserControl
         NumericGroupTemplate = new FuncDataTemplate<FieldViewModel>((f, _) => BuildNumericGroupRow(f), true),
     };
 
-    //whole-number and decimal fields open the number keypad on a touch screen (no effect elsewhere)
-    private void ApplyInputHints(TextBox box, FieldViewModel field)
+    //a box editing the field's own value: number keypad hints, and on losing focus the value is
+    //remembered for the picker and (in that validation mode) checked
+    private TextBox BuildValueBox(FieldViewModel field)
     {
-        var constraints = _schema.Constraints;
-        if (constraints.IntFields.Contains(field.Tag))
-            TextInputOptions.SetContentType(box, TextInputContentType.Digits);
-        else if (constraints.FloatFields.Contains(field.Tag))
-            TextInputOptions.SetContentType(box, TextInputContentType.Number);
+        var box = new TextBox();
+        box.Bind(TextBox.TextProperty, new Binding(nameof(FieldViewModel.Value)) { Mode = BindingMode.TwoWay });
+        box.Bind(TextBox.PlaceholderTextProperty, new Binding(nameof(FieldViewModel.PlaceholderText)));
+        FieldUi.ApplyInputHints(box, field, _schema.Constraints);
+        box.LostFocus += (_, _) => _actions.FieldLeft(field);
+        return box;
     }
 
-    //free-text entry, not a calendar picker - DateFieldHelper parses full dates, year-only, and "MM/yyyy"
+    //typed like any date (DateFieldHelper reads full dates, year-only and "MM/yyyy"), or picked from a calendar
     private Control BuildDateRow(FieldViewModel field)
     {
         var box = new TextBox();
         box.Bind(TextBox.TextProperty, new Binding(nameof(FieldViewModel.DateDisplayValue)) { Mode = BindingMode.TwoWay });
-        return BuildRow(field, box, WrapWithErrorBorder(box, field));
+        box.LostFocus += (_, _) => _actions.FieldLeft(field, remember: false);
+
+        var calendar = new Button { Content = cbzLab.Mobile.Icons.Make(cbzLab.Mobile.Icons.CalendarMonth), Padding = new Thickness(6, 2) };
+        ToolTip.SetTip(calendar, "Pick a date from a calendar");
+        Avalonia.Automation.AutomationProperties.SetName(calendar, "Pick a date");
+        calendar.Click += async (_, _) => await FieldUi.PickDateAsync(Owner, field);
+
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+        var bordered = WrapWithErrorBorder(box, field);
+        grid.Children.Add(bordered);
+        Grid.SetColumn(calendar, 1);
+        grid.Children.Add(calendar);
+        return BuildRow(field, box, grid);
     }
 
     //Number/Count/Volume or AlternateNumber/AlternateCount side by side; each companion has its own FieldViewModel/DataContext
@@ -1119,10 +1195,8 @@ public partial class MainView : UserControl
         var label = new TextBlock { FontSize = 12, Opacity = 0.7 };
         label.Bind(TextBlock.TextProperty, new Binding(nameof(FieldViewModel.Label)));
 
-        var box = new TextBox { Width = 90 };
-        box.Bind(TextBox.TextProperty, new Binding(nameof(FieldViewModel.Value)) { Mode = BindingMode.TwoWay });
-        box.Bind(TextBox.PlaceholderTextProperty, new Binding(nameof(FieldViewModel.PlaceholderText)));
-        ApplyInputHints(box, field);
+        var box = BuildValueBox(field);
+        box.Width = 90;
         AttachRevertContextMenu(box, field);
 
         var item = new StackPanel { Spacing = 2, DataContext = field };
@@ -1136,10 +1210,7 @@ public partial class MainView : UserControl
     //Grid, not StackPanel, so the textbox column stretches when the fields-fill-width setting is on
     private Control BuildEntryRow(FieldViewModel field)
     {
-        var box = new TextBox();
-        box.Bind(TextBox.TextProperty, new Binding(nameof(FieldViewModel.Value)) { Mode = BindingMode.TwoWay });
-        box.Bind(TextBox.PlaceholderTextProperty, new Binding(nameof(FieldViewModel.PlaceholderText)));
-        ApplyInputHints(box, field);
+        var box = BuildValueBox(field);
 
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
         var bordered = WrapWithErrorBorder(box, field);
@@ -1277,24 +1348,7 @@ public partial class MainView : UserControl
         var menu = new ContextMenu();
 
         if (input is TextBox textBox)
-        {
-            var cut = new MenuItem { Header = "Cut" };
-            cut.Click += (_, _) => textBox.Cut();
-            cut.Bind(MenuItem.IsEnabledProperty, new Binding(nameof(TextBox.CanCut)) { Source = textBox });
-
-            var copy = new MenuItem { Header = "Copy" };
-            copy.Click += (_, _) => textBox.Copy();
-            copy.Bind(MenuItem.IsEnabledProperty, new Binding(nameof(TextBox.CanCopy)) { Source = textBox });
-
-            var paste = new MenuItem { Header = "Paste" };
-            paste.Click += (_, _) => textBox.Paste();
-            paste.Bind(MenuItem.IsEnabledProperty, new Binding(nameof(TextBox.CanPaste)) { Source = textBox });
-
-            menu.Items.Add(cut);
-            menu.Items.Add(copy);
-            menu.Items.Add(paste);
-            menu.Items.Add(new Separator());
-        }
+            FieldUi.AddClipboardItems(menu, textBox);
 
         var revert = new MenuItem { Header = "Revert to Saved" };
         revert.Click += (_, _) => _viewModel.RevertFieldToSaved(field);

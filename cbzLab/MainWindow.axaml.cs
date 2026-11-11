@@ -73,6 +73,10 @@ public partial class MainWindow : Window
             WindowStartupLocation = WindowStartupLocation.Manual;
             Position = new PixelPoint(s.WindowX, s.WindowY);
         }
+
+        //after the size and position, which are what it restores down to
+        if (s.WindowMaximised)
+            WindowState = WindowState.Maximized;
     }
 
     private void LoadWindowIcon()
@@ -118,10 +122,16 @@ public partial class MainWindow : Window
     {
         View.PrepareForExit();
         var s = View.Settings.Settings;
-        s.WindowWidth = Width;
-        s.WindowHeight = Height;
-        s.WindowX = Position.X;
-        s.WindowY = Position.Y;
+        //only a normal window's size and position are worth keeping: maximised they're the whole
+        //screen's, minimised they're nowhere, and either would be restored as the window's own
+        s.WindowMaximised = WindowState is WindowState.Maximized or WindowState.FullScreen;
+        if (WindowState == WindowState.Normal)
+        {
+            s.WindowWidth = Width;
+            s.WindowHeight = Height;
+            s.WindowX = Position.X;
+            s.WindowY = Position.Y;
+        }
         View.Settings.Save();
 
         //only launched here, right before an actual close - never earlier, so a

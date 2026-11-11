@@ -34,36 +34,50 @@ public sealed partial class AppActions
 
         try
         {
-            var resolved = await ResolveVolumeAndIssuesAsync(GuessSeriesForComicVine(file));
-            if (resolved is not { } r)
-                return;
-            var (volume, issues) = r;
-
-            var issueId = await MatchIssueDialog.ShowAsync(Owner, volume, issues, file.GetValue("Number"));
-            if (issueId is null)
+            //round again after "Change Series": the series remembered for this name is set aside
+            //and the search is shown, so a wrong first pick isn't permanent
+            for (var searchAgain = false; ; searchAgain = true)
             {
-                ViewModel.StatusText = "ComicVine search cancelled";
+                var resolved = await ResolveVolumeAndIssuesAsync(GuessSeriesForComicVine(file), searchAgain);
+                if (resolved is not { } r)
+                    return;
+                var (volume, issues) = r;
+
+                var match = await MatchIssueDialog.ShowAsync(Owner, volume, issues, file.GetValue("Number"));
+                if (match.Choice == MatchIssueChoice.ChangeSeries)
+                    continue;
+                if (match.Choice != MatchIssueChoice.Use)
+                {
+                    ViewModel.StatusText = "ComicVine search cancelled";
+                    return;
+                }
+
+                ViewModel.StatusText = "Fetching issue details…";
+                var detail = await ComicVine.GetIssueDetailAsync(match.IssueId);
+
+                var proposed = ComicVineService.MapToComicInfoFields(detail, volume);
+                var review = Settings.Settings.ComicVineAlwaysReview
+                    ? await ReviewComicVineMatchDialog.ShowAsync(Owner, file, proposed, Schema,
+                        $"{DescribeVolume(volume)}, issue #{detail.IssueNumber ?? "?"}")
+                    : new ComicVineReview(proposed.Keys.ToList());
+                if (review.ChangeSeries)
+                    continue;
+                if (review.Tags is not { Count: > 0 } tagsToApply)
+                {
+                    ViewModel.StatusText = "ComicVine match not applied";
+                    return;
+                }
+
+                using (ViewModel.History.Begin("ComicVine Match"))
+                {
+                    foreach (var tag in tagsToApply)
+                        file.SetValue(tag, proposed[tag]);
+                }
+
+                ViewModel.RefreshEditor();
+                ViewModel.StatusText = $"Applied {tagsToApply.Count} field{(tagsToApply.Count == 1 ? "" : "s")} from ComicVine";
                 return;
             }
-
-            ViewModel.StatusText = "Fetching issue details…";
-            var detail = await ComicVine.GetIssueDetailAsync(issueId.Value);
-
-            var proposed = ComicVineService.MapToComicInfoFields(detail, volume);
-            var tagsToApply = Settings.Settings.ComicVineAlwaysReview
-                ? await ReviewComicVineMatchDialog.ShowAsync(Owner, file, proposed, Schema)
-                : proposed.Keys.ToList();
-            if (tagsToApply is null || tagsToApply.Count == 0)
-            {
-                ViewModel.StatusText = "ComicVine match not applied";
-                return;
-            }
-
-            foreach (var tag in tagsToApply)
-                file.SetValue(tag, proposed[tag]);
-
-            ViewModel.RefreshEditor();
-            ViewModel.StatusText = $"Applied {tagsToApply.Count} field{(tagsToApply.Count == 1 ? "" : "s")} from ComicVine";
         }
         catch (ComicVineException ex)
         {
@@ -94,51 +108,79 @@ public sealed partial class AppActions
 
         try
         {
-            var resolved = await ResolveVolumeAndIssuesAsync(GuessSeriesForComicVine(files[0]));
-            if (resolved is not { } r)
-                return;
-            var (volume, issues) = r;
+            ComicVineVolume volume;
+            Dictionary<ComicFileViewModel, Dictionary<string, string>> perFileProposed;
+            List<string> skipped;
+            List<string> tagsToApply;
 
-            var matchedIssueIds = new Dictionary<ComicFileViewModel, int>();
-            var skipped = new List<string>();
-
-            foreach (var file in files)
+            //round again after "Change Series", with the search shown instead of the remembered series
+            for (var searchAgain = false; ; searchAgain = true)
             {
-                var issueId = await MatchIssueDialog.ShowAsync(
-                    Owner, volume, issues, file.GetValue("Number"),
-                    autoAcceptSingleMatch: true, contextLabel: $"Matching: {file.FileName}");
-                if (issueId is null)
-                    skipped.Add(file.FileName);
-                else
-                    matchedIssueIds[file] = issueId.Value;
-            }
+                var resolved = await ResolveVolumeAndIssuesAsync(GuessSeriesForComicVine(files[0]), searchAgain);
+                if (resolved is not { } r)
+                    return;
+                volume = r.Volume;
+                var issues = r.Issues;
 
-            if (matchedIssueIds.Count == 0)
-            {
-                ViewModel.StatusText = "No files matched to an issue";
-                return;
-            }
+                var matchedIssueIds = new Dictionary<ComicFileViewModel, int>();
+                skipped = new List<string>();
+                var changeSeries = false;
 
-            var perFileProposed = new Dictionary<ComicFileViewModel, Dictionary<string, string>>();
-            var fetchIndex = 0;
-            foreach (var (file, issueId) in matchedIssueIds)
-            {
-                fetchIndex++;
-                ViewModel.StatusText = $"Fetching issue {fetchIndex} of {matchedIssueIds.Count}…";
-                var detail = await ComicVine.GetIssueDetailAsync(issueId);
-                perFileProposed[file] = ComicVineService.MapToComicInfoFields(detail, volume);
-            }
+                foreach (var file in files)
+                {
+                    var match = await MatchIssueDialog.ShowAsync(
+                        Owner, volume, issues, file.GetValue("Number"),
+                        batch: true, contextLabel: $"Matching: {file.FileName}");
+                    if (match.Choice == MatchIssueChoice.CancelAll)
+                    {
+                        ViewModel.StatusText = "ComicVine batch search cancelled - nothing was changed";
+                        return;
+                    }
+                    if (match.Choice == MatchIssueChoice.ChangeSeries)
+                    {
+                        changeSeries = true;
+                        break;
+                    }
+                    if (match.Choice == MatchIssueChoice.Use)
+                        matchedIssueIds[file] = match.IssueId;
+                    else
+                        skipped.Add(file.FileName);
+                }
+                if (changeSeries)
+                    continue;
 
-            var tagsToApply = Settings.Settings.ComicVineAlwaysReview
-                ? await ReviewComicVineBatchDialog.ShowAsync(Owner, perFileProposed, Schema)
-                : perFileProposed.Values.SelectMany(d => d.Keys).Distinct().ToList();
-            if (tagsToApply is null || tagsToApply.Count == 0)
-            {
-                ViewModel.StatusText = "ComicVine batch match not applied";
-                return;
+                if (matchedIssueIds.Count == 0)
+                {
+                    ViewModel.StatusText = "No files matched to an issue";
+                    return;
+                }
+
+                perFileProposed = new Dictionary<ComicFileViewModel, Dictionary<string, string>>();
+                var fetchIndex = 0;
+                foreach (var (file, issueId) in matchedIssueIds)
+                {
+                    fetchIndex++;
+                    ViewModel.StatusText = $"Fetching issue {fetchIndex} of {matchedIssueIds.Count}…";
+                    var detail = await ComicVine.GetIssueDetailAsync(issueId);
+                    perFileProposed[file] = ComicVineService.MapToComicInfoFields(detail, volume);
+                }
+
+                var review = Settings.Settings.ComicVineAlwaysReview
+                    ? await ReviewComicVineBatchDialog.ShowAsync(Owner, perFileProposed, Schema, DescribeVolume(volume))
+                    : new ComicVineReview(perFileProposed.Values.SelectMany(d => d.Keys).Distinct().ToList());
+                if (review.ChangeSeries)
+                    continue;
+                if (review.Tags is not { Count: > 0 } chosen)
+                {
+                    ViewModel.StatusText = "ComicVine batch match not applied";
+                    return;
+                }
+                tagsToApply = chosen;
+                break;
             }
 
             var appliedFileCount = 0;
+            using (ViewModel.History.Begin("ComicVine Batch Match"))
             using (ViewModel.DeferRefresh())
             {
                 foreach (var (file, proposed) in perFileProposed)
@@ -184,11 +226,19 @@ public sealed partial class AppActions
         }
     }
 
-    //a remembered volume for this exact series name skips straight to issue matching
-    private async Task<(ComicVineVolume Volume, List<ComicVineIssueSummary> Issues)?>
-        ResolveVolumeAndIssuesAsync(string seriesGuess)
+    //"Saga (Image, 2012)": enough to tell two series of the same name apart
+    private static string DescribeVolume(ComicVineVolume volume)
     {
-        var volume = seriesGuess.Length > 0 ? ComicVine.GetRememberedVolume(seriesGuess) : null;
+        var details = new[] { volume.Publisher, volume.StartYear }.Where(d => !string.IsNullOrWhiteSpace(d)).ToList();
+        return details.Count == 0 ? volume.Name : $"{volume.Name} ({string.Join(", ", details)})";
+    }
+
+    //a remembered volume for this exact series name skips straight to issue matching, unless
+    //searchAgain asks for the search regardless; the series picked there replaces the remembered one
+    private async Task<(ComicVineVolume Volume, List<ComicVineIssueSummary> Issues)?>
+        ResolveVolumeAndIssuesAsync(string seriesGuess, bool searchAgain = false)
+    {
+        var volume = seriesGuess.Length > 0 && !searchAgain ? ComicVine.GetRememberedVolume(seriesGuess) : null;
 
         if (volume is null)
         {

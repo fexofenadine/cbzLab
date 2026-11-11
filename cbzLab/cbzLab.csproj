@@ -1,9 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!--avalonia rewrite skeleton (step 1 of the port): plain
-        net8.0, no windows-specific tfm suffix, targeting windows + linux
-        desktop from one build-->
+    <!--a plain tfm with no windows-specific suffix: windows and linux desktop from one build-->
     <!--WinExe, not Exe: plain Exe allocates a console window on Windows (the
         blank/black window that stayed open behind the GUI for the whole
         session), matching a real bug rather than a testing artifact - the
@@ -30,17 +28,17 @@
         2.0.1: the rename above, plus a verified SharpCompress bump and first-ever
         confirmed macOS publish - also the first release actually cut via release.yml
         rather than by hand.-->
-    <Version>2.5.0</Version>
-    <AssemblyVersion>2.5.0.0</AssemblyVersion>
-    <FileVersion>2.5.0.0</FileVersion>
+    <Version>3.0.0</Version>
+    <AssemblyVersion>3.0.0.0</AssemblyVersion>
+    <FileVersion>3.0.0.0</FileVersion>
   </PropertyGroup>
 
   <!--scoped to Release only, not the main PropertyGroup above: SelfContained
       (and RID-specific output it implies) applies to plain `dotnet build`
       too, not just `dotnet publish`, if left unconditional - confirmed the
       hard way when a debug build silently started producing bin/Debug/
-      net8.0/win-x64/ (a full self-contained framework copy) instead of the
-      normal bin/Debug/net8.0/ single-dll output, and a stale pre-existing
+      net10.0/win-x64/ (a full self-contained framework copy) instead of the
+      normal bin/Debug/net10.0/ single-dll output, and a stale pre-existing
       exe at the old path kept getting tested instead of the real new build.
       Every publish command actually used for this project passes -c Release,
       so gating on Configuration keeps `dotnet build`'s
@@ -64,6 +62,19 @@
         subsequent launches reuse the extracted cache same as before. Pure
         packaging-level size win, no behaviour change.-->
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <!--drops the parts of .net and avalonia the app never calls, which halves the download
+        (51 MB to about 25). partial: only libraries that declare themselves safe to trim are
+        trimmed; cbzLab's own three assemblies are kept whole, so the bindings the views build
+        by property name still find their properties.
+        A trimmed build has no reflection-based json, so everything stored as json goes through
+        generated serialisers (cbzLab.Core's StoreJson) - a stored type missing from that list
+        fails to load in a release build only. The tests run with the same restriction.-->
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>partial</TrimMode>
+    <!--IL2104 is "a library produced trim warnings" for avalonia's data grid and its designer
+        support, neither of which is this project's code to fix; the grid is checked by hand in
+        the published build instead-->
+    <NoWarn>$(NoWarn);IL2104</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

@@ -70,7 +70,7 @@ public class SchemaService
     {
         //not via JsonFileStore.Load - a missing/broken schema.json should fail loudly, not fall back
         var json = File.ReadAllText(_settings.SchemaPath);
-        var doc = JsonSerializer.Deserialize<SchemaDocument>(json, JsonFileStore.JsonOpts)
+        var doc = JsonSerializer.Deserialize(json, StoreJson.Default.SchemaDocument)
                   ?? throw new InvalidDataException("schema.json could not be parsed");
 
         Constraints = doc.Constraints;
@@ -88,7 +88,8 @@ public class SchemaService
 
     private void LoadExtraSchema()
     {
-        var extras = JsonFileStore.Load(_settings.SchemaExtraPath, _log, () => new List<FieldDefinition>());
+        var extras = JsonFileStore.Load(_settings.SchemaExtraPath, _log, StoreJson.Default.ListFieldDefinition,
+            () => new List<FieldDefinition>());
         foreach (var field in extras)
         {
             if (_byTag.ContainsKey(field.Tag))
@@ -120,5 +121,6 @@ public class SchemaService
     }
 
     private void PersistExtras() =>
-        JsonFileStore.Save(_settings.SchemaExtraPath, Fields.Where(f => f.IsExtra).ToList(), _log);
+        JsonFileStore.Save(_settings.SchemaExtraPath, Fields.Where(f => f.IsExtra).ToList(),
+            StoreJson.Default.ListFieldDefinition, _log);
 }

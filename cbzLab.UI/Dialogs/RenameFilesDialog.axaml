@@ -1,0 +1,41 @@
+<dlg:DialogBase xmlns="https://github.com/avaloniaui"
+                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                xmlns:dlg="using:cbzLab.Dialogs"
+                xmlns:d="using:cbzLab.Dialogs"
+                x:Class="cbzLab.Dialogs.RenameFilesDialog"
+                Title="Rename Files from Metadata"
+                DialogWidth="640" DialogHeight="600">
+
+    <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="20,12,20,20">
+        <StackPanel Grid.Row="0" Spacing="6" Margin="0,0,0,10">
+            <TextBlock x:Name="ScopeText" Opacity="0.75" TextWrapping="Wrap" />
+            <TextBlock Text="Name pattern" />
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBox x:Name="TemplateBox" TextChanged="OnTemplateChanged" />
+                <Button Grid.Column="1" Content="Reset" Click="OnResetTemplate" Margin="8,0,0,0"
+                        ToolTip.Tip="Put back the standard pattern" />
+            </Grid>
+            <TextBlock FontSize="12" Opacity="0.7" TextWrapping="Wrap"
+                       Text="{}{Field} stands for a field's value: {Series}, {Number}, {Volume}, {Title}, {Year}, {Publisher} or any other ComicInfo tag. {Number:000} pads to three digits. A field with no value leaves nothing behind, brackets included. The extension is kept." />
+        </StackPanel>
+
+        <ListBox Grid.Row="1" x:Name="PreviewList">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="d:RenameRow">
+                    <StackPanel Margin="2" Spacing="1">
+                        <TextBlock Text="{Binding OldName}" FontSize="12" Opacity="0.65" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Result}" FontSize="13" TextWrapping="Wrap" Opacity="{Binding ResultOpacity}" />
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <TextBlock Grid.Row="2" x:Name="SummaryText" FontSize="12" Opacity="0.85" TextWrapping="Wrap" Margin="0,10,0,0" />
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="0,14,0,0">
+            <Button x:Name="CancelButton" Content="Cancel" Click="OnCancel" />
+            <Button x:Name="RenameButton" Content="Rename" Click="OnRename" IsDefault="True" />
+        </StackPanel>
+    </Grid>
+
+</dlg:DialogBase>

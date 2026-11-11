@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using System.Text.RegularExpressions;
 using cbzLab.Models;
 
@@ -25,11 +26,6 @@ public class ComicVineService
     //conservative spacing between any two requests, addressing ComicVine's
     //"too many requests per second" velocity blocks specifically
     private static readonly TimeSpan MinRequestSpacing = TimeSpan.FromSeconds(1.1);
-
-    private static readonly JsonSerializerOptions JsonOpts = new()
-    {
-        PropertyNameCaseInsensitive = true,
-    };
 
     private readonly SettingsService _settings;
     private readonly ComicVineCacheService _cache;
@@ -70,7 +66,7 @@ public class ComicVineService
             ["field_list"] = "id,name,publisher,start_year,count_of_issues,image",
         });
 
-        var raw = await GetAsync<CvSearchResponse>(url);
+        var raw = await GetAsync(url, ComicVineJson.Default.CvSearchResponse);
         var volumes = raw.Results.Select(ToVolume).ToList();
         _cache.CacheSearch(query, volumes);
         return volumes;
@@ -102,7 +98,7 @@ public class ComicVineService
                 ["offset"] = offset.ToString(),
             });
 
-            var raw = await GetAsync<CvIssuesListResponse>(url);
+            var raw = await GetAsync(url, ComicVineJson.Default.CvIssuesListResponse);
             issues.AddRange(raw.Results.Select(ToIssueSummary));
 
             if (raw.Results.Count < pageSize || issues.Count >= raw.NumberOfTotalResults)
@@ -130,11 +126,8 @@ public class ComicVineService
                 + "person_credits,character_credits,team_credits,location_credits,story_arc_credits",
         });
 
-        var raw = await GetAsync<CvIssueDetailResponse>(url);
-        if (raw.Results is null)
-            throw new ComicVineException(ComicVineErrorKind.NotFound, $"Issue {issueId} was not found on ComicVine.");
-
-        var detail = ToIssueDetail(raw.Results);
+        var raw = await GetAsync(url, ComicVineJson.Default.CvIssueDetailResponse);
+        var detail = ToIssueDetailOrThrow(raw, issueId);
         _cache.CacheIssueDetail(detail);
         return detail;
     }
@@ -249,7 +242,7 @@ public class ComicVineService
             ["query"] = "batman",
             ["field_list"] = "id",
         }, apiKey);
-        var raw = await GetAsync<CvSearchResponse>(url);
+        var raw = await GetAsync(url, ComicVineJson.Default.CvSearchResponse);
         return raw.Results.Count;
     }
 
@@ -310,15 +303,16 @@ public class ComicVineService
         }
     }
 
-    private async Task<T> GetAsync<T>(string url) where T : CvResponseBase
+    private async Task<T> GetAsync<T>(string url, JsonTypeInfo<T> type) where T : CvResponseBase
     {
         await ThrottleAsync();
 
-        HttpResponseMessage response;
+        HttpStatusCode status;
         string body;
         try
         {
-            response = await _http.GetAsync(url);
+            using var response = await _http.GetAsync(url);
+            status = response.StatusCode;
             body = await response.Content.ReadAsStringAsync();
         }
         catch (TaskCanceledException ex)
@@ -333,17 +327,17 @@ public class ComicVineService
         }
 
         //420 is comicvine's documented "slow down" response for velocity blocks
-        if ((int)response.StatusCode == 420)
+        if ((int)status == 420)
             throw new ComicVineException(ComicVineErrorKind.RateLimited,
                 "ComicVine's rate limit was hit. Wait a while before trying again.");
-        if (!response.IsSuccessStatusCode)
+        if ((int)status is < 200 or > 299)
             throw new ComicVineException(ComicVineErrorKind.ApiError,
-                $"ComicVine returned {(int)response.StatusCode} {response.StatusCode}.");
+                $"ComicVine returned {(int)status} {status}.");
 
         T parsed;
         try
         {
-            parsed = JsonSerializer.Deserialize<T>(body, JsonOpts)
+            parsed = JsonSerializer.Deserialize(body, type)
                 ?? throw new ComicVineException(ComicVineErrorKind.ApiError, "ComicVine returned an empty response.");
         }
         catch (JsonException ex)
@@ -373,6 +367,15 @@ public class ComicVineService
     private static ComicVineIssueSummary ToIssueSummary(CvIssueSummaryRaw r) => new(
         r.Id, r.IssueNumber, r.Name, r.CoverDate);
 
+    private static ComicVineIssueDetail ToIssueDetailOrThrow(CvIssueDetailResponse raw, int issueId) =>
+        raw.Results is null
+            ? throw new ComicVineException(ComicVineErrorKind.NotFound, $"Issue {issueId} was not found on ComicVine.")
+            : ToIssueDetail(raw.Results);
+
+    //an issue-detail response body as the app reads it - for tests, which have no network
+    internal static ComicVineIssueDetail ParseIssueDetail(string body, int issueId) =>
+        ToIssueDetailOrThrow(JsonSerializer.Deserialize(body, ComicVineJson.Default.CvIssueDetailResponse)!, issueId);
+
     private static ComicVineIssueDetail ToIssueDetail(CvIssueDetailRaw r) => new(
         r.Id,
         r.Name,
@@ -393,29 +396,30 @@ public class ComicVineService
 
     //---------------------------------------------------------------- raw json dtos
     //
-    //private, implementation-only - these mirror ComicVine's actual (snake_case)
+    //implementation-only - these mirror ComicVine's actual (snake_case)
     //response shape so System.Text.Json can deserialize it directly. Everything
     //past this point is translated into the clean Models/ComicVineModels.cs
-    //records above before it ever leaves this class.
+    //records above before it ever leaves this class. internal rather than private
+    //only so their serialisers can be generated (ComicVineJson)
 
-    private abstract class CvResponseBase
+    internal abstract class CvResponseBase
     {
         [JsonPropertyName("status_code")] public int StatusCode { get; set; }
         [JsonPropertyName("error")] public string? Error { get; set; }
     }
 
-    private class CvSearchResponse : CvResponseBase
+    internal class CvSearchResponse : CvResponseBase
     {
         [JsonPropertyName("results")] public List<CvVolumeRaw> Results { get; set; } = new();
     }
 
-    private class CvIssuesListResponse : CvResponseBase
+    internal class CvIssuesListResponse : CvResponseBase
     {
         [JsonPropertyName("number_of_total_results")] public int NumberOfTotalResults { get; set; }
         [JsonPropertyName("results")] public List<CvIssueSummaryRaw> Results { get; set; } = new();
     }
 
-    private class CvIssueDetailResponse : CvResponseBase
+    internal class CvIssueDetailResponse : CvResponseBase
     {
         //the single-issue endpoint is documented to return "results" as a
         //bare object, but that wasn't independently verified against a live
@@ -425,33 +429,39 @@ public class ComicVineService
         //single-element array wrapping one (the shape ComicVine's own list
         //endpoints already use), so this doesn't need to be re-guessed.
         [JsonPropertyName("results")]
-        [JsonConverter(typeof(SingleOrArrayConverter<CvIssueDetailRaw>))]
+        [JsonConverter(typeof(IssueDetailOrArrayConverter))]
         public CvIssueDetailRaw? Results { get; set; }
     }
 
-    //tolerates a bare object or a single-element array wrapping one
-    private class SingleOrArrayConverter<T> : JsonConverter<T> where T : class
+    //tolerates a bare object or an array wrapping one (the first element is the issue)
+    internal class IssueDetailOrArrayConverter : JsonConverter<CvIssueDetailRaw>
     {
-        public override T? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        public override CvIssueDetailRaw? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            if (reader.TokenType == JsonTokenType.StartArray)
+            var type = ComicVineJson.Default.CvIssueDetailRaw;
+            if (reader.TokenType != JsonTokenType.StartArray)
+                return JsonSerializer.Deserialize(ref reader, type);
+
+            CvIssueDetailRaw? first = null;
+            var seen = false;
+            while (reader.Read() && reader.TokenType != JsonTokenType.EndArray)
             {
-                var list = JsonSerializer.Deserialize<List<T>>(ref reader, options);
-                return list is { Count: > 0 } ? list[0] : null;
+                if (seen)
+                {
+                    reader.Skip();
+                    continue;
+                }
+                first = JsonSerializer.Deserialize(ref reader, type);
+                seen = true;
             }
-            if (reader.TokenType == JsonTokenType.Null)
-            {
-                reader.Skip();
-                return null;
-            }
-            return JsonSerializer.Deserialize<T>(ref reader, options);
+            return first;
         }
 
-        public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options) =>
-            JsonSerializer.Serialize(writer, value, options);
+        public override void Write(Utf8JsonWriter writer, CvIssueDetailRaw value, JsonSerializerOptions options) =>
+            JsonSerializer.Serialize(writer, value, ComicVineJson.Default.CvIssueDetailRaw);
     }
 
-    private class CvVolumeRaw
+    internal class CvVolumeRaw
     {
         [JsonPropertyName("id")] public int Id { get; set; }
         [JsonPropertyName("name")] public string? Name { get; set; }
@@ -461,18 +471,18 @@ public class ComicVineService
         [JsonPropertyName("image")] public CvImageRaw? Image { get; set; }
     }
 
-    private class CvPublisherRaw
+    internal class CvPublisherRaw
     {
         [JsonPropertyName("name")] public string? Name { get; set; }
     }
 
-    private class CvImageRaw
+    internal class CvImageRaw
     {
         [JsonPropertyName("thumb_url")] public string? ThumbUrl { get; set; }
         [JsonPropertyName("small_url")] public string? SmallUrl { get; set; }
     }
 
-    private class CvIssueSummaryRaw
+    internal class CvIssueSummaryRaw
     {
         [JsonPropertyName("id")] public int Id { get; set; }
         [JsonPropertyName("issue_number")] public string? IssueNumber { get; set; }
@@ -480,7 +490,7 @@ public class ComicVineService
         [JsonPropertyName("cover_date")] public string? CoverDate { get; set; }
     }
 
-    private class CvIssueDetailRaw
+    internal class CvIssueDetailRaw
     {
         [JsonPropertyName("id")] public int Id { get; set; }
         [JsonPropertyName("name")] public string? Name { get; set; }
@@ -497,18 +507,18 @@ public class ComicVineService
         [JsonPropertyName("story_arc_credits")] public List<CvNamedRaw> StoryArcCredits { get; set; } = new();
     }
 
-    private class CvVolumeRefRaw
+    internal class CvVolumeRefRaw
     {
         [JsonPropertyName("name")] public string? Name { get; set; }
     }
 
-    private class CvPersonCreditRaw
+    internal class CvPersonCreditRaw
     {
         [JsonPropertyName("name")] public string? Name { get; set; }
         [JsonPropertyName("role")] public string? Role { get; set; }
     }
 
-    private class CvNamedRaw
+    internal class CvNamedRaw
     {
         [JsonPropertyName("name")] public string? Name { get; set; }
     }

@@ -28,6 +28,22 @@ public sealed partial class AppActions
 
     private TopLevel? Top => TopLevel.GetTopLevel(Owner);
 
+    //the folder a picker starts in; null leaves the picker to its own default (unset, or gone since)
+    private async Task<IStorageFolder?> StartFolderAsync(TopLevel topLevel, string? path, string what)
+    {
+        if (string.IsNullOrEmpty(path))
+            return null;
+        try
+        {
+            return await topLevel.StorageProvider.TryGetFolderFromPathAsync(path);
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Could not resolve the {what}", ex);
+            return null;
+        }
+    }
+
     //---------------------------------------------------------------- opening
 
     public async Task OpenAsync()
@@ -35,13 +51,7 @@ public sealed partial class AppActions
         if (Top is not { } topLevel)
             return;
 
-        IStorageFolder? startLocation = null;
-        var lastFolder = Settings.Settings.LastOpenFolder;
-        if (!string.IsNullOrEmpty(lastFolder))
-        {
-            try { startLocation = await topLevel.StorageProvider.TryGetFolderFromPathAsync(lastFolder); }
-            catch (Exception ex) { Log.Error("Could not resolve last open folder", ex); }
-        }
+        var startLocation = await StartFolderAsync(topLevel, Settings.Settings.LastOpenFolder, "last open folder");
 
         IReadOnlyList<IStorageFile> picked;
         try
@@ -90,13 +100,7 @@ public sealed partial class AppActions
         if (Top is not { } topLevel)
             return;
 
-        IStorageFolder? startLocation = null;
-        var lastFolder = Settings.Settings.LastOpenFolder;
-        if (!string.IsNullOrEmpty(lastFolder))
-        {
-            try { startLocation = await topLevel.StorageProvider.TryGetFolderFromPathAsync(lastFolder); }
-            catch (Exception ex) { Log.Error("Could not resolve last open folder", ex); }
-        }
+        var startLocation = await StartFolderAsync(topLevel, Settings.Settings.LastOpenFolder, "last open folder");
 
         IReadOnlyList<IStorageFolder> picked;
         try
@@ -228,7 +232,10 @@ public sealed partial class AppActions
     //the user opens ten books or ten thousand.
     public async Task OpenPathsAsync(IReadOnlyList<string> paths)
     {
-        var pending = paths.Where(p => ViewModel.FindByPath(p) is null)
+        //a set, not FindByPath per path: reopening a folder of thousands was a search of every open
+        //book for every path given
+        var alreadyOpen = ViewModel.OpenFiles.Select(f => f.Path).ToHashSet(PathComparison.Comparer);
+        var pending = paths.Where(p => !alreadyOpen.Contains(p))
                            .Distinct(PathComparison.Comparer)
                            .ToList();
         if (pending.Count == 0)
@@ -248,20 +255,26 @@ public sealed partial class AppActions
         var unreadableXml = new System.Collections.Concurrent.ConcurrentBag<string>();
         var autoPageCount = Settings.Settings.AutoPageCount;
         var done = 0;
+        var cancelled = false;
 
         try
         {
             await Parallel.ForEachAsync(
                 Enumerable.Range(0, pending.Count),
-                new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
+                new ParallelOptions
+                {
+                    MaxDegreeOfParallelism = Environment.ProcessorCount,
+                    //the dialog's Cancel: books already being read finish, the rest aren't started
+                    CancellationToken = progress?.Token ?? default,
+                },
                 (index, token) =>
                 {
                     var path = pending[index];
                     try
                     {
                         var result = Archive.Read(path, includeCover: false);
-                        var values = ComicInfoXml.Parse(result.ComicInfoXml);
-                        if (ComicInfoXml.IsUnreadable(result.ComicInfoXml))
+                        var values = ComicInfoXml.Parse(result.ComicInfoXml, out var unreadable);
+                        if (unreadable)
                             unreadableXml.Add(ArchiveStorage.Current.Name(path));
                         var file = new ComicFileViewModel(path, result.Format, result.ComicInfoXml,
                             values, result.ImagePageCount);
@@ -285,6 +298,11 @@ public sealed partial class AppActions
                     return ValueTask.CompletedTask;
                 });
         }
+        catch (OperationCanceledException)
+        {
+            //whatever was read before the cancel is still opened below
+            cancelled = true;
+        }
         finally
         {
             progress?.Complete();
@@ -304,6 +322,9 @@ public sealed partial class AppActions
         //trying would just clear the current selection
         if (loaded.Count > 0 && Settings.Settings.AutoSelectFirstOnOpen && ViewModel.DisplayedFiles.Contains(loaded[0]))
             SelectRequested?.Invoke(loaded[0]);
+
+        if (cancelled)
+            ViewModel.StatusText = $"Opening cancelled - {loaded.Count} of {pending.Count} opened";
 
         if (!failures.IsEmpty)
         {

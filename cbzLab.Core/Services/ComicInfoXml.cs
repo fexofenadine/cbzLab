@@ -11,8 +11,12 @@ public static class ComicInfoXml
     private static readonly XNamespace Xsi = "http://www.w3.org/2001/XMLSchema-instance";
 
     //returns empty rather than throwing - a mangled ComicInfo.xml should still be openable
-    public static Dictionary<string, string> Parse(byte[]? raw)
+    public static Dictionary<string, string> Parse(byte[]? raw) => Parse(raw, out _);
+
+    //unreadable is IsUnreadable's answer, from the same parse: opening a library asks both of every book
+    public static Dictionary<string, string> Parse(byte[]? raw, out bool unreadable)
     {
+        unreadable = false;
         var values = new Dictionary<string, string>(StringComparer.Ordinal);
         if (raw is null || raw.Length == 0)
             return values;
@@ -21,7 +25,10 @@ public static class ComicInfoXml
         {
             var doc = LoadSafe(raw);
             if (doc.Root is null)
+            {
+                unreadable = true;
                 return values;
+            }
 
             //first occurrence wins, matching Build(), which edits the first matching element - taking
             //the last here showed one duplicate while saving to another, so edits seemed not to stick
@@ -34,6 +41,7 @@ public static class ComicInfoXml
         catch
         {
             //unparseable xml is treated as no metadata
+            unreadable = true;
         }
         return values;
     }

@@ -25,6 +25,7 @@ public sealed partial class AppActions
             return;
 
         var filled = 0;
+        using (ViewModel.History.Begin("Guess from Filename"))
         using (ViewModel.DeferRefresh())
         {
             foreach (var file in ViewModel.SelectedFiles)
@@ -56,30 +57,55 @@ public sealed partial class AppActions
         return filled;
     }
 
+    //counts the pages of every selected book and writes the count to its Page Count field
     public async Task AutoPageCountAsync()
     {
-        var file = ViewModel.CurrentFile;
-        if (file is null)
+        var files = ViewModel.SelectedFiles.ToList();
+        if (files.Count == 0)
             return;
 
-        try
+        //a book opened without its pages counted (none found then, or not looked for) is read now
+        var uncounted = files.Where(f => f.DetectedPageCount == 0).Select(f => (File: f, f.Path)).ToList();
+        var failures = new List<string>();
+        if (uncounted.Count > 0)
         {
-            var count = file.DetectedPageCount;
-            if (count == 0)
+            ViewModel.StatusText = uncounted.Count == 1 ? "Counting pages…" : $"Counting pages in {uncounted.Count} books…";
+            var counted = await Task.Run(() => uncounted.Select(u =>
             {
-                var result = await Task.Run(() => Archive.Read(file.Path));
-                count = result.ImagePageCount;
-                file.DetectedPageCount = count;
+                try
+                {
+                    return (u.File, Count: Archive.Read(u.Path, includeCover: false).ImagePageCount, Error: (string?)null);
+                }
+                catch (Exception ex)
+                {
+                    Log.Error($"Auto page count failed for '{u.Path}'", ex);
+                    return (u.File, Count: 0, Error: (string?)ex.Message);
+                }
+            }).ToList());
+            foreach (var (file, count, error) in counted)
+            {
+                if (error is null)
+                    file.DetectedPageCount = count;
+                else
+                    failures.Add($"{file.FileName}: {error}");
             }
-            file.SetValue("PageCount", count.ToString());
-            ViewModel.RefreshEditor();
-            ViewModel.StatusText = $"Page count set to {count}";
         }
-        catch (Exception ex)
+
+        var failed = failures.Count;
+        var done = files.Where(f => f.DetectedPageCount > 0).ToList();
+        using (ViewModel.History.Begin("Auto Page Count"))
+        using (ViewModel.DeferRefresh())
         {
-            Log.Error($"Auto page count failed for '{file.Path}'", ex);
-            await MessageDialog.ShowAsync(Owner, "Page count failed", ex.Message);
+            foreach (var file in done)
+                file.SetValue("PageCount", file.DetectedPageCount.ToString());
         }
+        ViewModel.RefreshEditor();
+
+        ViewModel.StatusText = files.Count == 1 && done.Count == 1
+            ? $"Page count set to {done[0].DetectedPageCount}"
+            : $"Page count set on {done.Count} of {files.Count} books";
+        if (failed > 0)
+            await MessageDialog.ShowAsync(Owner, "Page count failed", string.Join("\n", failures));
     }
 
     //scoped to the selection, or every open file when nothing is selected - same rule as
@@ -98,6 +124,7 @@ public sealed partial class AppActions
         }
 
         int changed;
+        using (ViewModel.History.Begin("Extract Publisher/Year from Summary"))
         using (ViewModel.DeferRefresh())
             changed = targets.Count(ApplySummaryHeader);
         ViewModel.RefreshEditor();
@@ -171,7 +198,8 @@ public sealed partial class AppActions
         }
 
         ViewModel.RegisterExtrasFrom(values.Keys);
-        file.ReplaceCurrentValues(values);
+        using (ViewModel.History.Begin("Paste ComicInfo.xml"))
+            file.ReplaceCurrentValues(values);
         ViewModel.RefreshEditor();
         ViewModel.StatusText = $"Metadata replaced from clipboard ({values.Count} fields)";
     }
@@ -181,16 +209,91 @@ public sealed partial class AppActions
         if (ViewModel.OpenFiles.Count == 0)
             return;
 
-        //the dialog edits the files itself, possibly thousands of them in one go
-        int changed;
-        using (ViewModel.DeferRefresh())
-            changed = await FindReplaceDialog.ShowAsync(
-                Owner, Schema, ViewModel.SelectedFiles.ToList(), ViewModel.OpenFiles.ToList());
-        if (changed == 0)
+        var edits = await FindReplaceDialog.ShowAsync(
+            Owner, Schema, ViewModel.SelectedFiles.ToList(), ViewModel.OpenFiles.ToList());
+        if (edits is null || edits.Count == 0)
             return;
 
+        //possibly thousands of books in one go: one undo step, one refresh
+        using (ViewModel.History.Begin("Find & Replace"))
+        using (ViewModel.DeferRefresh())
+        {
+            foreach (var edit in edits)
+                edit.File.SetValue(edit.Tag, edit.NewValue);
+        }
+
         ViewModel.RefreshEditor();
-        ViewModel.StatusText = $"Replaced text in {changed} file(s)";
+        var books = edits.Select(e => e.File).Distinct().Count();
+        ViewModel.StatusText = $"Replaced text in {books} file{(books == 1 ? "" : "s")}";
+    }
+
+    //---------------------------------------------------------------- renaming files
+
+    //renames the selected books' files (every open book when none is selected) from their metadata.
+    //the dialog shows each new name first; nothing is overwritten, and contents aren't touched
+    public async Task RenameFilesAsync()
+    {
+        var targets = ViewModel.SelectedFiles.Count > 0
+            ? ViewModel.SelectedFiles.ToList()
+            : ViewModel.OpenFiles.ToList();
+        if (targets.Count == 0)
+        {
+            await MessageDialog.ShowAsync(Owner, "Rename Files from Metadata", "Open an archive first.");
+            return;
+        }
+
+        var chosen = await RenameFilesDialog.ShowAsync(Owner, targets, Settings.Settings.RenameTemplate,
+            ViewModel.SelectedFiles.Count > 0);
+        if (chosen is not { } rename)
+            return;
+
+        if (rename.Template != Settings.Settings.RenameTemplate)
+        {
+            Settings.Settings.RenameTemplate = rename.Template;
+            Settings.Save();
+        }
+
+        var byPath = targets.ToDictionary(f => f.Path, PathComparison.Comparer);
+        var renamed = 0;
+        var failures = new List<string>();
+        foreach (var item in rename.Items.Where(i => i.Status == RenameStatus.Ready))
+        {
+            if (!byPath.TryGetValue(item.OldPath, out var file))
+                continue;
+            try
+            {
+                //checked again at the moment of the move: the preview may be minutes old
+                if (!PathComparison.Same(item.OldPath, item.NewPath) && File.Exists(item.NewPath))
+                    throw new IOException("A file with this name is already there");
+                File.Move(item.OldPath, item.NewPath);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Could not rename '{item.OldPath}' to '{item.NewPath}'", ex);
+                failures.Add($"{item.OldName}: {ex.Message}");
+                continue;
+            }
+
+            //the draft and the recent entry were filed under the old name
+            _autosave.Clear(item.OldPath);
+            _autosavedVersion.Remove(file);
+            var recent = Settings.Settings.RecentFiles.FindIndex(p => PathComparison.Same(p, item.OldPath));
+            if (recent >= 0)
+                Settings.Settings.RecentFiles[recent] = item.NewPath;
+            file.Rename(item.NewPath);
+            renamed++;
+        }
+
+        if (renamed > 0)
+        {
+            Settings.Save();
+            RaiseRecentFilesChanged();
+            ViewModel.FileRenamed();
+            ViewModel.RefreshEditor();
+        }
+        ViewModel.StatusText = renamed == 1 ? "Renamed 1 file" : $"Renamed {renamed} files";
+        if (failures.Count > 0)
+            await MessageDialog.ShowAsync(Owner, "Some files could not be renamed", string.Join("\n", failures));
     }
 
     public async Task ValidateAllAsync()
@@ -228,6 +331,7 @@ public sealed partial class AppActions
         if (tags is null || tags.Count == 0)
             return;
 
+        using (ViewModel.History.Begin("Copy Fields"))
         using (ViewModel.DeferRefresh())
         {
             foreach (var target in targets)
@@ -270,6 +374,8 @@ public sealed partial class AppActions
         ViewModel.EditorFontFamily = Settings.Settings.EditorFontFamily;
         ViewModel.EditorFieldsMaxWidth = Settings.Settings.EditorFieldsFillWidth ? double.PositiveInfinity : 780;
         ViewModel.ApplyDensitySetting(Settings.Settings.CompactDensity);
+        //a lower "max recent files" has already shortened the list
+        RaiseRecentFilesChanged();
         SettingsApplied?.Invoke(this, EventArgs.Empty);
     }
 
@@ -330,7 +436,14 @@ public sealed partial class AppActions
         try
         {
             outcome = await Task.Run(() => _combine.Combine(sourcePaths, destination,
-                (current, total, label) => Dispatcher.UIThread.Post(() => progress.Report(current, total, label))));
+                (current, total, label) => Dispatcher.UIThread.Post(() => progress.Report(current, total, label)),
+                progress.Token));
+        }
+        catch (OperationCanceledException)
+        {
+            progress.Complete();
+            ViewModel.StatusText = "Combine cancelled - nothing was written";
+            return;
         }
         catch (Exception ex)
         {
@@ -351,7 +464,8 @@ public sealed partial class AppActions
         }
 
         EditRequested?.Invoke(new[] { combined });
-        ApplyPostCombineMetadata(combined, outcome.TotalPages);
+        using (ViewModel.History.Begin("Combine Archives"))
+            ApplyPostCombineMetadata(combined, outcome.TotalPages);
         ViewModel.RefreshEditor();
         ViewModel.StatusText =
             $"Combined {outcome.SourceCount} archives into {combined.FileName} ({outcome.TotalPages} pages) - "
@@ -373,13 +487,8 @@ public sealed partial class AppActions
         if (Top is not { } topLevel)
             return null;
 
-        IStorageFolder? startLocation = null;
         var sourceDir = ArchiveStorage.Current.IsFile(besidePath) ? Path.GetDirectoryName(besidePath) : null;
-        if (!string.IsNullOrEmpty(sourceDir))
-        {
-            try { startLocation = await topLevel.StorageProvider.TryGetFolderFromPathAsync(sourceDir); }
-            catch (Exception ex) { Log.Error($"Could not resolve the {actionName.ToLowerInvariant()} output folder", ex); }
-        }
+        var startLocation = await StartFolderAsync(topLevel, sourceDir, $"{actionName.ToLowerInvariant()} output folder");
 
         try
         {
@@ -447,7 +556,14 @@ public sealed partial class AppActions
             var path = file.Path;
             scan = await Task.Run(() => _footerTrim.Scan(path,
                 (current, _, label) => Dispatcher.UIThread.Post(
-                    () => scanProgress.Report(current, Math.Max(current, file.DetectedPageCount), label))));
+                    () => scanProgress.Report(current, Math.Max(current, file.DetectedPageCount), label)),
+                scanProgress.Token));
+        }
+        catch (OperationCanceledException)
+        {
+            scanProgress.Complete();
+            ViewModel.StatusText = "Scan cancelled";
+            return;
         }
         catch (Exception ex)
         {
@@ -487,7 +603,14 @@ public sealed partial class AppActions
             var band = scan.BandHeight;
             trimmed = await Task.Run(() => _footerTrim.Trim(source, destination, keys, band, JpegQuality,
                 (current, _, label) => Dispatcher.UIThread.Post(
-                    () => trimProgress.Report(current, Math.Max(current, scan.PagesScanned), label))));
+                    () => trimProgress.Report(current, Math.Max(current, scan.PagesScanned), label)),
+                trimProgress.Token));
+        }
+        catch (OperationCanceledException)
+        {
+            trimProgress.Complete();
+            ViewModel.StatusText = "Trim cancelled - nothing was written";
+            return;
         }
         catch (Exception ex)
         {

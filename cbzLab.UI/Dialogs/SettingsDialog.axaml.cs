@@ -13,8 +13,24 @@ namespace cbzLab.Dialogs;
 
 public partial class SettingsDialog : DialogBase
 {
-    private static readonly string[] FontFamilyOptions =
-        { "Segoe UI", "Segoe UI Variable", "Consolas", "Cascadia Code", "Georgia", "Comic Sans MS" };
+    //the fonts installed on this machine, by name; a fixed list of windows fonts offered nothing
+    //that existed on linux or macos
+    private static List<string> InstalledFonts()
+    {
+        try
+        {
+            return Avalonia.Media.FontManager.Current.SystemFonts
+                .Select(f => f.Name)
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(n => n, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
+        }
+        catch
+        {
+            return new List<string>();
+        }
+    }
 
     private ComicVineService? _comicVine;
     private ComicVineCacheService? _comicVineCache;
@@ -27,8 +43,6 @@ public partial class SettingsDialog : DialogBase
     public SettingsDialog()
     {
         InitializeComponent();
-        foreach (var f in FontFamilyOptions)
-            FontFamilyCombo.Items.Add(f);
 
         //saving cbr needs an external tool, which a phone can't run: it's cbz only there
         DefaultFormatPanel.IsVisible = RarToolPanel.IsVisible = ArchiveStorage.CanWriteCbr;
@@ -61,14 +75,22 @@ public partial class SettingsDialog : DialogBase
         ThemeCombo.SelectedItem = _theme.ThemeNames.Contains(s.Theme) ? s.Theme : _theme.CurrentThemeName;
 
         FontSizeBox.Value = (decimal)s.EditorFontSize;
-        FontFamilyCombo.SelectedItem = FontFamilyOptions.Contains(s.EditorFontFamily) ? s.EditorFontFamily : FontFamilyOptions[0];
+        //the font in use stays on offer even where it isn't installed (a settings file from another
+        //machine), so opening Settings and saving never changes it by itself
+        var fonts = OperatingSystem.IsAndroid() ? new List<string>() : InstalledFonts();
+        if (!fonts.Contains(s.EditorFontFamily, StringComparer.OrdinalIgnoreCase))
+            fonts.Insert(0, s.EditorFontFamily);
+        FontFamilyCombo.Items.Clear();
+        foreach (var font in fonts)
+            FontFamilyCombo.Items.Add(font);
+        FontFamilyCombo.SelectedItem = fonts.First(f => f.Equals(s.EditorFontFamily, StringComparison.OrdinalIgnoreCase));
         CoverSourceCombo.SelectedIndex = s.CoverSource == "last" ? 1 : 0;
         FillWidthCheck.IsChecked = s.EditorFieldsFillWidth;
         RememberTabCheck.IsChecked = s.RememberLastTab;
         CompactCheck.IsChecked = s.CompactDensity;
         ShowAllCheck.IsChecked = s.ShowAllFieldsDefault;
         ShowExtraCheck.IsChecked = s.ShowExtraFieldsDefault;
-        FormatCombo.SelectedIndex = s.DefaultSaveFormat.Equals("cbr", System.StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+        FormatCombo.SelectedIndex = s.DefaultSaveFormat.Equals("cbr", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
         ConfirmBatchCheck.IsChecked = s.ConfirmBatchSave;
         AutoPageCheck.IsChecked = s.AutoPageCount;
         RecentFilesBox.Value = s.MaxRecentFiles;
@@ -147,7 +169,7 @@ public partial class SettingsDialog : DialogBase
         {
             Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
         }
-        catch (System.Exception ex)
+        catch (Exception ex)
         {
             log?.Warning($"Could not open folder '{dir}': {ex.Message}");
         }
@@ -178,7 +200,7 @@ public partial class SettingsDialog : DialogBase
         var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
             Title = "Export settings & customizations",
-            SuggestedFileName = $"{System.DateTime.Now:yyyyMMdd}_backup.cbzlab",
+            SuggestedFileName = $"{DateTime.Now:yyyyMMdd}_backup.cbzlab",
             FileTypeChoices = new List<FilePickerFileType> { new("cbzLab Backup") { Patterns = new[] { "*.cbzlab" } } },
         });
         if (file is null)
@@ -189,7 +211,7 @@ public partial class SettingsDialog : DialogBase
             _settings!.ExportBackup(file.Path.LocalPath);
             BackupStatus.Text = $"Exported to {file.Path.LocalPath}";
         }
-        catch (System.Exception ex)
+        catch (Exception ex)
         {
             BackupStatus.Text = $"Export failed: {ex.Message}";
         }
@@ -223,7 +245,7 @@ public partial class SettingsDialog : DialogBase
             BackupStatus.Text = "Imported - restart cbzLab for theme and schema changes to fully take effect."
                 + (skipped == 0 ? "" : $" {skipped} file(s) pointing outside the settings folder were ignored.");
         }
-        catch (System.Exception ex)
+        catch (Exception ex)
         {
             BackupStatus.Text = $"Import failed: {ex.Message}";
         }
@@ -235,7 +257,7 @@ public partial class SettingsDialog : DialogBase
         {
             Process.Start(new ProcessStartInfo("https://comicvine.gamespot.com/api/") { UseShellExecute = true });
         }
-        catch (System.Exception ex)
+        catch (Exception ex)
         {
             TestConnectionStatus.Text = $"Could not open link: {ex.Message}";
         }
@@ -257,7 +279,7 @@ public partial class SettingsDialog : DialogBase
         {
             TestConnectionStatus.Text = ex.Message;
         }
-        catch (System.Exception ex)
+        catch (Exception ex)
         {
             TestConnectionStatus.Text = $"Unexpected error: {ex.Message}";
         }
@@ -308,6 +330,8 @@ public partial class SettingsDialog : DialogBase
         s.ConfirmBatchSave = dlg.ConfirmBatchCheck.IsChecked == true;
         s.AutoPageCount = dlg.AutoPageCheck.IsChecked == true;
         s.MaxRecentFiles = (int)(dlg.RecentFilesBox.Value ?? s.MaxRecentFiles);
+        //a lower limit applies now, not at the next file opened
+        settings.TrimRecentFiles();
         s.AutoSelectFirstOnOpen = dlg.AutoSelectCheck.IsChecked == true;
         s.ClearFilterOnOpen = dlg.ClearFilterCheck.IsChecked == true;
         s.LiveValidationMode = dlg.LiveValidationCombo.SelectedIndex switch { 1 => "blur", 2 => "off", _ => "keystroke" };

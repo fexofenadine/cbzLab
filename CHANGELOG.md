@@ -10,6 +10,70 @@
 
 ## cbzLab (Avalonia)
 
+### 3.0.0 - 2026-11-11
+
+- **Undo and redo** for every change to field values: **Edit → Undo / Redo** (Ctrl+Z, Ctrl+Y or
+  Ctrl+Shift+Z), on the toolbar if you add them, and in the **⋮** menus on Android. Typing in a
+  field is one step until you leave it; a tool run over a thousand books (Find & Replace, Guess from
+  Filename, a ComicVine batch match) is one step too. The menu names what it would undo. While the
+  cursor is in a field, Ctrl+Z still undoes your typing in that box. Undo reaches back past a save
+  (the book is just unsaved again), but not past closing or reverting a book.
+- **Tools → Rename Files from Metadata.** Renames the selected books (or every open book) from a
+  pattern such as `{Series} #{Number:000} ({Year})`, with any ComicInfo field. Every new name is
+  shown before anything is renamed; a field with no value leaves nothing behind, brackets included;
+  nothing is ever overwritten; contents aren't touched. Desktop only (Android hands out documents,
+  not files that can be renamed).
+- **Find & Replace across all fields, and with regular expressions.** Choose "All fields" to replace
+  in every field at once, and tick "Regular expression" for patterns, with `$1` for groups in the
+  replacement. The confirmation shows an example of the change before it's made.
+- **ComicVine: "Change Series…"** in the issue list and the review. A series picked once is
+  remembered for that name, and a wrong pick used to stick until the whole cache was cleared; now it
+  searches again and remembers the new one. The review says which series and issue it matched.
+- **ComicVine batch: "Cancel All" and "Skip This Book".** Cancel used to skip one book and carry on
+  to the next; Cancel All stops the run with nothing changed.
+- **Auto Page Count works on every selected book**, not just the first, and is on the Android
+  selection menu.
+- **A calendar beside the desktop's date field**, as Android already had. Cancelling it leaves the
+  date as it was.
+- **Grid view shows edits straight away.** Its cells kept showing the value they first read until
+  the grid was rebuilt.
+- **The window remembers being maximised**, and the size it restores to. A maximised window's size
+  used to be saved as its normal size.
+- Lowering **Max recent files** in Settings shortens the list straight away, not at the next open.
+- The editor font list in Settings shows the fonts installed on this computer, rather than six
+  Windows fonts that Linux and macOS mostly don't have.
+- **Updates are checked before they're installed**: the download must match the SHA-256 hash
+  GitHub publishes for it, or the update is refused and the app left as it is.
+- **A download half the size**: the Windows and Linux builds drop the parts of .NET and Avalonia the
+  app never uses (51 MB to 25 MB on Windows). Everything cbzLab saves as JSON is now read and written
+  by code generated at build time, which is what makes this safe, and is a little faster to start.
+- A settings file that can't be read because of a problem in the app, rather than in the file, is
+  no longer moved aside as "unreadable"; only a file whose own text is broken is.
+- For testing or a portable copy: set `CBZLAB_CONFIG_DIR` to a folder and cbzLab keeps its settings
+  there instead of the usual place.
+- Toolbar: Undo, Redo, Auto Page Count, Find & Replace and Rename Files can be added under
+  Tools → Customize Toolbar.
+- **Recently typed values work again.** The picker beside a field (the small arrow) is meant to
+  offer what you typed there before, but nothing was ever being remembered, so it never appeared.
+  A value is now remembered when you leave its field.
+- **Settings → Live validation → "On leaving the field" now checks the field.** It behaved like
+  "Off": nothing was checked until the book was saved.
+- **Cancel works on every progress window.** While opening a large folder, combining archives, or
+  scanning for and trimming branding footers, Cancel said "Cancelling" and then carried on to the
+  end. Opening stops after the books already being read (those stay open); Combine and Trim stop
+  without writing anything.
+- **Open Containing Folder works on Linux and macOS.** It only knew how to ask Windows Explorer.
+- Sorting by Series and Number put issue 1.5 after issue 10 on systems that write decimals with a
+  comma (German, French and others).
+- Faster with big libraries: sorting pages and files no longer allocates on every comparison, each
+  book's ComicInfo.xml is parsed once on open instead of twice, and reopening a folder that's
+  already open skips its books in one pass. Trim Branding Footers no longer re-reads every page
+  to build previews, only the pages it flagged.
+- A closed book's cover is released straight away instead of waiting on the memory collector.
+- Internal tidying: the three services that rewrite archives share one set of helpers for temp
+  files, safe extraction paths and reading entries, and the desktop and Android field rows share
+  their clipboard menu, keypad hints and date picker.
+
 ### 2.5.0 - 2026-11-09
 
 - **Android: a new look, in Google's Material Design**, so cbzLab looks and works like other

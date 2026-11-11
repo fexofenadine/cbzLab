@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using cbzLab.ViewModels;
 
 namespace cbzLab.Mobile;
 
@@ -48,6 +49,14 @@ public static class MobileMenu
 
     public static MenuItem Item(string header, Action action, bool enabled = true) =>
         Item(header, () => { action(); return Task.CompletedTask; }, enabled);
+
+    //"Undo Find & Replace": each names the step it would act on
+    public static void AddUndoItems(MenuFlyout menu, MainViewModel vm)
+    {
+        var history = vm.History;
+        menu.Items.Add(Item(history.UndoLabel is { } undo ? $"Undo {undo}" : "Undo", vm.Undo, history.CanUndo));
+        menu.Items.Add(Item(history.RedoLabel is { } redo ? $"Redo {redo}" : "Redo", vm.Redo, history.CanRedo));
+    }
 
     public static MenuItem Check(string header, bool on, Action toggle)
     {

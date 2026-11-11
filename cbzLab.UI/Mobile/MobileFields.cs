@@ -24,16 +24,17 @@ namespace cbzLab.Mobile;
 /// a trailing button where there's something to pick from. Built in code like the desktop's rows,
 /// over the same FieldViewModels.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "binds by name to cbzLab's own view models, which a partial trim keeps whole, and to registered Avalonia properties")]
 public sealed class MobileFields
 {
+    private readonly AppActions _actions;
     private readonly MainViewModel _vm;
-    private readonly SchemaService _schema;
     private readonly Visual _owner;
 
-    public MobileFields(MainViewModel vm, SchemaService schema, Visual owner)
+    public MobileFields(AppActions actions, Visual owner)
     {
-        _vm = vm;
-        _schema = schema;
+        _actions = actions;
+        _vm = actions.ViewModel;
         _owner = owner;
     }
 
@@ -53,8 +54,7 @@ public sealed class MobileFields
 
     private Control Entry(FieldViewModel field)
     {
-        var box = NewBox(field, nameof(FieldViewModel.Value));
-        ApplyInputHints(box, field);
+        var box = NewValueBox(field);
         var picker = TrailingButton(Icons.MenuDown, "Choose a value", () => PickValueAsync(field));
         picker.Bind(Visual.IsVisibleProperty, new Binding(nameof(FieldViewModel.ShowPicker)) { Source = field });
         box.InnerRightContent = picker;
@@ -100,7 +100,8 @@ public sealed class MobileFields
     private Control Date(FieldViewModel field)
     {
         var box = NewBox(field, nameof(FieldViewModel.DateDisplayValue));
-        box.InnerRightContent = TrailingButton(Icons.CalendarMonth, "Pick a date", () => PickDateAsync(field));
+        box.LostFocus += (_, _) => _actions.FieldLeft(field, remember: false);
+        box.InnerRightContent = TrailingButton(Icons.CalendarMonth, "Pick a date", () => FieldUi.PickDateAsync(_owner, field));
         return Row(field, Outlined(field, box, "Date"));
     }
 
@@ -113,8 +114,7 @@ public sealed class MobileFields
         for (var i = 0; i < members.Count; i++)
         {
             var member = members[i];
-            var box = NewBox(member, nameof(FieldViewModel.Value));
-            ApplyInputHints(box, member);
+            var box = NewValueBox(member);
             var cell = new StackPanel { DataContext = member, Margin = new Thickness(i == 0 ? 0 : 6, 0, i == members.Count - 1 ? 0 : 6, 0) };
             cell.Children.Add(Outlined(member, box, member.Label));
             cell.Children.Add(ErrorLine(member));
@@ -127,6 +127,15 @@ public sealed class MobileFields
     }
 
     //---------------------------------------------------------------- building blocks
+
+    //a single-line box on the field's own value: keypad hints, and what leaving it does
+    private TextBox NewValueBox(FieldViewModel field)
+    {
+        var box = NewBox(field, nameof(FieldViewModel.Value));
+        FieldUi.ApplyInputHints(box, field, _actions.Schema.Constraints);
+        box.LostFocus += (_, _) => _actions.FieldLeft(field);
+        return box;
+    }
 
     private TextBox NewBox(FieldViewModel field, string property)
     {
@@ -223,16 +232,6 @@ public sealed class MobileFields
         return button;
     }
 
-    //whole-number and decimal fields open the number keypad
-    private void ApplyInputHints(TextBox box, FieldViewModel field)
-    {
-        var constraints = _schema.Constraints;
-        if (constraints.IntFields.Contains(field.Tag))
-            TextInputOptions.SetContentType(box, TextInputContentType.Digits);
-        else if (constraints.FloatFields.Contains(field.Tag))
-            TextInputOptions.SetContentType(box, TextInputContentType.Number);
-    }
-
     //a long press on a field: cut, copy, paste, and putting back the saved value
     private void AttachFieldMenu(TextBox box, FieldViewModel field)
     {
@@ -244,21 +243,9 @@ public sealed class MobileFields
             menu.Items.Add(about);
             menu.Items.Add(new Separator());
         }
-        var cut = new MenuItem { Header = "Cut" };
-        cut.Click += (_, _) => box.Cut();
-        cut.Bind(MenuItem.IsEnabledProperty, new Binding(nameof(TextBox.CanCut)) { Source = box });
-        var copy = new MenuItem { Header = "Copy" };
-        copy.Click += (_, _) => box.Copy();
-        copy.Bind(MenuItem.IsEnabledProperty, new Binding(nameof(TextBox.CanCopy)) { Source = box });
-        var paste = new MenuItem { Header = "Paste" };
-        paste.Click += (_, _) => box.Paste();
-        paste.Bind(MenuItem.IsEnabledProperty, new Binding(nameof(TextBox.CanPaste)) { Source = box });
+        FieldUi.AddClipboardItems(menu, box);
         var revert = new MenuItem { Header = "Undo changes to this field" };
         revert.Click += (_, _) => _vm.RevertFieldToSaved(field);
-        menu.Items.Add(cut);
-        menu.Items.Add(copy);
-        menu.Items.Add(paste);
-        menu.Items.Add(new Separator());
         menu.Items.Add(revert);
         box.ContextMenu = menu;
     }
@@ -292,26 +279,5 @@ public sealed class MobileFields
         var chosen = await BottomSheet.ShowAsync(_owner, field.Label, items);
         if (chosen is string value)
             field.ApplyPickedValue(value);
-    }
-
-    //starts on the field's own date, or today; a year-only date keeps its year
-    private async Task PickDateAsync(FieldViewModel field)
-    {
-        var start = DateTime.Today;
-        if (int.TryParse(field.Value, out var y) && y is >= 1 and <= 9999)
-        {
-            var m = int.TryParse(field.MonthCompanion?.Value, out var mm) && mm is >= 1 and <= 12 ? mm : 1;
-            var d = int.TryParse(field.DayCompanion?.Value, out var dd) && dd >= 1 ? Math.Min(dd, DateTime.DaysInMonth(y, m)) : 1;
-            start = new DateTime(y, m, d);
-        }
-        var picked = await DatePickerDialog.ShowAsync(_owner, start);
-        if (picked is not { } date)
-            return;
-        field.Value = date.Year.ToString(CultureInfo.InvariantCulture);
-        if (field.MonthCompanion is not null)
-            field.MonthCompanion.Value = date.Month.ToString(CultureInfo.InvariantCulture);
-        if (field.DayCompanion is not null)
-            field.DayCompanion.Value = date.Day.ToString(CultureInfo.InvariantCulture);
-        field.RefreshDateDisplay();
     }
 }

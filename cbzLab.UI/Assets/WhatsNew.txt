@@ -1,3 +1,19 @@
+3.0.0
+• Undo and redo for every change to field values: Edit → Undo, Ctrl+Z
+• Rename files from their metadata, such as "Saga #007 (2012)", with every new name shown first
+• Find & Replace in every field at once, and with regular expressions
+• ComicVine: change to another series if the match was wrong, and cancel a whole batch
+• Auto Page Count on every selected book
+• A calendar beside the date field
+• Grid view shows your edits straight away
+• The window remembers being maximised
+• Updates are checked against the release before they're installed
+• A download half the size
+• Fields remember what you typed before: pick a recent value from the arrow beside a field
+• Cancel now stops opening a big folder, Combine and Trim Footers
+• Open Containing Folder works on Linux and macOS
+• Some bugs were squashed
+
 2.5.0
 • Android: a new look in Material Design, like other Android apps
 • Android: swipe between tabs, pick choices from a list, and a calendar for the date

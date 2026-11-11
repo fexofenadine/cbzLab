@@ -8,11 +8,16 @@ using cbzLab.Models;
 
 namespace cbzLab.Dialogs;
 
+//what the user did with the issue list. Skip (Cancel, Esc) leaves this book unmatched
+public enum MatchIssueChoice { Use, Skip, ChangeSeries, CancelAll }
+
+public readonly record struct MatchIssueResult(MatchIssueChoice Choice, int IssueId = 0);
+
 //always shows the full issue list, with a number match pre-selected;
 //autoAcceptSingleMatch (batch mode) skips the dialog entirely on a clean match
 public partial class MatchIssueDialog : DialogBase
 {
-    private int? _selected;
+    private MatchIssueResult _result = new(MatchIssueChoice.Skip);
 
     public MatchIssueDialog()
     {
@@ -63,31 +68,45 @@ public partial class MatchIssueDialog : DialogBase
 
     private void OnUse(object? sender, RoutedEventArgs e)
     {
-        _selected = (IssuesList.SelectedItem as IssueRow)?.Id;
+        if (IssuesList.SelectedItem is IssueRow row)
+            _result = new MatchIssueResult(MatchIssueChoice.Use, row.Id);
         Close();
     }
 
-    private void OnCancel(object? sender, RoutedEventArgs e)
+    private void OnCancel(object? sender, RoutedEventArgs e) => CloseWith(MatchIssueChoice.Skip);
+
+    private void OnChangeSeries(object? sender, RoutedEventArgs e) => CloseWith(MatchIssueChoice.ChangeSeries);
+
+    private void OnCancelAll(object? sender, RoutedEventArgs e) => CloseWith(MatchIssueChoice.CancelAll);
+
+    private void CloseWith(MatchIssueChoice choice)
     {
-        _selected = null;
+        _result = new MatchIssueResult(choice);
         Close();
     }
 
-    public static async Task<int?> ShowAsync(
+    //batch: one of several books being matched in a row, so Cancel becomes skipping this one and
+    //there's a way to stop the whole run; a clean number match is taken without asking
+    public static async Task<MatchIssueResult> ShowAsync(
         Visual owner, ComicVineVolume volume, List<ComicVineIssueSummary> issues, string currentNumber,
-        bool autoAcceptSingleMatch = false, string? contextLabel = null)
+        bool batch = false, string? contextLabel = null)
     {
-        if (autoAcceptSingleMatch)
+        if (batch)
         {
             var matches = FindNumberMatches(issues, currentNumber);
             if (matches.Count == 1)
-                return matches[0].Id;
+                return new MatchIssueResult(MatchIssueChoice.Use, matches[0].Id);
         }
 
         var dlg = new MatchIssueDialog();
         dlg.Populate(volume, issues, currentNumber, contextLabel);
+        if (batch)
+        {
+            dlg.CancelButton.Content = "Skip This Book";
+            dlg.CancelAllButton.IsVisible = true;
+        }
         await DialogHost.ShowAsync(owner, dlg);
-        return dlg._selected;
+        return dlg._result;
     }
 }
 

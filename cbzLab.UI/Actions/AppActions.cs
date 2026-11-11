@@ -254,6 +254,7 @@ public sealed partial class AppActions
         if (restore)
         {
             await OpenPathsAsync(drafts.Select(d => d.OriginalPath).ToList());
+            using (ViewModel.History.Begin("Restore Unsaved Changes"))
             using (ViewModel.DeferRefresh())
             {
                 foreach (var draft in drafts)
@@ -312,6 +313,25 @@ public sealed partial class AppActions
     {
         if (!ViewModel.SelectedFiles.Contains(file))
             file.ReleaseCover();
+    }
+
+    //---------------------------------------------------------------- leaving a field
+
+    //a field's box lost focus. its value joins the recent ones here rather than on each keystroke,
+    //so half-typed text never does, and "on leaving the field" validation runs.
+    //remember is false for the date box, whose text isn't one tag's value
+    public void FieldLeft(FieldViewModel field, bool remember = true)
+    {
+        //typing in the field was one undo step; whatever is typed next is another
+        ViewModel.History.Seal();
+        if (remember)
+        {
+            _recentValues.Record(field.Tag, field.Value);
+            if (!ViewModel.IsBatchMode)
+                field.DistinctValues = ViewModel.RecentPickerFor(field);
+        }
+        if (Settings.Settings.LiveValidationMode == "blur")
+            ViewModel.ValidateFieldNow(field);
     }
 
     //---------------------------------------------------------------- theme

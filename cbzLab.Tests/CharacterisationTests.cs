@@ -95,6 +95,25 @@ public class MainViewModelSortTests : IDisposable
         Assert.Equal(new[] { "e.cbz", "d.cbz", "c.cbz", "a.cbz", "b.cbz" }, vm.DisplayedFiles.Select(f => f.FileName));
     }
 
+    //a comma-decimal culture read "1.5" as 15, which put the half issue after issue 10
+    [Fact]
+    public void SeriesNumberSortReadsHalfIssuesTheSameInEveryCulture()
+    {
+        var before = System.Globalization.CultureInfo.CurrentCulture;
+        System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo("de-DE");
+        try
+        {
+            var vm = NewViewModel();
+            vm.SortMode = FileSortMode.SeriesNumber;
+            vm.AddFiles(new[] { Book("a.cbz", "Saga", "10"), Book("c.cbz", "Saga", "2"), Book("d.cbz", "Saga", "1.5") });
+            Assert.Equal(new[] { "d.cbz", "c.cbz", "a.cbz" }, vm.DisplayedFiles.Select(f => f.FileName));
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = before;
+        }
+    }
+
     [Fact]
     public void ModifiedFirstPutsDirtyFilesOnTop()
     {
@@ -182,6 +201,42 @@ public class ComicVineMappingTests
         Assert.Equal("Fiona Staples", v["Penciller"]);
         Assert.Equal("Fiona Staples", v["Inker"]);
         Assert.Equal("Fiona Staples", v["CoverArtist"]);
+    }
+
+    private const string IssueJson = """
+        {"id": 7, "name": "Chapter One", "issue_number": "1", "cover_date": "2012-03-14",
+         "description": "<p>Hi</p>", "site_detail_url": "https://cv/7",
+         "image": {"thumb_url": "t.jpg", "small_url": "s.jpg"}, "volume": {"name": "Saga"},
+         "person_credits": [{"name": "Fiona Staples", "role": "artist"}, {"name": null, "role": "x"}],
+         "character_credits": [{"name": "Alana"}], "Team_Credits": [{"name": "Wreath"}]}
+        """;
+
+    //the single-issue endpoint has answered with both a bare object and an array wrapping one
+    [Theory]
+    [InlineData("{\"status_code\": 1, \"results\": " + IssueJson + "}")]
+    [InlineData("{\"status_code\": 1, \"results\": [" + IssueJson + ", {\"id\": 8}]}")]
+    public void ReadsAnIssueWhetherItComesBareOrInAnArray(string body)
+    {
+        var detail = ComicVineService.ParseIssueDetail(body, 7);
+        Assert.Equal(7, detail.Id);
+        Assert.Equal("Chapter One", detail.Name);
+        Assert.Equal("s.jpg", detail.ImageUrl);
+        Assert.Equal("Saga", detail.VolumeName);
+        Assert.Equal(new[] { new ComicVineCredit("Fiona Staples", "artist") }, detail.PersonCredits);
+        Assert.Equal(new[] { "Alana" }, detail.Characters);
+        //property names are matched whatever their case
+        Assert.Equal(new[] { "Wreath" }, detail.Teams);
+        Assert.Empty(detail.Locations);
+    }
+
+    [Theory]
+    [InlineData("{\"status_code\": 1, \"results\": []}")]
+    [InlineData("{\"status_code\": 1, \"results\": null}")]
+    [InlineData("{\"status_code\": 1}")]
+    public void AnIssueThatIsNotThereIsReportedAsNotFound(string body)
+    {
+        var ex = Assert.Throws<ComicVineException>(() => ComicVineService.ParseIssueDetail(body, 7));
+        Assert.Equal(ComicVineErrorKind.NotFound, ex.Kind);
     }
 }
 

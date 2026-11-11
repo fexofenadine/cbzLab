@@ -16,7 +16,8 @@ public class RecentValuesService
         _path = Path.Combine(settings.ConfigDir, "recent_values.json");
         //rebuilt with Ordinal - deserialization otherwise produces a default-comparer dictionary
         _values = new Dictionary<string, List<string>>(
-            JsonFileStore.Load(_path, _log, () => new Dictionary<string, List<string>>()),
+            JsonFileStore.Load(_path, _log, StoreJson.Default.DictionaryStringListString,
+                () => new Dictionary<string, List<string>>()),
             StringComparer.Ordinal);
     }
 
@@ -40,6 +41,10 @@ public class RecentValuesService
             _values[tag] = list;
         }
 
+        //already the newest: nothing to move, and no reason to rewrite the file on every blur
+        if (list.Count > 0 && list[0] == value)
+            return;
+
         list.RemoveAll(v => string.Equals(v, value, StringComparison.OrdinalIgnoreCase));
         list.Insert(0, value);
 
@@ -48,6 +53,6 @@ public class RecentValuesService
         if (list.Count > cap)
             list.RemoveRange(cap, list.Count - cap);
 
-        JsonFileStore.Save(_path, _values, _log);
+        JsonFileStore.Save(_path, _values, StoreJson.Default.DictionaryStringListString, _log);
     }
 }

@@ -33,7 +33,7 @@ public partial class EditorPage : UserControl
         SaveButton.Content = Icons.Make(Icons.ContentSave);
         MoreButton.Content = Icons.Make(Icons.DotsVertical);
 
-        FieldList.ItemTemplate = new MobileFields(Vm, Actions.Schema, shell).Selector();
+        FieldList.ItemTemplate = new MobileFields(Actions, shell).Selector();
         Tabs.ItemsSource = SchemaService.TabOrder;
         var settings = Actions.Settings.Settings;
         var tab = settings.RememberLastTab ? settings.ActiveTab : 0;
@@ -133,6 +133,8 @@ public partial class EditorPage : UserControl
     {
         var single = Vm.IsSingleFileMode;
         var any = Vm.HasSelection;
+        MobileMenu.AddUndoItems(menu, Vm);
+        menu.Items.Add(new Separator());
         menu.Items.Add(MobileMenu.Item("Save as", Actions.SaveAsAsync, single));
         menu.Items.Add(MobileMenu.Item("Save all", Actions.SaveAllAsync, Vm.HasDirtyFiles));
         menu.Items.Add(MobileMenu.Item("Revert to saved", Actions.RevertAsync, single));
@@ -146,7 +148,7 @@ public partial class EditorPage : UserControl
         menu.Items.Add(MobileMenu.Check("Show extra fields", Vm.ShowExtraFields, () => Vm.ShowExtraFields = !Vm.ShowExtraFields));
         menu.Items.Add(new Separator());
         menu.Items.Add(MobileMenu.Item("Guess from filename", Actions.GuessFromFilename, any));
-        menu.Items.Add(MobileMenu.Item("Count pages", Actions.AutoPageCountAsync, single));
+        menu.Items.Add(MobileMenu.Item("Count pages", Actions.AutoPageCountAsync, any));
         menu.Items.Add(MobileMenu.Item("Extract publisher and year from summary", Actions.ExtractSummaryHeaderAsync, any));
         menu.Items.Add(MobileMenu.Item("Copy ComicInfo.xml", Actions.CopyXmlAsync, single));
         menu.Items.Add(MobileMenu.Item("Paste ComicInfo.xml", Actions.PasteXmlAsync, single));

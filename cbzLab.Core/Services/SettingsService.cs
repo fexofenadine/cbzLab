@@ -50,11 +50,12 @@ public class SettingsService
 
     private void SeedBundledAssets()
     {
-        var state = JsonFileStore.Load(BundledStatePath, _log, () => new Dictionary<string, string>());
+        var state = JsonFileStore.Load(BundledStatePath, _log, StoreJson.Default.DictionaryStringString,
+            () => new Dictionary<string, string>());
         var stateChanged = RefreshBundled("schema.json", SchemaPath, BundledAssetMerge.MergeSchema, state);
         stateChanged |= RefreshBundled("themes.json", ThemesJsonPath, BundledAssetMerge.MergeThemes, state);
         if (stateChanged)
-            JsonFileStore.Save(BundledStatePath, state, _log);
+            JsonFileStore.Save(BundledStatePath, state, StoreJson.Default.DictionaryStringString, _log);
 
         var bundledThemes = Path.Combine(BundledAssetsDir, "themes");
         if (Directory.Exists(bundledThemes))
@@ -117,7 +118,7 @@ public class SettingsService
                 var added = merge(user, bundled);
                 if (added.Count > 0)
                 {
-                    WriteAtomic(destination, user.ToJsonString(JsonFileStore.JsonOpts));
+                    WriteAtomic(destination, user.ToJsonString(StoreJson.Default.Options));
                     _log.Info($"Added to {name} from this release: {string.Join(", ", added)}");
                 }
             }
@@ -147,9 +148,9 @@ public class SettingsService
     }
 
     public void Load() =>
-        Settings = JsonFileStore.Load(SettingsPath, _log, () => new AppSettings());
+        Settings = JsonFileStore.Load(SettingsPath, _log, StoreJson.Default.AppSettings, () => new AppSettings());
 
-    public void Save() => JsonFileStore.Save(SettingsPath, Settings, _log);
+    public void Save() => JsonFileStore.Save(SettingsPath, Settings, StoreJson.Default.AppSettings, _log);
 
     //neither belongs in a backup: logs/ is diagnostic output, and autosave/ holds crash-recovery
     //drafts tied to paths on this machine - restored elsewhere they'd prompt about files that

@@ -1,6 +1,6 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.IO.Compression;
-using System.Text.RegularExpressions;
 using SharpCompress.Readers;
 
 namespace cbzLab.Services;
@@ -13,7 +13,7 @@ public record ArchiveReadResult(byte[]? ComicInfoXml, int ImagePageCount, Archiv
 /// <summary>All archive i/o. CBZ read/written natively; CBR read via SharpCompress, written via an external tool. Saves are temp-file-then-atomic-replace.</summary>
 public class ArchiveService
 {
-    private const string ComicInfoName = "ComicInfo.xml";
+    private const string ComicInfoName = ArchiveEntries.ComicInfoName;
 
     private readonly SettingsService _settings;
     private readonly SchemaService _schema;
@@ -85,17 +85,13 @@ public class ArchiveService
     private static byte[] ReadAll(ZipArchiveEntry entry)
     {
         using var stream = entry.Open();
-        using var ms = new MemoryStream();
-        stream.CopyTo(ms);
-        return ms.ToArray();
+        return ArchiveEntries.ReadAll(stream);
     }
 
     internal ArchiveReadResult ReadStreaming(string path, bool includeCover, ArchiveFormat format)
     {
-        var wantLast = _settings.Settings.CoverSource == "last";
         byte[]? xml = null;
         var imageKeys = new List<string>();
-        var pages = 0;
 
         using (var stream = ArchiveStorage.Current.OpenRead(path))
         using (var reader = ReaderFactory.OpenReader(stream))
@@ -108,27 +104,18 @@ public class ArchiveService
 
                 var name = Path.GetFileName(entry.Key.Replace('\\', '/'));
                 if (xml is null && name.Equals(ComicInfoName, StringComparison.OrdinalIgnoreCase))
-                {
-                    using var es = reader.OpenEntryStream();
-                    using var ms = new MemoryStream();
-                    es.CopyTo(ms);
-                    xml = ms.ToArray();
-                }
+                    xml = ArchiveEntries.ReadCurrent(reader);
                 else if (IsImage(name) && !IsJunkEntry(entry.Key))
-                {
-                    pages++;
                     imageKeys.Add(entry.Key);
-                }
             }
         }
 
+        //the cover needs a second pass: which entry it is isn't known until every name has been
+        //seen, and a sequential reader can't seek back to it
+        var pages = imageKeys.Count;
         byte[]? cover = null;
-        if (includeCover && imageKeys.Count > 0)
-        {
-            imageKeys.Sort(NaturalCompare);
-            var coverKey = wantLast ? imageKeys[^1] : imageKeys[0];
-            cover = ExtractSingleEntry(path, coverKey);
-        }
+        if (includeCover && pages > 0)
+            cover = ExtractSingleEntry(path, PickCover(imageKeys, key => key));
 
         return new ArchiveReadResult(xml, pages, format, cover);
     }
@@ -175,7 +162,8 @@ public class ArchiveService
     public byte[]? ReadCoverBytes(string path)
     {
         //same quick central-directory read as Read(), with the same full-scan fallback
-        if (SniffFormat(path) == ArchiveFormat.Cbz)
+        var format = SniffFormat(path);
+        if (format == ArchiveFormat.Cbz)
         {
             try
             {
@@ -187,58 +175,62 @@ public class ArchiveService
             }
         }
 
-        var wantLast = _settings.Settings.CoverSource == "last";
-        var imageKeys = new List<string>();
-
         try
         {
-            using var stream = ArchiveStorage.Current.OpenRead(path);
-            using var reader = ReaderFactory.OpenReader(stream);
-            while (reader.MoveToNextEntry())
-            {
-                var entry = reader.Entry;
-                if (entry.IsDirectory || entry.Key is null)
-                    continue;
-                if (IsImage(Path.GetFileName(entry.Key.Replace('\\', '/'))) && !IsJunkEntry(entry.Key))
-                    imageKeys.Add(entry.Key);
-            }
+            return ReadStreaming(path, includeCover: true, format).CoverBytes;
         }
         catch (Exception ex)
         {
             _log.Warning($"Could not scan '{path}' for a cover: {ex.Message}");
             return null;
         }
-
-        if (imageKeys.Count == 0)
-            return null;
-
-        imageKeys.Sort(NaturalCompare);
-        return ExtractSingleEntry(path, wantLast ? imageKeys[^1] : imageKeys[0]);
     }
 
     //compares digit runs as numbers so "2.jpg" sorts before "10.jpg". Shared with
     //CombineService - page order must be derived the same way in both places.
+    //walks both names as alternating text and digit runs without allocating: every sort of pages
+    //or files runs this, tens of thousands of times on a big import
     internal static int NaturalCompare(string a, string b)
     {
-        var partsA = Regex.Split(a, @"(\d+)");
-        var partsB = Regex.Split(b, @"(\d+)");
-        var len = Math.Min(partsA.Length, partsB.Length);
-        for (var i = 0; i < len; i++)
+        var ia = 0;
+        var ib = 0;
+        while (true)
         {
-            var pa = partsA[i];
-            var pb = partsB[i];
-            var bothNumeric = pa.Length > 0 && pb.Length > 0 && char.IsDigit(pa[0]) && char.IsDigit(pb[0]);
-            var cmp = bothNumeric && long.TryParse(pa, out var na) && long.TryParse(pb, out var nb)
-                ? na.CompareTo(nb)
-                : string.CompareOrdinal(pa, pb);
+            var textA = RunEnd(a, ia, digits: false);
+            var textB = RunEnd(b, ib, digits: false);
+            var cmp = a.AsSpan(ia, textA - ia).SequenceCompareTo(b.AsSpan(ib, textB - ib));
             if (cmp != 0)
                 return cmp;
+            ia = textA;
+            ib = textB;
+
+            //a name with runs left over sorts after one that has ended
+            var endedA = ia >= a.Length;
+            var endedB = ib >= b.Length;
+            if (endedA || endedB)
+                return (endedA ? 0 : 1) - (endedB ? 0 : 1);
+
+            var digitsA = a.AsSpan(ia, RunEnd(a, ia, digits: true) - ia);
+            var digitsB = b.AsSpan(ib, RunEnd(b, ib, digits: true) - ib);
+            //a run too long for a long, or in another script's digits, falls back to text order
+            cmp = long.TryParse(digitsA, NumberStyles.None, CultureInfo.InvariantCulture, out var na)
+                  && long.TryParse(digitsB, NumberStyles.None, CultureInfo.InvariantCulture, out var nb)
+                ? na.CompareTo(nb)
+                : digitsA.SequenceCompareTo(digitsB);
+            if (cmp != 0)
+                return cmp;
+            ia += digitsA.Length;
+            ib += digitsB.Length;
         }
-        return partsA.Length.CompareTo(partsB.Length);
     }
 
-    //only used for "last page as cover" - needs its own pass since a
-    //sequential reader can't seek backward
+    private static int RunEnd(string s, int start, bool digits)
+    {
+        while (start < s.Length && char.IsDigit(s[start]) == digits)
+            start++;
+        return start;
+    }
+
     private byte[]? ExtractSingleEntry(string path, string key)
     {
         try
@@ -247,12 +239,8 @@ public class ArchiveService
             using var reader = ReaderFactory.OpenReader(stream);
             while (reader.MoveToNextEntry())
             {
-                if (reader.Entry.IsDirectory || reader.Entry.Key != key)
-                    continue;
-                using var es = reader.OpenEntryStream();
-                using var ms = new MemoryStream();
-                es.CopyTo(ms);
-                return ms.ToArray();
+                if (!reader.Entry.IsDirectory && reader.Entry.Key == key)
+                    return ArchiveEntries.ReadCurrent(reader);
             }
         }
         catch (Exception ex)
@@ -331,8 +319,7 @@ public class ArchiveService
     //rebuilds as a zip with the new xml, then atomically replaces the destination
     private void SaveAsCbz(string sourcePath, string destPath, byte[] xml)
     {
-        //a document has no folder to put a sibling in, so its temp file goes to the temp folder
-        var tempPath = ArchiveStorage.Current.IsFile(destPath) ? TempSibling(destPath) : TempAnywhere();
+        var tempPath = ArchiveEntries.TempFor(destPath);
         try
         {
             using (var srcStream = ArchiveStorage.Current.OpenRead(sourcePath))
@@ -347,7 +334,7 @@ public class ArchiveService
                         continue;
 
                     var key = entry.Key.Replace('\\', '/');
-                    if (Path.GetFileName(key).Equals(ComicInfoName, StringComparison.OrdinalIgnoreCase))
+                    if (ArchiveEntries.IsComicInfo(key))
                         continue;
 
                     //images are already compressed; don't waste time deflating them
@@ -367,7 +354,7 @@ public class ArchiveService
         }
         finally
         {
-            TryDelete(tempPath);
+            ArchiveEntries.TryDelete(tempPath, _log);
         }
     }
 
@@ -416,7 +403,7 @@ public class ArchiveService
         }
         finally
         {
-            TryDeleteDir(workDir);
+            ArchiveEntries.TryDeleteDir(workDir, _log);
         }
     }
 
@@ -432,15 +419,11 @@ public class ArchiveService
                 continue;
 
             var key = (reader.Entry.Key ?? "").Replace('\\', '/');
-            var name = Path.GetFileName(key);
-            if (name.Length == 0)
-                continue;
-            if (name.Equals(ComicInfoName, StringComparison.OrdinalIgnoreCase))
+            if (Path.GetFileName(key).Length == 0 || ArchiveEntries.IsComicInfo(key))
                 continue;
 
-            //entry paths are attacker-controlled; anything escaping the
-            //extraction root is skipped (zip-slip, GHSA-6c8g-7p36-r338)
-            var target = ResolveWithinRoot(root, key);
+            //anything escaping the extraction root is skipped (zip-slip, GHSA-6c8g-7p36-r338)
+            var target = ArchiveEntries.ResolveWithinRoot(root, key, _log);
             if (target is null)
                 continue;
 
@@ -448,23 +431,6 @@ public class ArchiveService
             using var es = reader.OpenEntryStream();
             using var fs = File.Create(target);
             es.CopyTo(fs);
-        }
-    }
-
-    private string? ResolveWithinRoot(string root, string key)
-    {
-        try
-        {
-            var target = Path.GetFullPath(Path.Combine(root, key.TrimStart('/')));
-            if (target.StartsWith(root, PathComparison.Comparison))
-                return target;
-            _log.Warning($"Skipped archive entry escaping the extraction root: '{key}'");
-            return null;
-        }
-        catch (Exception ex)
-        {
-            _log.Warning($"Skipped unresolvable archive entry '{key}': {ex.Message}");
-            return null;
         }
     }
 
@@ -599,27 +565,5 @@ public class ArchiveService
                 "Note: only the real 'rar' tool can create RAR archives - 7-Zip can read " +
                 "but not write them. Consider saving as CBZ instead.");
         }
-    }
-
-    //---------------------------------------------------------------- helpers
-
-    private static string TempAnywhere() => Path.Combine(Path.GetTempPath(), "cbzlab-" + Guid.NewGuid().ToString("N") + ".tmp");
-
-    private static string TempSibling(string path)
-    {
-        var dir = Path.GetDirectoryName(Path.GetFullPath(path)) ?? ".";
-        return Path.Combine(dir, "." + Path.GetFileName(path) + ".cbzlab-tmp");
-    }
-
-    private void TryDelete(string path)
-    {
-        try { if (File.Exists(path)) File.Delete(path); }
-        catch (Exception ex) { _log.Warning($"Could not delete temp file '{path}': {ex.Message}"); }
-    }
-
-    private void TryDeleteDir(string path)
-    {
-        try { if (Directory.Exists(path)) Directory.Delete(path, recursive: true); }
-        catch (Exception ex) { _log.Warning($"Could not delete temp directory '{path}': {ex.Message}"); }
     }
 }

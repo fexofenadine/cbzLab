@@ -27,7 +27,7 @@ public class AutosaveService
         Path.Combine(_dir, Convert.ToHexString(SHA1.HashData(Encoding.UTF8.GetBytes(PathComparison.Key(originalPath)))) + ".json");
 
     public void Save(string originalPath, Dictionary<string, string> values) =>
-        JsonFileStore.Save(PathFor(originalPath), new AutosaveDraft(originalPath, values), _log);
+        JsonFileStore.Save(PathFor(originalPath), new AutosaveDraft(originalPath, values), StoreJson.Default.AutosaveDraft, _log);
 
     //never throws: these run right after a successful save, and a draft locked by a virus scanner
     //or indexer mustn't turn that save into a reported failure
@@ -64,7 +64,7 @@ public class AutosaveService
         var result = new List<AutosaveDraft>();
         foreach (var file in Directory.GetFiles(_dir, "*.json"))
         {
-            var draft = JsonFileStore.Load<AutosaveDraft?>(file, _log, () => null);
+            var draft = JsonFileStore.Load<AutosaveDraft?>(file, _log, StoreJson.Default.AutosaveDraft!, () => null);
             if (draft is not null)
                 result.Add(draft);
         }

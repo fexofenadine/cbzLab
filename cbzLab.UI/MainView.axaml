@@ -60,6 +60,12 @@
                     <Separator />
                     <MenuItem Header="Quit" Click="OnQuit" HotKey="Ctrl+Q" />
                 </MenuItem>
+                <!--the gestures are shown here but handled in OnRootGridKeyDown, so that while the
+                    cursor is in a field ctrl+z stays that box's own undo of typing-->
+                <MenuItem Header="_Edit" SubmenuOpened="OnEditMenuOpened">
+                    <MenuItem x:Name="UndoItem" Header="Undo" Click="OnUndo" InputGesture="Ctrl+Z" />
+                    <MenuItem x:Name="RedoItem" Header="Redo" Click="OnRedo" InputGesture="Ctrl+Y" />
+                </MenuItem>
                 <MenuItem Header="_View">
                     <MenuItem Header="Grid View" ToggleType="CheckBox"
                               IsChecked="{Binding IsGridViewActive, Mode=OneWay}" Click="OnToggleGridView" />
@@ -87,6 +93,7 @@
                     <MenuItem Header="Paste ComicInfo.xml" Click="OnPasteXml" />
                     <Separator />
                     <MenuItem Header="Find &amp; Replace…" Click="OnFindReplace" />
+                    <MenuItem x:Name="RenameFilesItem" Header="Rename Files from Metadata…" Click="OnRenameFiles" />
                     <MenuItem Header="Validate All Open Files…" Click="OnValidateAll" />
                     <Separator />
                     <MenuItem Header="Combine Archives…" Click="OnCombineArchives" />

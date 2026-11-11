@@ -10,7 +10,7 @@ namespace cbzLab.ViewModels;
 public class ComicFileViewModel : ViewModelBase
 {
     public string Path { get; private set; }
-    public string FileName => cbzLab.Services.ArchiveStorage.Current.Name(Path);
+    public string FileName => ArchiveStorage.Current.Name(Path);
 
     //read straight from disk on each access rather than cached, so a save (which rewrites
     //the archive) is reflected immediately without needing its own invalidation path
@@ -20,7 +20,7 @@ public class ComicFileViewModel : ViewModelBase
         {
             try
             {
-                var bytes = cbzLab.Services.ArchiveStorage.Current.Length(Path) ?? 0;
+                var bytes = ArchiveStorage.Current.Length(Path) ?? 0;
                 return bytes switch
                 {
                     < 1024 => $"{bytes} B",
@@ -41,7 +41,7 @@ public class ComicFileViewModel : ViewModelBase
         {
             try
             {
-                return cbzLab.Services.ArchiveStorage.Current.Modified(Path)?.ToString("g") ?? "";
+                return ArchiveStorage.Current.Modified(Path)?.ToString("g") ?? "";
             }
             catch
             {
@@ -189,26 +189,37 @@ public class ComicFileViewModel : ViewModelBase
         previous?.Dispose();
     }
 
+    //a field's value changed: the book, the tag, the value before and the value after ("" for none).
+    //what undo is built from. not raised by SeedValue or ReloadFrom, which aren't edits
+    public event Action<ComicFileViewModel, string, string, string>? ValueChanged;
+
+    //the book was reloaded from disk, so edits made before this can no longer be undone
+    public event Action<ComicFileViewModel>? Reloaded;
+
     //empty values are stored as removals
     public void SetValue(string tag, string value)
     {
+        var before = GetValue(tag);
         if (string.IsNullOrEmpty(value))
             CurrentValues.Remove(tag);
         else
             CurrentValues[tag] = value;
 
         AfterValueChanged(tag);
+        ValueChanged?.Invoke(this, tag, before, value ?? "");
     }
 
     //reverts one field to its last-saved value, leaving other pending edits alone
     public void RevertField(string tag)
     {
+        var before = GetValue(tag);
         if (SavedValues.TryGetValue(tag, out var saved))
             CurrentValues[tag] = saved;
         else
             CurrentValues.Remove(tag);
 
         AfterValueChanged(tag);
+        ValueChanged?.Invoke(this, tag, before, GetValue(tag));
     }
 
     //writes to both saved and current values, for programmatic fills that shouldn't count as an edit
@@ -228,8 +239,16 @@ public class ComicFileViewModel : ViewModelBase
         AfterValueChanged(tag);
     }
 
-    /// <summary>Bumped on every change to CurrentValues, so autosave can skip files it already has a current draft of.</summary>
-    public int EditVersion { get; private set; }
+    /// <summary>
+    /// Bumped on every change to CurrentValues, so autosave can skip files it already has a current
+    /// draft of. It notifies, which is what tells grid view's cells to read their value again.
+    /// </summary>
+    public int EditVersion
+    {
+        get => _editVersion;
+        private set => SetProperty(ref _editVersion, value);
+    }
+    private int _editVersion;
 
     //shared tail for every single-field mutation above
     private void AfterValueChanged(string tag)
@@ -246,10 +265,32 @@ public class ComicFileViewModel : ViewModelBase
     //used by Paste XML
     public void ReplaceCurrentValues(Dictionary<string, string> values)
     {
+        var before = CurrentValues;
         CurrentValues = new Dictionary<string, string>(values, StringComparer.Ordinal);
         EditVersion++;
         RecomputeDirty();
         UpdateSubtitle();
+
+        if (ValueChanged is null)
+            return;
+        foreach (var tag in before.Keys.Union(CurrentValues.Keys).ToList())
+        {
+            var was = before.TryGetValue(tag, out var b) ? b : "";
+            var now = GetValue(tag);
+            if (!string.Equals(was, now, StringComparison.Ordinal))
+                ValueChanged.Invoke(this, tag, was, now);
+        }
+    }
+
+    //the file was renamed on disk; its contents and edits are untouched
+    public void Rename(string newPath)
+    {
+        if (newPath == Path)
+            return;
+        Path = newPath;
+        OnPropertyChanged(nameof(Path));
+        OnPropertyChanged(nameof(FileName));
+        OnPropertyChanged(nameof(ModifiedDisplay));
     }
 
     //marks the file clean after a successful save
@@ -282,6 +323,7 @@ public class ComicFileViewModel : ViewModelBase
         EditVersion++;
         RecomputeDirty();
         UpdateSubtitle();
+        Reloaded?.Invoke(this);
     }
 
     //union of saved+current keys, with cleared fields as empty strings so their elements are removed

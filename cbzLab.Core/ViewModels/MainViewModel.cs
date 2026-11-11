@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
 using System.Text.RegularExpressions;
 using Avalonia;
 using cbzLab.Services;
@@ -267,6 +268,9 @@ public class MainViewModel : ViewModelBase
             var day = Find("Day");
             year.MonthCompanion = month;
             year.DayCompanion = day;
+            foreach (var part in new[] { month, day })
+                if (part is not null)
+                    _dateRowOf[part.Tag] = year;
             if (month is not null)
                 month.PropertyChanged += (_, e) =>
                 {
@@ -295,7 +299,10 @@ public class MainViewModel : ViewModelBase
 
     private void OnFieldEdited(FieldViewModel field, string value)
     {
-        //applies to every selected file immediately - "edit to override all" in batch mode
+        //applies to every selected file immediately - "edit to override all" in batch mode.
+        //typing grows one undo step until the field is left; the date box's three fields share one
+        var row = _dateRowOf.TryGetValue(field.Tag, out var primary) ? primary : field;
+        using (History.Begin($"Edit {row.Label}", mergeKey: row.Tag))
         using (DeferRefresh())
         {
             foreach (var file in SelectedFiles)
@@ -320,6 +327,7 @@ public class MainViewModel : ViewModelBase
     {
         if (IsBatchMode || CurrentFile is null)
             return;
+        using var step = History.Begin($"Revert {field.Label}");
         CurrentFile.RevertField(field.Tag);
         var v = CurrentFile.GetValue(field.Tag);
         field.SetValueSilent(v, mixed: false);
@@ -354,6 +362,7 @@ public class MainViewModel : ViewModelBase
 
     public void SetSelection(IEnumerable<ComicFileViewModel> files)
     {
+        History.Seal();
         SelectedFiles = files.ToList();
         OnPropertyChanged(nameof(IsBatchMode));
         OnPropertyChanged(nameof(HasSelection));
@@ -491,13 +500,7 @@ public class MainViewModel : ViewModelBase
 
     //---------------------------------------------------------------- files
 
-    public void AddFile(ComicFileViewModel file)
-    {
-        file.PropertyChanged += FileOnPropertyChanged;
-        OpenFiles.Add(file);
-        RefreshDisplayedFiles();
-        UpdateStatus();
-    }
+    public void AddFile(ComicFileViewModel file) => AddFiles(new[] { file });
 
     /// <summary>
     /// Adds many files with a single refresh at the end. Calling <see cref="AddFile"/> in a loop
@@ -510,6 +513,8 @@ public class MainViewModel : ViewModelBase
         foreach (var file in files)
         {
             file.PropertyChanged += FileOnPropertyChanged;
+            file.ValueChanged += History.Record;
+            file.Reloaded += OnFileReloaded;
             OpenFiles.Add(file);
             added++;
         }
@@ -522,13 +527,50 @@ public class MainViewModel : ViewModelBase
 
     public void RemoveFiles(IEnumerable<ComicFileViewModel> files)
     {
-        foreach (var f in files.ToList())
+        var removed = files.ToList();
+        foreach (var f in removed)
         {
             f.PropertyChanged -= FileOnPropertyChanged;
+            f.ValueChanged -= History.Record;
+            f.Reloaded -= OnFileReloaded;
             OpenFiles.Remove(f);
+            //a selected book's cover outlives its row; without this its pixels waited on a finalizer
+            f.ReleaseCover();
         }
+        History.Forget(removed);
         RefreshDisplayedFiles();
         UpdateStatus();
+    }
+
+    private void OnFileReloaded(ComicFileViewModel file) => History.Forget(new[] { file });
+
+    //a book's name on disk changed: it may belong elsewhere in a list sorted or filtered by name
+    public void FileRenamed() => RefreshDisplayedFiles();
+
+    //---------------------------------------------------------------- undo and redo
+
+    public UndoHistory History { get; } = new();
+
+    //Month and Day belong to Year's row, so an edit to any of the three is one "Edit Year" step
+    private readonly Dictionary<string, FieldViewModel> _dateRowOf = new(StringComparer.Ordinal);
+
+    public void Undo() => Step(History.Undo, "Undid", "Nothing to undo");
+
+    public void Redo() => Step(History.Redo, "Redid", "Nothing to redo");
+
+    private void Step(Func<string?> move, string done, string nothing)
+    {
+        string? label;
+        //a step can touch every open book; the list and status refresh once, after all of them
+        using (DeferRefresh())
+            label = move();
+        if (label is null)
+        {
+            StatusText = nothing;
+            return;
+        }
+        RefreshEditor();
+        StatusText = $"{done}: {label}";
     }
 
     public ComicFileViewModel? FindByPath(string path) =>
@@ -682,7 +724,10 @@ public class MainViewModel : ViewModelBase
     private static double NumberSortKey(string number)
     {
         var match = Regex.Match(number.Trim(), @"^-?\d+(\.\d+)?");
-        return match.Success && double.TryParse(match.Value, out var n) ? n : double.MaxValue;
+        //invariant: under a comma-decimal culture "1.5" read as 15 and sorted after issue 10
+        return match.Success && double.TryParse(match.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var n)
+            ? n
+            : double.MaxValue;
     }
 
     public byte[] BuildXmlFor(ComicFileViewModel file) =>

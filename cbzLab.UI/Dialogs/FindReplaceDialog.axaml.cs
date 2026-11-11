@@ -10,14 +10,14 @@ using cbzLab.ViewModels;
 
 namespace cbzLab.Dialogs;
 
-//operates directly on the ComicFileViewModel instances passed in - the caller (MainView)
-//is responsible for calling RefreshEditor() afterward so the on-screen field picks up any
-//change to the file currently open in the editor (SetValue alone doesn't push to the ui)
+//works out the edits and asks before any are made; the caller applies the ones it's handed back,
+//as one undo step, and refreshes the editor afterwards
 public partial class FindReplaceDialog : DialogBase
 {
-    private readonly List<string> _tags = new();
+    //null stands for "All fields", the first entry
+    private readonly List<string?> _tags = new();
     private List<ComicFileViewModel> _scopeFiles = new();
-    private int _filesChanged;
+    private List<FindReplace.Edit>? _edits;
 
     public FindReplaceDialog()
     {
@@ -31,14 +31,18 @@ public partial class FindReplaceDialog : DialogBase
             ? $"Applies to {scopeFiles.Count} selected file(s)."
             : $"Applies to all {scopeFiles.Count} open file(s) (nothing selected).";
 
+        _tags.Add(null);
+        FieldCombo.Items.Add("All fields");
         foreach (var field in schema.Fields)
         {
             _tags.Add(field.Tag);
             FieldCombo.Items.Add(field.Label);
         }
-        if (FieldCombo.Items.Count > 0)
-            FieldCombo.SelectedIndex = 0;
+        //the first real field, as before: every field at once is a choice to make, not a default
+        FieldCombo.SelectedIndex = FieldCombo.Items.Count > 1 ? 1 : 0;
     }
+
+    private void OnRegexToggled(object? sender, RoutedEventArgs e) => RegexHint.IsVisible = RegexCheck.IsChecked == true;
 
     private async void OnReplace(object? sender, RoutedEventArgs e)
     {
@@ -53,42 +57,51 @@ public partial class FindReplaceDialog : DialogBase
 
         var tag = _tags[FieldCombo.SelectedIndex];
         var replace = ReplaceBox.Text ?? "";
-        var comparison = CaseSensitiveCheck.IsChecked == true
-            ? StringComparison.Ordinal
-            : StringComparison.OrdinalIgnoreCase;
+        List<FindReplace.Edit> edits;
+        try
+        {
+            edits = FindReplace.Plan(_scopeFiles, tag, new FindReplace.Options(
+                find, replace, CaseSensitiveCheck.IsChecked == true, RegexCheck.IsChecked == true));
+        }
+        catch (ArgumentException ex)
+        {
+            StatusText.Text = ex.Message;
+            return;
+        }
 
-        var toChange = _scopeFiles
-            .Where(f => f.GetValue(tag).Contains(find, comparison))
-            .ToList();
-
-        if (toChange.Count == 0)
+        if (edits.Count == 0)
         {
             StatusText.Text = "No matches found.";
             return;
         }
 
+        var books = edits.Select(x => x.File).Distinct().Count();
+        var where = tag is null
+            ? $"in {edits.Count} field value(s) across {books} file(s)"
+            : $"in the {FieldCombo.SelectedItem} field of {books} file(s)";
         var confirmed = await ConfirmDialog.ShowAsync(this, "Replace",
-            $"Replace \"{find}\" with \"{replace}\" in the {FieldCombo.SelectedItem} field of {toChange.Count} file(s)?",
+            $"Replace \"{find}\" with \"{replace}\" {where}?\n\nFor example, in {edits[0].File.FileName}:\n"
+            + $"\"{Shorten(edits[0].File.GetValue(edits[0].Tag))}\"\nbecomes\n\"{Shorten(edits[0].NewValue)}\"",
             "Replace");
         if (!confirmed)
             return;
 
-        foreach (var file in toChange)
-            file.SetValue(tag, file.GetValue(tag).Replace(find, replace, comparison));
-
-        _filesChanged = toChange.Count;
+        _edits = edits;
         Close();
     }
 
+    private static string Shorten(string s) => s.Length <= 120 ? s : s[..120] + "…";
+
     private void OnCancel(object? sender, RoutedEventArgs e) => Close();
 
-    public static async Task<int> ShowAsync(
+    //the confirmed edits, not yet applied; null if cancelled
+    public static async Task<List<FindReplace.Edit>?> ShowAsync(
         Visual owner, SchemaService schema, List<ComicFileViewModel> selectedFiles, List<ComicFileViewModel> allOpenFiles)
     {
         var scopeIsSelection = selectedFiles.Count > 0;
         var dlg = new FindReplaceDialog();
         dlg.Populate(scopeIsSelection ? selectedFiles : allOpenFiles, schema, scopeIsSelection);
         await DialogHost.ShowAsync(owner, dlg);
-        return dlg._filesChanged;
+        return dlg._edits;
     }
 }

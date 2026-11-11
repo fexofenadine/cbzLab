@@ -26,13 +26,15 @@ public partial class ReviewComicVineBatchDialog : DialogBase
 
     private readonly List<(string Tag, CheckBox Box)> _checks = new();
     private bool _applied;
+    private bool _changeSeries;
 
     public ReviewComicVineBatchDialog()
     {
         InitializeComponent();
     }
 
-    private void Populate(Dictionary<ComicFileViewModel, Dictionary<string, string>> perFileProposed, SchemaService schema)
+    private void Populate(Dictionary<ComicFileViewModel, Dictionary<string, string>> perFileProposed, SchemaService schema,
+        string matchedTo)
     {
         var allTags = perFileProposed.Values.SelectMany(d => d.Keys).Distinct().ToList();
 
@@ -51,7 +53,8 @@ public partial class ReviewComicVineBatchDialog : DialogBase
         //shared/structural fields first, per-issue fields after
         groups = groups.OrderBy(g => ComicVineSharedTags.Contains(g.Tag) ? 0 : 1).ToList();
 
-        HeaderText.Text = $"ComicVine proposes changes across {perFileProposed.Count} file"
+        HeaderText.Text = $"Matched to {matchedTo}.\n"
+            + $"ComicVine proposes changes across {perFileProposed.Count} file"
             + $"{(perFileProposed.Count == 1 ? "" : "s")}. Fields that differ across files are unticked "
             + "and flagged - review before including them.";
 
@@ -129,8 +132,17 @@ public partial class ReviewComicVineBatchDialog : DialogBase
         Close();
     }
 
-    public static async Task<List<string>?> ShowAsync(
-        Visual owner, Dictionary<ComicFileViewModel, Dictionary<string, string>> perFileProposed, SchemaService schema)
+    private void OnChangeSeries(object? sender, RoutedEventArgs e)
+    {
+        _changeSeries = true;
+        Close();
+    }
+
+    //matchedTo names the series the values came from: in a batch where every book matched an issue
+    //by its number, this is the first the user sees of which series was used
+    public static async Task<ComicVineReview> ShowAsync(
+        Visual owner, Dictionary<ComicFileViewModel, Dictionary<string, string>> perFileProposed, SchemaService schema,
+        string matchedTo)
     {
         var anyChanges = perFileProposed.Values.SelectMany(d => d.Keys).Any(tag =>
             perFileProposed.Any(kv => kv.Value.TryGetValue(tag, out var v)
@@ -138,17 +150,20 @@ public partial class ReviewComicVineBatchDialog : DialogBase
 
         if (!anyChanges)
         {
-            await MessageDialog.ShowAsync(owner, "Nothing to apply", "Every matched field already matches these files.");
-            return null;
+            await MessageDialog.ShowAsync(owner, "Nothing to apply",
+                $"Every matched field already matches these files (matched to {matchedTo}).");
+            return new ComicVineReview(null);
         }
 
         var dlg = new ReviewComicVineBatchDialog();
-        dlg.Populate(perFileProposed, schema);
+        dlg.Populate(perFileProposed, schema, matchedTo);
         await DialogHost.ShowAsync(owner, dlg);
 
+        if (dlg._changeSeries)
+            return new ComicVineReview(null, ChangeSeries: true);
         if (!dlg._applied)
-            return null;
+            return new ComicVineReview(null);
 
-        return dlg._checks.Where(c => c.Box.IsChecked == true).Select(c => c.Tag).ToList();
+        return new ComicVineReview(dlg._checks.Where(c => c.Box.IsChecked == true).Select(c => c.Tag).ToList());
     }
 }

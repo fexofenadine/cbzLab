@@ -38,7 +38,7 @@
                 </StackPanel>
                 <StackPanel x:Name="FontFamilyPanel" Spacing="4">
                     <TextBlock Text="Editor font" />
-                    <ComboBox x:Name="FontFamilyCombo" Width="200" HorizontalAlignment="Left" />
+                    <ComboBox x:Name="FontFamilyCombo" Width="260" HorizontalAlignment="Left" MaxDropDownHeight="320" />
                 </StackPanel>
                 <StackPanel Spacing="4">
                     <TextBlock Text="Cover image source" />

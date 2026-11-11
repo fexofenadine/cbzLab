@@ -101,7 +101,8 @@ public static class BundledAssetMerge
                         if (key != "fields")
                             target[key] = value?.DeepClone();
                     target["fields"] = new JsonArray();
-                    userSections.Add(target);
+                    //as a node: the generic overload is the serialising one, which a trimmed build lacks
+                    userSections.Add((JsonNode)target);
                 }
                 if (target["fields"] is not JsonArray targetFields)
                 {

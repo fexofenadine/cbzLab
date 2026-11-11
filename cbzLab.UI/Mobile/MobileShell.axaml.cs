@@ -188,7 +188,6 @@ public partial class MobileShell : UserControl
             PaneDivider.IsVisible = false;
         }
         Editor.SetExpanded(expanded);
-        Library.SetExpanded(expanded);
     }
 
     //closes books (asking first about unsaved edits) and offers them back for a few seconds;

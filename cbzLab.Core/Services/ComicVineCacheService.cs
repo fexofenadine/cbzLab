@@ -30,7 +30,7 @@ public class ComicVineCacheService
         _log = log;
         _utcNow = utcNow ?? (() => DateTime.UtcNow);
         _path = Path.Combine(settings.ConfigDir, "comicvine_cache.json");
-        _data = JsonFileStore.Load(_path, _log, () => new CacheData());
+        _data = JsonFileStore.Load(_path, _log, StoreJson.Default.CacheData, () => new CacheData());
 
         //caches written before entries were timestamped: issue details are kept and treated as
         //fetched now, since they rarely change; searches and issue lists are left unstamped, which
@@ -143,11 +143,12 @@ public class ComicVineCacheService
         }
     }
 
-    private void Save() => JsonFileStore.Save(_path, _data, _log);
+    private void Save() => JsonFileStore.Save(_path, _data, StoreJson.Default.CacheData, _log);
 
     //---------------------------------------------------------------- storage shape
 
-    private class CacheData
+    //internal, not private, so its serialiser can be generated (StoreJson)
+    internal class CacheData
     {
         public Dictionary<string, ComicVineVolume> SeriesToVolume { get; set; } = new();
         public Dictionary<string, List<ComicVineVolume>> SearchResults { get; set; } = new();

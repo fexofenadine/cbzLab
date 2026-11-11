@@ -3,7 +3,7 @@
                 xmlns:dlg="using:cbzLab.Dialogs"
                 x:Class="cbzLab.Dialogs.FindReplaceDialog"
                 Title="Find &amp; Replace"
-                DialogWidth="420">
+                DialogWidth="440">
 
     <Grid RowDefinitions="*,Auto" Margin="20,12,20,20">
       <ScrollViewer Grid.Row="0">
@@ -26,6 +26,9 @@
         </StackPanel>
 
         <CheckBox x:Name="CaseSensitiveCheck" Content="Case sensitive" />
+        <CheckBox x:Name="RegexCheck" Content="Regular expression" Click="OnRegexToggled" />
+        <TextBlock x:Name="RegexHint" IsVisible="False" FontSize="12" Opacity="0.7" TextWrapping="Wrap" Margin="24,-6,0,0"
+                   Text="Find is a .NET regular expression. In Replace with, $1 is the first bracketed group and $0 the whole match." />
 
         <TextBlock x:Name="StatusText" FontSize="12" Opacity="0.85" TextWrapping="Wrap" />
 

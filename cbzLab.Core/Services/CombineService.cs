@@ -25,8 +25,6 @@ public record CombineOutcome(string OutputPath, int TotalPages, int SourceCount)
 /// </summary>
 public class CombineService
 {
-    private const string ComicInfoName = "ComicInfo.xml";
-
     private readonly LogService _log;
     private readonly HashSet<string> _imageExtensions;
 
@@ -97,7 +95,7 @@ public class CombineService
         }
         finally
         {
-            TryDeleteDir(workDir);
+            ArchiveEntries.TryDeleteDir(workDir, _log);
         }
     }
 
@@ -123,24 +121,19 @@ public class CombineService
             if (name.Length == 0)
                 continue;
 
-            if (name.Equals(ComicInfoName, StringComparison.OrdinalIgnoreCase))
+            if (ArchiveEntries.IsComicInfo(key))
             {
                 //only the first book's metadata survives the join; the rest is dropped
-                if (!wantXml || xml is not null)
-                    continue;
-                using var xmlStream = reader.OpenEntryStream();
-                using var buffer = new MemoryStream();
-                xmlStream.CopyTo(buffer);
-                xml = buffer.ToArray();
+                if (wantXml && xml is null)
+                    xml = ArchiveEntries.ReadCurrent(reader);
                 continue;
             }
 
             if (!IsImage(name) || ArchiveService.IsJunkEntry(key))
                 continue;
 
-            //entry paths are attacker-controlled; anything escaping the extraction root is
-            //skipped (zip-slip, same guard as ArchiveService.ExtractAll)
-            var target = ResolveWithinRoot(root, key);
+            //anything escaping the extraction root is skipped (zip-slip, as in ArchiveService.ExtractAll)
+            var target = ArchiveEntries.ResolveWithinRoot(root, key, _log);
             if (target is null)
                 continue;
 
@@ -158,7 +151,7 @@ public class CombineService
     private void WriteCombined(
         List<List<ExtractedPage>> books, byte[]? xml, PageNaming naming, string destPath, CancellationToken ct)
     {
-        var tempPath = ArchiveStorage.Current.IsFile(destPath) ? TempSibling(destPath) : TempAnywhere();
+        var tempPath = ArchiveEntries.TempFor(destPath);
         try
         {
             using (var outStream = File.Create(tempPath))
@@ -166,7 +159,7 @@ public class CombineService
             {
                 if (xml is not null)
                 {
-                    var xmlEntry = zip.CreateEntry(ComicInfoName, CompressionLevel.Optimal);
+                    var xmlEntry = zip.CreateEntry(ArchiveEntries.ComicInfoName, CompressionLevel.Optimal);
                     using var xmlStream = xmlEntry.Open();
                     xmlStream.Write(xml, 0, xml.Length);
                 }
@@ -191,7 +184,7 @@ public class CombineService
         }
         finally
         {
-            TryDelete(tempPath);
+            ArchiveEntries.TryDelete(tempPath, _log);
         }
     }
 
@@ -263,43 +256,5 @@ public class CombineService
         {
             return false;
         }
-    }
-
-    private string? ResolveWithinRoot(string root, string key)
-    {
-        try
-        {
-            var target = Path.GetFullPath(Path.Combine(root, key.TrimStart('/')));
-            if (target.StartsWith(root, PathComparison.Comparison))
-                return target;
-            _log.Warning($"Skipped archive entry escaping the extraction root: '{key}'");
-            return null;
-        }
-        catch (Exception ex)
-        {
-            _log.Warning($"Skipped unresolvable archive entry '{key}': {ex.Message}");
-            return null;
-        }
-    }
-
-    //a document has no folder to put a sibling in
-    private static string TempAnywhere() => Path.Combine(Path.GetTempPath(), "cbzlab-" + Guid.NewGuid().ToString("N") + ".tmp");
-
-    private static string TempSibling(string path)
-    {
-        var dir = Path.GetDirectoryName(Path.GetFullPath(path)) ?? ".";
-        return Path.Combine(dir, "." + Path.GetFileName(path) + ".cbzlab-tmp");
-    }
-
-    private void TryDelete(string path)
-    {
-        try { if (File.Exists(path)) File.Delete(path); }
-        catch (Exception ex) { _log.Warning($"Could not delete temp file '{path}': {ex.Message}"); }
-    }
-
-    private void TryDeleteDir(string path)
-    {
-        try { if (Directory.Exists(path)) Directory.Delete(path, recursive: true); }
-        catch (Exception ex) { _log.Warning($"Could not delete temp directory '{path}': {ex.Message}"); }
     }
 }

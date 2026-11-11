@@ -2,13 +2,15 @@ using System.IO.Compression;
 using System.Net;
 using System.Net.Http;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace cbzLab.Services;
 
+//AssetSha256 is the hash github publishes for the asset, in hex; null when it gave none
 public record UpdateCheckResult(
     bool UpdateAvailable, string? LatestVersionTag, string? ReleaseUrl,
-    string? AssetDownloadUrl, string? AssetName, string? ErrorMessage);
+    string? AssetDownloadUrl, string? AssetName, string? ErrorMessage, string? AssetSha256 = null);
 
 /// <summary>
 /// Checks GitHub Releases for a newer version and, if the user opts in, downloads and
@@ -44,7 +46,7 @@ public class UpdateService
     {
         try
         {
-            var response = await _http.GetAsync(ReleasesLatestUrl);
+            using var response = await _http.GetAsync(ReleasesLatestUrl);
             if (response.StatusCode == HttpStatusCode.NotFound)
                 return new UpdateCheckResult(false, null, null, null, null, "No releases have been published yet.");
             response.EnsureSuccessStatusCode();
@@ -66,17 +68,24 @@ public class UpdateService
 
             string? assetUrl = null;
             string? assetName = null;
+            string? assetSha256 = null;
             if (isNewer && doc.RootElement.TryGetProperty("assets", out var assets))
             {
-                var available = assets.EnumerateArray()
+                var listed = assets.EnumerateArray()
                     .Select(a => (Name: a.GetProperty("name").GetString() ?? "",
-                                  Url: a.GetProperty("browser_download_url").GetString() ?? ""))
+                                  Url: a.GetProperty("browser_download_url").GetString() ?? "",
+                                  Digest: a.TryGetProperty("digest", out var d) && d.ValueKind == JsonValueKind.String
+                                      ? d.GetString() : null))
                     .ToList();
+                var available = listed.Select(a => (a.Name, a.Url)).ToList();
                 if (PickAsset(available, AssetSuffixesFor(CurrentPlatform())) is { } picked)
+                {
                     (assetName, assetUrl) = picked;
+                    assetSha256 = ParseSha256Digest(listed.First(a => a.Name == picked.Name && a.Url == picked.Url).Digest);
+                }
             }
 
-            return new UpdateCheckResult(isNewer, tag, htmlUrl, assetUrl, assetName, null);
+            return new UpdateCheckResult(isNewer, tag, htmlUrl, assetUrl, assetName, null, assetSha256);
         }
         catch (Exception ex)
         {
@@ -125,6 +134,23 @@ public class UpdateService
         return null;
     }
 
+    //github lists each release asset's hash as "sha256:<64 hex digits>". anything else (no hash,
+    //another algorithm, a malformed one) is null: nothing to check the download against
+    public static string? ParseSha256Digest(string? digest)
+    {
+        const string prefix = "sha256:";
+        if (digest is null || !digest.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            return null;
+        var hex = digest[prefix.Length..].Trim();
+        return hex.Length == 64 && hex.All(Uri.IsHexDigit) ? hex.ToLowerInvariant() : null;
+    }
+
+    public static string Sha256Of(string path)
+    {
+        using var stream = File.OpenRead(path);
+        return Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
+    }
+
     public static bool IsArchive(string assetName) =>
         assetName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)
         || assetName.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase);
@@ -152,6 +178,24 @@ public class UpdateService
                 await using var body = await response.Content.ReadAsStreamAsync();
                 await using var file = File.Create(downloadPath);
                 await body.CopyToAsync(file);
+            }
+
+            //a download that isn't byte for byte what the release lists never replaces the app:
+            //cut short, corrupted on the way, or swapped for something else
+            if (result.AssetSha256 is { } expected)
+            {
+                var actual = await Task.Run(() => Sha256Of(downloadPath));
+                if (!string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase))
+                {
+                    File.Delete(downloadPath);
+                    throw new InvalidDataException(
+                        $"The downloaded update doesn't match the release (SHA-256 {actual}, expected {expected})");
+                }
+                _log.Info($"Update {assetName} matches its published SHA-256");
+            }
+            else
+            {
+                _log.Warning($"The release lists no SHA-256 for {assetName}, so the download wasn't checked against one");
             }
 
             var currentExePath = Environment.ProcessPath

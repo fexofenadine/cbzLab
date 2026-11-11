@@ -24,8 +24,6 @@ public record FooterScan(int BandHeight, int PagesScanned, IReadOnlyList<FooterP
 /// </summary>
 public class FooterTrimService
 {
-    private const string ComicInfoName = "ComicInfo.xml";
-
     //luminance cutoffs for "ink black" and "paper white"; the bar is almost entirely these two
     private const double DarkCutoff = 40;
     private const double BrightCutoff = 200;
@@ -81,22 +79,23 @@ public class FooterTrimService
         if (band == 0)
             return new FooterScan(0, census.Count, Array.Empty<FooterPage>());
 
-        var hits = census.Where(c => IsBar(c, band)).Select(c => c.EntryKey).ToHashSet();
+        //first wins, as it did when this was a search: a damaged archive can repeat an entry name
+        var hits = new Dictionary<string, RowCensus>();
+        foreach (var c in census.Where(c => IsBar(c, band)))
+            hits.TryAdd(c.EntryKey, c);
         if (hits.Count == 0)
             return new FooterScan(0, census.Count, Array.Empty<FooterPage>());
 
-        //second decode, only for the pages actually flagged, to cut their preview strips
+        //second decode, only for the pages actually flagged, to cut their preview strips; the
+        //rest are skipped without being read out of the archive at all
         var pages = new List<FooterPage>();
-        foreach (var (key, bytes) in ReadImages(archivePath, ct))
+        foreach (var (key, bytes) in ReadImages(archivePath, ct, hits.ContainsKey))
         {
-            if (!hits.Contains(key))
-                continue;
             using var bmp = Decode(bytes, key);
             if (bmp is null)
                 continue;
 
-            var record = census.First(c => c.EntryKey == key);
-            var (dark, bright) = Shares(record, band);
+            var (dark, bright) = Shares(hits[key], band);
             pages.Add(new FooterPage(key, bmp.Width, bmp.Height, dark, bright, EncodeBandPreview(bmp, band)));
         }
 
@@ -228,10 +227,7 @@ public class FooterTrimService
         if (PathComparison.Same(Path.GetFullPath(sourcePath), Path.GetFullPath(destPath)))
             throw new ArgumentException("The trimmed archive must be written to a different file than the source.");
 
-        //a document has no folder to put a sibling in
-        var tempPath = ArchiveStorage.Current.IsFile(destPath)
-            ? destPath + ".cbzlab-tmp"
-            : Path.Combine(Path.GetTempPath(), "cbzlab-" + Guid.NewGuid().ToString("N") + ".tmp");
+        var tempPath = ArchiveEntries.TempFor(destPath);
         var trimmed = 0;
         try
         {
@@ -249,18 +245,14 @@ public class FooterTrimService
                         continue;
 
                     var key = entry.Key.Replace('\\', '/');
-                    using var entryStream = reader.OpenEntryStream();
-                    using var buffer = new MemoryStream();
-                    entryStream.CopyTo(buffer);
-                    var bytes = buffer.ToArray();
+                    var bytes = ArchiveEntries.ReadCurrent(reader);
 
                     seen++;
                     progress?.Invoke(seen, 0, Path.GetFileName(key));
 
-                    var isMetadata = Path.GetFileName(key).Equals(ComicInfoName, StringComparison.OrdinalIgnoreCase);
                     if (!keysToTrim.Contains(key))
                     {
-                        var level = isMetadata ? CompressionLevel.Optimal : CompressionLevel.NoCompression;
+                        var level = ArchiveEntries.IsComicInfo(key) ? CompressionLevel.Optimal : CompressionLevel.NoCompression;
                         using var passthrough = zip.CreateEntry(key, level).Open();
                         passthrough.Write(bytes, 0, bytes.Length);
                         continue;
@@ -287,8 +279,7 @@ public class FooterTrimService
         }
         finally
         {
-            try { if (File.Exists(tempPath)) File.Delete(tempPath); }
-            catch (Exception ex) { _log.Warning($"Could not delete temp file '{tempPath}': {ex.Message}"); }
+            ArchiveEntries.TryDelete(tempPath, _log);
         }
     }
 
@@ -351,7 +342,9 @@ public class FooterTrimService
 
     //---------------------------------------------------------------- helpers
 
-    private IEnumerable<(string Key, byte[] Bytes)> ReadImages(string archivePath, CancellationToken ct)
+    //wanted narrows it to some pages; the others are passed over without being decompressed
+    private IEnumerable<(string Key, byte[] Bytes)> ReadImages(
+        string archivePath, CancellationToken ct, Func<string, bool>? wanted = null)
     {
         using var stream = ArchiveStorage.Current.OpenRead(archivePath);
         using var reader = ReaderFactory.OpenReader(stream);
@@ -365,11 +358,10 @@ public class FooterTrimService
             var key = entry.Key.Replace('\\', '/');
             if (!IsImage(Path.GetFileName(key)) || ArchiveService.IsJunkEntry(key))
                 continue;
+            if (wanted is not null && !wanted(key))
+                continue;
 
-            using var entryStream = reader.OpenEntryStream();
-            using var buffer = new MemoryStream();
-            entryStream.CopyTo(buffer);
-            yield return (key, buffer.ToArray());
+            yield return (key, ArchiveEntries.ReadCurrent(reader));
         }
     }
 

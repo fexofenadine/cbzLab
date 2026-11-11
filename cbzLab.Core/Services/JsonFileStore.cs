@@ -1,50 +1,51 @@
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 
 namespace cbzLab.Services;
 
-/// <summary>Shared json-file persistence pattern for config-directory state. Never throws.</summary>
+/// <summary>
+/// Shared json-file persistence pattern for config-directory state. Never throws. Each call names
+/// the type's generated serialiser (see StoreJson), which also carries the formatting rules.
+/// </summary>
 public static class JsonFileStore
 {
-    //indented for hand-editability, tolerant of comments/trailing commas
-    public static readonly JsonSerializerOptions JsonOpts = new()
-    {
-        WriteIndented = true,
-        ReadCommentHandling = JsonCommentHandling.Skip,
-        AllowTrailingCommas = true,
-    };
-
     //defaultValue() only invoked when needed, so callers can build fresh collections lazily.
     //A file that exists but won't parse is renamed aside first: otherwise the next Save() would
     //overwrite it with defaults, silently destroying a hand-edit with one typo in it
-    public static T Load<T>(string path, LogService log, Func<T> defaultValue)
+    public static T Load<T>(string path, LogService log, JsonTypeInfo<T> type, Func<T> defaultValue)
     {
         try
         {
             if (File.Exists(path))
             {
-                var json = File.ReadAllText(path);
-                var loaded = JsonSerializer.Deserialize<T>(json, JsonOpts);
+                var loaded = JsonSerializer.Deserialize(File.ReadAllText(path), type);
                 if (loaded is not null)
                     return loaded;
             }
         }
-        catch (Exception ex)
+        catch (JsonException ex)
         {
             var kept = SetAside(path, log);
             log.Warning($"Failed to load '{Path.GetFileName(path)}', using defaults: {ex.Message}"
                 + (kept is null ? "" : $" (the unreadable file was kept as '{Path.GetFileName(kept)}')"));
+        }
+        catch (Exception ex)
+        {
+            //not the file's fault (it couldn't be read at all, or the serialiser itself failed), so
+            //it stays where it is: moving a good settings file aside would lose it for no reason
+            log.Warning($"Failed to load '{Path.GetFileName(path)}', using defaults: {ex.Message}");
         }
         return defaultValue();
     }
 
     //written to a temp file beside the target, then moved over it, so a crash or power cut mid-write
     //leaves either the old file or the new one - never a truncated one
-    public static bool Save<T>(string path, T value, LogService log)
+    public static bool Save<T>(string path, T value, JsonTypeInfo<T> type, LogService log)
     {
         var temp = path + ".tmp";
         try
         {
-            File.WriteAllText(temp, JsonSerializer.Serialize(value, JsonOpts));
+            File.WriteAllText(temp, JsonSerializer.Serialize(value, type));
             File.Move(temp, path, overwrite: true);
             return true;
         }
