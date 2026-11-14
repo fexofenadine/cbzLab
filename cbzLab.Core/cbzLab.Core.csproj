@@ -15,7 +15,7 @@
   <ItemGroup>
     <!--Avalonia's core only: the view models use its Bitmap (covers) and Thickness (spacing), and
         ThemeService its resource brushes, all of which run on every platform Avalonia does-->
-    <PackageReference Include="Avalonia" Version="12.1.5" />
+    <PackageReference Include="Avalonia" Version="12.1.6" />
     <!--cbr (rar) reading in ArchiveService-->
     <PackageReference Include="SharpCompress" Version="0.50.8" />
     <!--already present transitively as Avalonia's own rendering backend, so referencing it
