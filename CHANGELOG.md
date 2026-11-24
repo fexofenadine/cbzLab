@@ -10,8 +10,13 @@
 
 ## cbzLab (Avalonia)
 
-### Unreleased
+### 3.2.0 - 2026-11-24
 
+- **About: links to the cbzLab website and its GitHub page**, as two small buttons under the
+  description, on the desktop and on Android. Each opens in your browser.
+- Dependency updates: Avalonia 12.2.0 across the desktop, shared UI and Android projects (the
+  DataGrid stays on 12.1.2, which is its newest release), SharpCompress 0.50.9. Checked on the Android
+  emulator: it starts, About opens and its links launch the browser.
 - **Android: number boxes in Settings** (Editor font size, Max recent files, Recently typed values)
   showed their value too high and too far left in the box. They inherited the phone layout's
   labelled-field style, which keeps text near the top to leave room for a label; the value is now

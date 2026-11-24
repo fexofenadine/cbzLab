@@ -1,3 +1,7 @@
+3.2.0
+• About has links to the cbzLab website and its GitHub page
+• Android: the number boxes in Settings now show their value centred
+
 3.1.0
 • Android: settings apply as soon as you change them, with no Save button
 • Android: a smaller download, with one APK for each kind of phone

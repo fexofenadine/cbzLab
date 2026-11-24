@@ -1,7 +1,9 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
 using cbzLab.Services;
@@ -28,6 +30,28 @@ public partial class AboutDialog : DialogBase
         catch
         {
             //no shipped logo asset - hero area just stays blank, not fatal
+        }
+    }
+
+    private void OnOpenWebsite(object? sender, RoutedEventArgs e) => OpenLink("https://fexofenadine.github.io/cbzLab");
+
+    private void OnOpenGitHub(object? sender, RoutedEventArgs e) => OpenLink("https://github.com/fexofenadine/cbzLab");
+
+    private async void OpenLink(string url)
+    {
+        try
+        {
+            //the launcher works on android as well as desktop
+            if (TopLevel.GetTopLevel(this)?.Launcher is { } launcher)
+            {
+                await launcher.LaunchUriAsync(new Uri(url));
+                return;
+            }
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch
+        {
+            //no browser available - nothing useful to show in an about box
         }
     }
 
