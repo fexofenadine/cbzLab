@@ -17,7 +17,7 @@
         ThemeService its resource brushes, all of which run on every platform Avalonia does-->
     <PackageReference Include="Avalonia" Version="12.1.5" />
     <!--cbr (rar) reading in ArchiveService-->
-    <PackageReference Include="SharpCompress" Version="0.50.8" />
+    <PackageReference Include="SharpCompress" Version="0.50.9" />
     <!--already present transitively as Avalonia's own rendering backend, so referencing it
         directly costs no extra payload - pinned to the same version Avalonia.Skia resolves.
         Used by FooterTrimService for the one job Avalonia's own Bitmap can't do: decoding a
