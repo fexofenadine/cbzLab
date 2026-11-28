@@ -53,7 +53,23 @@ public sealed partial class AppActions
                 }
 
                 ViewModel.StatusText = "Fetching issue details…";
-                var detail = await ComicVine.GetIssueDetailAsync(match.IssueId);
+                ComicVineIssueDetail detail;
+                var progress = new ProgressDialog("ComicVine", 1);
+                progress.ShowNonBlocking(Owner);
+                try
+                {
+                    progress.ShowWorking("Fetching issue details…");
+                    detail = await LookupAsync(progress, ComicVine.GetIssueDetailAsync(match.IssueId));
+                }
+                catch (OperationCanceledException)
+                {
+                    ViewModel.StatusText = "ComicVine search cancelled";
+                    return;
+                }
+                finally
+                {
+                    progress.Complete();
+                }
 
                 var proposed = ComicVineService.MapToComicInfoFields(detail, volume);
                 var review = Settings.Settings.ComicVineAlwaysReview
@@ -92,7 +108,9 @@ public sealed partial class AppActions
         }
     }
 
-    //one series search shared across the selection, then per-file issue matching; every file always gets its own matched value
+    //the selection is split by series: each series is searched, matched and reviewed in turn (a
+    //single series is one round). Nothing is applied until every series is done, so cancelling
+    //any round leaves every file as it was
     private async Task RunBatchComicVineSearchAsync()
     {
         var files = ViewModel.SelectedFiles.ToList();
@@ -108,94 +126,46 @@ public sealed partial class AppActions
 
         try
         {
-            ComicVineVolume volume;
-            Dictionary<ComicFileViewModel, Dictionary<string, string>> perFileProposed;
-            List<string> skipped;
-            List<string> tagsToApply;
+            var groups = files.GroupBy(GuessSeriesForComicVine, StringComparer.OrdinalIgnoreCase).ToList();
+            var rounds = new List<BatchRound>();
+            var skipped = new List<string>();
 
-            //round again after "Change Series", with the search shown instead of the remembered series
-            for (var searchAgain = false; ; searchAgain = true)
+            for (var i = 0; i < groups.Count; i++)
             {
-                var resolved = await ResolveVolumeAndIssuesAsync(GuessSeriesForComicVine(files[0]), searchAgain);
-                if (resolved is not { } r)
+                var round = await RunBatchRoundAsync(groups[i].ToList(), groups.Count > 1 ? (i + 1, groups.Count) : null);
+                if (round is null)
                     return;
-                volume = r.Volume;
-                var issues = r.Issues;
+                if (round.Proposed.Count > 0)
+                    rounds.Add(round);
+                skipped.AddRange(round.Skipped);
+            }
 
-                var matchedIssueIds = new Dictionary<ComicFileViewModel, int>();
-                skipped = new List<string>();
-                var changeSeries = false;
-
-                foreach (var file in files)
-                {
-                    var match = await MatchIssueDialog.ShowAsync(
-                        Owner, volume, issues, file.GetValue("Number"),
-                        batch: true, contextLabel: $"Matching: {file.FileName}");
-                    if (match.Choice == MatchIssueChoice.CancelAll)
-                    {
-                        ViewModel.StatusText = "ComicVine batch search cancelled - nothing was changed";
-                        return;
-                    }
-                    if (match.Choice == MatchIssueChoice.ChangeSeries)
-                    {
-                        changeSeries = true;
-                        break;
-                    }
-                    if (match.Choice == MatchIssueChoice.Use)
-                        matchedIssueIds[file] = match.IssueId;
-                    else
-                        skipped.Add(file.FileName);
-                }
-                if (changeSeries)
-                    continue;
-
-                if (matchedIssueIds.Count == 0)
-                {
-                    ViewModel.StatusText = "No files matched to an issue";
-                    return;
-                }
-
-                perFileProposed = new Dictionary<ComicFileViewModel, Dictionary<string, string>>();
-                var fetchIndex = 0;
-                foreach (var (file, issueId) in matchedIssueIds)
-                {
-                    fetchIndex++;
-                    ViewModel.StatusText = $"Fetching issue {fetchIndex} of {matchedIssueIds.Count}…";
-                    var detail = await ComicVine.GetIssueDetailAsync(issueId);
-                    perFileProposed[file] = ComicVineService.MapToComicInfoFields(detail, volume);
-                }
-
-                var review = Settings.Settings.ComicVineAlwaysReview
-                    ? await ReviewComicVineBatchDialog.ShowAsync(Owner, perFileProposed, Schema, DescribeVolume(volume))
-                    : new ComicVineReview(perFileProposed.Values.SelectMany(d => d.Keys).Distinct().ToList());
-                if (review.ChangeSeries)
-                    continue;
-                if (review.Tags is not { Count: > 0 } chosen)
-                {
-                    ViewModel.StatusText = "ComicVine batch match not applied";
-                    return;
-                }
-                tagsToApply = chosen;
-                break;
+            if (rounds.Count == 0)
+            {
+                ViewModel.StatusText = "No files matched to an issue";
+                return;
             }
 
             var appliedFileCount = 0;
             using (ViewModel.History.Begin("ComicVine Batch Match"))
             using (ViewModel.DeferRefresh())
             {
-                foreach (var (file, proposed) in perFileProposed)
+                foreach (var round in rounds)
                 {
-                    var appliedToThisFile = false;
-                    foreach (var tag in tagsToApply)
+                    foreach (var (file, proposed) in round.Proposed)
                     {
-                        if (proposed.TryGetValue(tag, out var value))
+                        var appliedToThisFile = false;
+                        foreach (var tag in round.Tags)
                         {
-                            file.SetValue(tag, value);
-                            appliedToThisFile = true;
+                            if (proposed.TryGetValue(tag, out var value))
+                            {
+                                file.SetValue(tag, value);
+                                appliedToThisFile = true;
+                            }
                         }
+                        if (appliedToThisFile)
+                            appliedFileCount++;
                     }
-                    if (appliedToThisFile)
-                        appliedFileCount++;
                 }
             }
 
@@ -226,6 +196,99 @@ public sealed partial class AppActions
         }
     }
 
+    //what one series' round decided: the fields proposed per file, the ones ticked in its review,
+    //and the files it couldn't match
+    private sealed record BatchRound(
+        Dictionary<ComicFileViewModel, Dictionary<string, string>> Proposed,
+        List<string> Tags,
+        List<string> Skipped);
+
+    //one series: search (or the remembered match), per-file issue matching, then one review.
+    //null when cancelled or not applied, with the status already set
+    private async Task<BatchRound?> RunBatchRoundAsync(List<ComicFileViewModel> files, (int Number, int Of)? series)
+    {
+        //round again after "Change Series", with the search shown instead of the remembered series
+        for (var searchAgain = false; ; searchAgain = true)
+        {
+            var resolved = await ResolveVolumeAndIssuesAsync(GuessSeriesForComicVine(files[0]), searchAgain);
+            if (resolved is not { } r)
+                return null;
+            var volume = r.Volume;
+            var issues = r.Issues;
+
+            var matchedIssueIds = new Dictionary<ComicFileViewModel, int>();
+            var skipped = new List<string>();
+            var changeSeries = false;
+
+            foreach (var file in files)
+            {
+                var match = await MatchIssueDialog.ShowAsync(
+                    Owner, volume, issues, file.GetValue("Number"),
+                    batch: true, contextLabel: $"Matching: {file.FileName}");
+                if (match.Choice == MatchIssueChoice.CancelAll)
+                {
+                    ViewModel.StatusText = "ComicVine batch search cancelled - nothing was changed";
+                    return null;
+                }
+                if (match.Choice == MatchIssueChoice.ChangeSeries)
+                {
+                    changeSeries = true;
+                    break;
+                }
+                if (match.Choice == MatchIssueChoice.Use)
+                    matchedIssueIds[file] = match.IssueId;
+                else
+                    skipped.Add(file.FileName);
+            }
+            if (changeSeries)
+                continue;
+
+            var proposedByFile = new Dictionary<ComicFileViewModel, Dictionary<string, string>>();
+            if (matchedIssueIds.Count > 0)
+            {
+                var progress = new ProgressDialog("ComicVine", matchedIssueIds.Count);
+                progress.ShowNonBlocking(Owner);
+                try
+                {
+                    var fetchIndex = 0;
+                    foreach (var (file, issueId) in matchedIssueIds)
+                    {
+                        fetchIndex++;
+                        ViewModel.StatusText = $"Fetching issue {fetchIndex} of {matchedIssueIds.Count}…";
+                        progress.Report(fetchIndex, matchedIssueIds.Count, $"Fetching details: {file.FileName}");
+                        var detail = await LookupAsync(progress, ComicVine.GetIssueDetailAsync(issueId));
+                        proposedByFile[file] = ComicVineService.MapToComicInfoFields(detail, volume);
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    ViewModel.StatusText = "ComicVine batch search cancelled - nothing was changed";
+                    return null;
+                }
+                finally
+                {
+                    progress.Complete();
+                }
+            }
+
+            if (proposedByFile.Count == 0)
+                return new BatchRound(proposedByFile, new List<string>(), skipped);
+
+            var label = series is { } s ? $"{DescribeVolume(volume)} - series {s.Number} of {s.Of}" : DescribeVolume(volume);
+            var review = Settings.Settings.ComicVineAlwaysReview
+                ? await ReviewComicVineBatchDialog.ShowAsync(Owner, proposedByFile, Schema, label)
+                : new ComicVineReview(proposedByFile.Values.SelectMany(d => d.Keys).Distinct().ToList());
+            if (review.ChangeSeries)
+                continue;
+            if (review.Tags is not { Count: > 0 } chosen)
+            {
+                ViewModel.StatusText = "ComicVine batch match not applied";
+                return null;
+            }
+            return new BatchRound(proposedByFile, chosen, skipped);
+        }
+    }
+
     //"Saga (Image, 2012)": enough to tell two series of the same name apart
     private static string DescribeVolume(ComicVineVolume volume)
     {
@@ -253,7 +316,23 @@ public sealed partial class AppActions
         }
 
         ViewModel.StatusText = $"Looking up issues for {volume.Name}…";
-        var issues = await ComicVine.GetIssuesForVolumeAsync(volume.Id);
+        List<ComicVineIssueSummary> issues;
+        var progress = new ProgressDialog("ComicVine", 1);
+        progress.ShowNonBlocking(Owner);
+        try
+        {
+            progress.ShowWorking($"Looking up issues for {volume.Name}…");
+            issues = await LookupAsync(progress, ComicVine.GetIssuesForVolumeAsync(volume.Id));
+        }
+        catch (OperationCanceledException)
+        {
+            ViewModel.StatusText = "ComicVine search cancelled";
+            return null;
+        }
+        finally
+        {
+            progress.Complete();
+        }
         if (issues.Count == 0)
         {
             await MessageDialog.ShowAsync(Owner, "No issues found",
@@ -263,6 +342,21 @@ public sealed partial class AppActions
         }
 
         return (volume, issues);
+    }
+
+    //ComicVine requests are paced and can take a while, and the phone layout has no status bar to
+    //say so, so the wait sits behind a progress dialog. Cancel gives up waiting; the request
+    //finishes in the background and its result is cached
+    private static async Task<T> LookupAsync<T>(ProgressDialog progress, Task<T> lookup)
+    {
+        var cancelled = new TaskCompletionSource();
+        using var registration = progress.Token.Register(() => cancelled.TrySetResult());
+        if (await Task.WhenAny(lookup, cancelled.Task) != lookup)
+        {
+            _ = lookup.ContinueWith(t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
+            throw new OperationCanceledException(progress.Token);
+        }
+        return await lookup;
     }
 
     private static string GuessSeriesForComicVine(ComicFileViewModel file)

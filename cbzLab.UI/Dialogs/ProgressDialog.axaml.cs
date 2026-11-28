@@ -45,11 +45,21 @@ public partial class ProgressDialog : DialogBase
         LabelText.Text = "Cancelling - finishing the current file…";
     }
 
+    //for a wait with no countable steps, such as one lookup: a moving bar and a label
+    public void ShowWorking(string label)
+    {
+        if (_cts.IsCancellationRequested)
+            return;
+        Bar.IsIndeterminate = true;
+        LabelText.Text = label;
+    }
+
     //must be called on the ui thread
     public void Report(int current, int total, string fileName)
     {
         if (_cts.IsCancellationRequested)
             return;
+        Bar.IsIndeterminate = false;
         Bar.Maximum = Math.Max(1, total);
         Bar.Value = current;
         LabelText.Text = $"({current}/{total}) {fileName}";

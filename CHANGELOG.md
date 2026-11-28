@@ -12,6 +12,15 @@
 
 ### Unreleased
 
+- **ComicVine: a progress box while it works.** Looking up a series' issues and fetching each matched
+  issue now show a progress box (with Cancel) instead of leaving the screen looking idle. The phone
+  layout has no status bar, so on Android a batch of 12 books looked like nothing was happening for
+  as long as it took the review to appear. ComicVine allows about one request a second, so a big
+  batch still takes a while, but you can see it working and stop it.
+- **ComicVine: a selection of several series is searched series by series.** Search ComicVine used
+  to look up only the first book's series and match every selected book against it. Books are now
+  grouped by series: each series gets its own search (or its remembered match), matching and review,
+  and nothing is applied until every series is done, so cancelling leaves all books as they were.
 - **Security: SharpCompress 0.50.12** fixes a bug where opening a specially crafted ZIP could hang the
   app. Checked against every book in the test library, including a CBR.
 
