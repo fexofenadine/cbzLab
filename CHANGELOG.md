@@ -10,7 +10,12 @@
 
 ## cbzLab (Avalonia)
 
-### 3.2.0 - 2026-11-24
+### Unreleased
+
+- **Security: SharpCompress 0.50.12** fixes a bug where opening a specially crafted ZIP could hang the
+  app. Checked against every book in the test library, including a CBR.
+
+### 3.2.0 - 24/11/2026
 
 - **About: links to the cbzLab website and its GitHub page**, as two small buttons under the
   description, on the desktop and on Android. Each opens in your browser.
@@ -22,7 +27,7 @@
   labelled-field style, which keeps text near the top to leave room for a label; the value is now
   centred and lines up with the dropdowns above it.
 
-### 3.1.0 - 2026-11-11
+### 3.1.0 - 11/11/2026
 
 - **Android: settings apply as you change them**, as in Android's own settings. Picking a theme
   used to do nothing until Save was pressed, and it was easy to leave without pressing it; now a new
@@ -38,7 +43,7 @@
   shrunk with R8, and the bundled logo is stored at the 640 pixels it's actually shown at rather than
   1200 (the desktop's About box looks the same).
 
-### 3.0.0 - 2026-11-11
+### 3.0.0 - 11/11/2026
 
 - **Undo and redo** for every change to field values: **Edit → Undo / Redo** (Ctrl+Z, Ctrl+Y or
   Ctrl+Shift+Z), on the toolbar if you add them, and in the **⋮** menus on Android. Typing in a
@@ -102,7 +107,7 @@
   files, safe extraction paths and reading entries, and the desktop and Android field rows share
   their clipboard menu, keypad hints and date picker.
 
-### 2.5.0 - 2026-11-09
+### 2.5.0 - 09/11/2026
 
 - **Android: a new look, in Google's Material Design**, so cbzLab looks and works like other
   Android apps. The desktop app is unchanged.
@@ -125,7 +130,7 @@
 - Android: fixed Back leaving the app straight away, and the keyboard covering fields, after
   leaving cbzLab and reopening it soon afterwards. Leaving with Back now fully closes the app.
 
-### 2.4.4 - 2026-11-08
+### 2.4.4 - 08/11/2026
 
 - **Help → What's New** lists the new features and changes in each release, on the desktop and
   on Android.
@@ -134,11 +139,11 @@
   refreshes the bundled schema and themes again, which were only copied out when the version
   changed and so never were after the first install.
 
-### 2.4.3 - 2026-11-08
+### 2.4.3 - 08/11/2026
 
 - Dependency updates: Avalonia 12.1.5 across the desktop, shared UI and Android projects, SharpCompress 0.50.8.
 
-### 2.4.2 - 2026-11-02
+### 2.4.2 - 02/11/2026
 
 - Android: a smaller download. `cbzLab-2.4.2-android-arm64.apk` (about 19 MB, down from 48 MB) suits
   nearly every phone; the universal `cbzLab-2.4.2-android.apk` is still there for older 32-bit
@@ -167,14 +172,14 @@
 - Picking a book from Open Recent that no longer exists now closes the menu before saying so (it
   stayed open over the message), and names the book rather than showing its full address.
 
-### 2.4.1 - 2026-11-02
+### 2.4.1 - 02/11/2026
 
 - Android: **File → Open with Another File Manager…** opens books through any app that can hand over
   a file (Solid Explorer, Material Files and others, including their SMB, FTP and cloud locations),
   not only the system document picker. Books handed over this way may be read-only; saving then
   reports the problem and leaves the original untouched, and Save As picks somewhere writable.
 
-### 2.4.0 - 2026-11-02
+### 2.4.0 - 02/11/2026
 
 - Includes everything in 2.3.0 below (dialogs inside the main window, a minimum window size), which
   was never published as a release of its own.
@@ -198,7 +203,7 @@
   hides the toolbar and the cover header so the fields get the height. Nothing changes at the
   default window size.
 
-### 2.3.0 - 2026-11-02 (never published on its own; its changes ship in 2.4.0)
+### 2.3.0 - 02/11/2026 (never published on its own; its changes ship in 2.4.0)
 
 - **Dialogs now open inside the main window** instead of as separate windows. A dimmed backdrop
   covers the app while one is open, so nothing behind it can be clicked, and menus and shortcuts
@@ -212,7 +217,7 @@
 - This is groundwork for an Android version: the main view and dialogs now live in a shared
   library that an Android app will use as they are.
 
-### 2.2.0 - 2026-11-01
+### 2.2.0 - 01/11/2026
 
 - **Now runs on .NET 10.** cbzLab was built on .NET 8, whose support ends on 10 November 2026, after
   which it gets no more security fixes. .NET 10 is the current long-term support release, supported
@@ -224,7 +229,7 @@
   again.
 - Opening CBR files confirmed working with the updated SharpCompress from 2.1.1.
 
-### 2.1.1 - 2026-11-01
+### 2.1.1 - 01/11/2026
 
 A refreshed logo, and a browser edition.
 
@@ -236,7 +241,7 @@ A refreshed logo, and a browser edition.
   anything: https://fexofenadine.github.io/cbzLab/lite/. It has its own changelog in `cbzLite/`.
 - Updated SharpCompress, the library that reads CBR (RAR) archives, to 0.50.7.
 
-### 2.1.0 - 2026-09-27
+### 2.1.0 - 27/09/2026
 
 A review-driven fix release: safety, correctness, speed, and settings that had
 quietly stopped working.
@@ -304,7 +309,7 @@ quietly stopped working.
 - Logs older than 30 days are pruned, and backups no longer include autosave
   drafts.
 
-### 2.0.10 - 2026-09-27
+### 2.0.10 - 27/09/2026
 
 - Fixed Check for Updates being unable to install anything since 2.0.9. The
   updater only looked for a `.zip` (Windows) or `.tar.gz` (Linux) download,
@@ -315,7 +320,7 @@ quietly stopped working.
   executable, so installs older than this one can still update themselves.
 - Release notes now open with a short guide to which download to pick.
 
-### 2.0.9 - 2026-09-27
+### 2.0.9 - 27/09/2026
 
 - GitHub releases no longer bundle debug symbols into the main download. Each
   release now ships four assets: a plain Windows exe and a plain Linux binary
@@ -328,7 +333,7 @@ quietly stopped working.
   Updates dialogs kept reporting 2.0.7 even after 2.0.8 shipped. All three are
   back in sync as of this release.
 
-### 2.0.8 - 2026-09-21
+### 2.0.8 - 21/09/2026
 
 - Fixed the CI build, which had been failing since SkiaSharp was auto-bumped
   from 3.119.4 to 4.152.1. The app compiled fine, but every FooterTrimService
@@ -339,7 +344,7 @@ quietly stopped working.
 - Told Dependabot to leave SkiaSharp alone, so the same incompatible bump
   cannot land again on its own.
 
-### 2.0.7 - 2026-09-13
+### 2.0.7 - 13/09/2026
 
 - Extracting a "Publisher - Year" header from the summary is now a Tools
   command rather than something that happens on open. Running on every open
@@ -351,7 +356,7 @@ quietly stopped working.
   choose to run needs no switch, and a switch that gates nothing is just
   another setting that appears to do something and does not.
 
-### 2.0.6 - 2026-09-13
+### 2.0.6 - 13/09/2026
 
 - Some sources put the publisher and year at the top of the Summary instead of
   in the proper fields, as a "Publisher - Year" line followed by a blank line.
@@ -366,7 +371,7 @@ quietly stopped working.
   all began." is left completely alone. Any of the three dash characters works
   as the separator, since the summary was written by whoever packaged the book.
 
-### 2.0.5 - 2026-09-13
+### 2.0.5 - 13/09/2026
 
 - New File > Open Folder... (Ctrl+Shift+O, and an optional toolbar button):
   opens every cbz/cbr/zip/rar under a folder, including subfolders, in one go.
@@ -382,7 +387,7 @@ quietly stopped working.
 - File rows now show their full path as a tooltip, since after a recursive open
   two books in different subfolders can easily share a filename.
 
-### 2.0.4 - 2026-09-13
+### 2.0.4 - 13/09/2026
 
 - Opening a large batch of archives is dramatically faster. Measured on 2000
   books, a bulk import went from 6.52s to 0.12s (53x), and 10,000 books now
@@ -399,7 +404,7 @@ quietly stopped working.
   bulk import no longer pays for a second pass through each archive just to
   extract a cover it may never show.
 
-### 2.0.3 - 2026-09-13
+### 2.0.3 - 13/09/2026
 
 - New Tools → Combine Archives…, for reassembling a TPB that was released split
   across several files. Select two or more open archives, order them (defaulting
@@ -427,7 +432,7 @@ quietly stopped working.
   verbatim without decoding them; footer trimming is the one path that genuinely
   re-encodes, and only for the pages actually being cropped.
 
-### 2.0.2 - 2026-08-31
+### 2.0.2 - 31/08/2026
 
 - Fixed the editor field context menu: right-clicking selected text in any
   field only ever showed "Revert to Saved", with no way to Cut/Copy/Paste.
@@ -435,7 +440,7 @@ quietly stopped working.
   cut/copy/paste menu entirely rather than adding to it - `AttachRevertContextMenu`
   now rebuilds those items by hand alongside Revert to Saved.
 
-### 2.0.1 - 2026-08-23
+### 2.0.1 - 23/08/2026
 
 - New optional auto-update: on startup, checks GitHub Releases and - if
   enabled - downloads, swaps, and relaunches the app on confirm. Both checking
@@ -453,7 +458,7 @@ quietly stopped working.
 - First release actually cut end-to-end via the new tag-triggered release
   workflow, rather than a hand-run publish.
 
-### 2.0.0 - 2026-08-22
+### 2.0.0 - 22/08/2026
 
 Full rewrite onto Avalonia UI (C# / .NET 8), cross-platform from one codebase -
 Windows, Linux, and macOS (Intel and Apple Silicon). Reaches complete feature
@@ -486,7 +491,7 @@ theming - plus a batch of features the WinUI version never had:
 > Windows-only, no longer developed - see
 > [`cbzLab.winui3/ARCHIVED.md`](cbzLab.winui3/ARCHIVED.md). Kept for history.
 
-### 0.1.48 - 2026-08-15
+### 0.1.48 - 15/08/2026
 
 - Fixed grid view ctrl+click only extending selection when clicked in the leftmost
   (dirty-indicator) column.
@@ -494,30 +499,30 @@ theming - plus a batch of features the WinUI version never had:
   off now applies every proposed field directly.
 - Fixed the grid's right-click menu appearing over the column header row.
 
-### 0.1.47 - 2026-08-05
+### 0.1.47 - 05/08/2026
 
 - Fixed cover thumbnails sometimes showing the page after the real cover - now
   picked by natural-sorted filename instead of archive storage order. Same fix
   applies to "last page as cover".
 
-### 0.1.46 - 2026-08-05
+### 0.1.46 - 05/08/2026
 
 - Fixed dropdown fields (Black & White, Manga, Age Rating) offering no way to set
   a value in batch mode when none of the selected books already had it set.
 
-### 0.1.45 - 2026-07-15
+### 0.1.45 - 15/07/2026
 
 - Fixed the Series/Number file-list sort treating issue numbers as text instead
   of numbers.
 
-### 0.1.44 - 2026-07-13
+### 0.1.44 - 13/07/2026
 
 - Fixed a bug in the 0.1.41 date-picker fix: opening the picker on a file with a
   partial date silently wrote a placeholder Month/Day as a real edit.
 - New JsonFileStore helper consolidating repeated json load/save/fallback logic
   (~90 lines removed).
 
-### 0.1.43 - 2026-07-13
+### 0.1.43 - 13/07/2026
 
 Code-quality sweep - no user-visible changes besides one status-message fix.
 
@@ -526,17 +531,17 @@ Code-quality sweep - no user-visible changes besides one status-message fix.
 - Consolidated duplicated ComicVine search logic and dialog row-selection logic.
 - Simplified ComicFileViewModel's field-mutation methods.
 
-### 0.1.42 - 2026-07-13
+### 0.1.42 - 13/07/2026
 
 - Menu bar and menu items now render with a consistent text colour (previously
   duller than plain menu items in dark themes).
 
-### 0.1.41 - 2026-07-13
+### 0.1.41 - 13/07/2026
 
 - Fixed the date picker jumping to today instead of the field's existing date.
 - Fixed the Theme and Open Recent menus showing in a duller colour.
 
-### 0.1.40 - 2026-07-13
+### 0.1.40 - 13/07/2026
 
 Composite date field and narrow numeric-field row-sharing.
 
@@ -548,13 +553,13 @@ Composite date field and narrow numeric-field row-sharing.
 - New calendar-picker flyout alongside the text entry.
 - Fixed: reverting Year's row now also reverts Month/Day.
 
-### 0.1.39 - 2026-07-13
+### 0.1.39 - 13/07/2026
 
 - Fixed grid-view double-click doing nothing (switched from DoubleTapped to
   timing-based detection on Tapped).
 - Set SelectionMode="Extended" to fix ctrl+click not extending selection.
 
-### 0.1.38 - 2026-07-13
+### 0.1.38 - 13/07/2026
 
 Bulk editing grid, stage 2 of 2.
 
@@ -563,11 +568,11 @@ Bulk editing grid, stage 2 of 2.
   right-click adapts to selection size.
 - Selection now carries across the sidebar/grid toggle in both directions.
 
-### 0.1.37 - 2026-07-13
+### 0.1.37 - 13/07/2026
 
 - Fixed toolbar scroll buttons going inert after resizing the window.
 
-### 0.1.36 - 2026-07-13
+### 0.1.36 - 13/07/2026
 
 - Moved "Choose Columns…" from its own button row into the View menu and a grid
   right-click menu.
@@ -575,12 +580,12 @@ Bulk editing grid, stage 2 of 2.
   schema order.
 - Fixed the toolbar running off-screen at smaller widths - now scrolls instead.
 
-### 0.1.35 - 2026-07-13
+### 0.1.35 - 13/07/2026
 
 - Fixed grid view showing correct rows/columns but blank cells (a WPF-only
   binding idiom that doesn't carry over to WinUI).
 
-### 0.1.34 - 2026-07-13
+### 0.1.34 - 13/07/2026
 
 Bulk editing grid, stage 1 of 2 (display only).
 
@@ -590,12 +595,12 @@ Bulk editing grid, stage 1 of 2 (display only).
 - New Choose Columns dialog; columns built dynamically via a new
   FieldValueConverter.
 
-### 0.1.33 - 2026-07-13
+### 0.1.33 - 13/07/2026
 
 - Added Reset to Defaults to Settings, scoped to preferences only (not schema
   extras, recent values, or the ComicVine cache).
 
-### 0.1.32 - 2026-07-12
+### 0.1.32 - 12/07/2026
 
 ComicVine integration, stage 4 of 4 (batch).
 
@@ -604,7 +609,7 @@ ComicVine integration, stage 4 of 4 (batch).
 - New aggregated review dialog: fields that agree across every matched file show
   once and default checked; fields that differ are flagged and left unticked.
 
-### 0.1.31 - 2026-07-12
+### 0.1.31 - 12/07/2026
 
 ComicVine integration, stage 3 of 4 (field mapping & apply).
 
@@ -613,17 +618,17 @@ ComicVine integration, stage 3 of 4 (field mapping & apply).
 - New review dialog shows only fields that actually differ from the file's
   current values, current vs proposed side by side.
 
-### 0.1.30 - 2026-07-12
+### 0.1.30 - 12/07/2026
 
 - Fixed ComicVine's single-issue detail lookup, which needs the id prefixed with
   its resource-type code - unlike list/filter endpoints, which use a bare id.
 
-### 0.1.29 - 2026-07-12
+### 0.1.29 - 12/07/2026
 
 - Fixed a parse failure on issue-detail lookups: ComicVine's "results" field is
   sometimes a bare object, sometimes a single-element array.
 
-### 0.1.28 - 2026-07-12
+### 0.1.28 - 12/07/2026
 
 ComicVine integration, stage 2 of 4 (search & match UI, single-file only).
 
@@ -632,39 +637,39 @@ ComicVine integration, stage 2 of 4 (search & match UI, single-file only).
 - New issue-match dialog: a clean number match still asks for confirmation
   rather than applying silently.
 
-### 0.1.27 - 2026-07-12
+### 0.1.27 - 12/07/2026
 
 - Re-enabled PublishSingleFile - the 0.1.23 revert had blamed the wrong cause;
   the real fix was the WindowsAppSDK bump in 0.1.24.
 - Stopped copying unused per-culture localization folders.
 
-### 0.1.26 - 2026-07-12
+### 0.1.26 - 12/07/2026
 
 - Fixed a NullReferenceException: SortCombo's xaml-default selection fired its
   handler before ViewModel was assigned. Guarded that and an identical case in
   the tab-selection handler.
 
-### 0.1.25 - 2026-07-12
+### 0.1.25 - 12/07/2026
 
 - Fixed a package-downgrade build error from the WindowsAppSDK 1.8 bump.
 
-### 0.1.24 - 2026-07-12
+### 0.1.24 - 12/07/2026
 
 - Bumped WindowsAppSDK 1.6 → 1.8, fixing a launch crash traced to a version gap
   against a very new Windows Insider build.
 
-### 0.1.23 - 2026-07-12
+### 0.1.23 - 12/07/2026
 
 - Fixed the 0.1.3 launch crash: PublishSingleFile's native-DLL self-extraction
   isn't a supported combination for WinUI 3. Reverted single-file publish (later
   found not to be the actual cause - see 0.1.27).
 
-### 0.1.22 - 2026-07-12
+### 0.1.22 - 12/07/2026
 
 - Fixed a build error: WPF's 2-argument Thickness shorthand doesn't exist in
   WinUI's Thickness.
 
-### 0.1.21 - 2026-07-12
+### 0.1.21 - 12/07/2026
 
 ComicVine integration, stage 1 of 4 (foundation - no UI yet).
 
@@ -673,7 +678,7 @@ ComicVine integration, stage 1 of 4 (foundation - no UI yet).
 - New ComicVineService (search, issues-for-volume, issue detail) and
   ComicVineCacheService (persists lookups, remembers series→volume).
 
-### 0.1.20 - 2026-07-12
+### 0.1.20 - 12/07/2026
 
 - Keyboard navigation: Ctrl+1..5 jump to a tab, Ctrl+Tab cycles, F6/Shift+F6
   move focus.
@@ -681,101 +686,101 @@ ComicVine integration, stage 1 of 4 (foundation - no UI yet).
 - New "Copy Fields to Rest of Selection" batch tool.
 - Unsaved-file count badge on the Save All button.
 
-### 0.1.19 - 2026-07-12
+### 0.1.19 - 12/07/2026
 
 - Cover image source: first or last page.
 - Editor fields can now fill the available width instead of a fixed 780px cap.
 - Compact density option; editor font family setting; remember-last-tab toggle.
 
-### 0.1.18 - 2026-07-12
+### 0.1.18 - 12/07/2026
 
 - Sidebar sort mode, window size/position now persist across sessions.
 - New toggles: auto-select first file on open, clear filter on open.
 - Live-validation timing setting (as you type / on blur / off).
 - Recently-typed-values cap now configurable.
 
-### 0.1.17 - 2026-07-12
+### 0.1.17 - 12/07/2026
 
 - Improved selected-row text contrast on three light themes to meet WCAG AA.
 
-### 0.1.16 - 2026-07-12
+### 0.1.16 - 12/07/2026
 
 - Added 7 new bundled themes (15 total): Gruvbox Dark/Light, Catppuccin Mocha/
   Latte, Tokyo Night, True Black, High Contrast.
 
-### 0.1.15 - 2026-07-11
+### 0.1.15 - 11/07/2026
 
 - Added recently-typed values for single-line fields (Writer, Publisher, etc.) -
   a per-tag history, most-recent-first, capped at 12.
 
-### 0.1.14 - 2026-07-11
+### 0.1.14 - 11/07/2026
 
 - Added sidebar sort and filter, separate from the field search box.
 
-### 0.1.13 - 2026-07-11
+### 0.1.13 - 11/07/2026
 
 - Fixed Guess from Filename leaving generic leftover words ("issue", "chapter",
   etc.) as the Series instead of falling back to the folder name.
 
-### 0.1.12 - 2026-07-11
+### 0.1.12 - 11/07/2026
 
 - Added Guess from Filename: parses Series/Number/Volume/Year from the filename,
   falling back to the folder name for Series.
 
-### 0.1.11 - 2026-07-11
+### 0.1.11 - 11/07/2026
 
 - Corrected 0.1.10: the header banner's cover thumbnail now scales both
   dimensions, keeping its aspect ratio.
 
-### 0.1.10 - 2026-07-11
+### 0.1.10 - 11/07/2026
 
 - Doubled the height of the editor header banner's cover thumbnail.
 
-### 0.1.9 - 2026-07-09
+### 0.1.9 - 09/07/2026
 
 - Fixed a build error from a missing using directive.
 
-### 0.1.8 - 2026-07-09
+### 0.1.8 - 09/07/2026
 
 - Added cover previews: sidebar thumbnails and an editor header banner
   (single-file selection only).
 
-### 0.1.7 - 2026-07-09
+### 0.1.7 - 09/07/2026
 
 - Added drag-and-drop opening from Explorer.
 - Added live as-you-type validation for numeric fields.
 
-### 0.1.6 - 2026-07-07
+### 0.1.6 - 07/07/2026
 
 - File list: Ctrl+A selects all, Delete removes selection, right-click context
   menu.
 - Added a GitHub Actions build workflow.
 - Added structured logging to `%appdata%\cbzLab\logs`.
 
-### 0.1.5 - 2026-07-07
+### 0.1.5 - 07/07/2026
 
 - Fixed files being marked modified on open whenever auto page count filled an
   empty field.
 
-### 0.1.4 - 2026-07-07
+### 0.1.4 - 07/07/2026
 
 - Batch editing: entry/text fields gained the same detected-values picker combo
   fields already had.
 
-### 0.1.3 - 2026-07-07
+### 0.1.3 - 07/07/2026
 
 - Enabled single-file publish (later reverted in 0.1.23, re-enabled in 0.1.27).
 
-### 0.1.2 - 2026-07-07
+### 0.1.2 - 07/07/2026
 
 - Adapted to a SharpCompress API rename.
 
-### 0.1.1 - 2026-07-07
+### 0.1.1 - 07/07/2026
 
 - Bumped SharpCompress to clear a directory-traversal advisory; hardened archive
   extraction independently of the library fix.
 
-### 0.1.0 - 2026-07-07
+### 0.1.0 - 07/07/2026
 
 Initial WinUI 3 release, rebuilt from the Python/tkinter ComicInfoLab.
 
