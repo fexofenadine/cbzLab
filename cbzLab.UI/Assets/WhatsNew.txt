@@ -1,3 +1,8 @@
+3.2.1
+• ComicVine: a progress box while it looks things up, with Cancel
+• ComicVine: books from several series are matched series by series
+• A security fix for opening a specially crafted ZIP
+
 3.2.0
 • About has links to the cbzLab website and its GitHub page
 • Android: the number boxes in Settings now show their value centred

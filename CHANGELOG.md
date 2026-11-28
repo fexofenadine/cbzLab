@@ -10,7 +10,7 @@
 
 ## cbzLab (Avalonia)
 
-### Unreleased
+### 3.2.1 - 29/11/2026
 
 - **ComicVine: a progress box while it works.** Looking up a series' issues and fetching each matched
   issue now show a progress box (with Cancel) instead of leaving the screen looking idle. The phone
